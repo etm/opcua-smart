@@ -17,7 +17,7 @@ loadFile(const char *const path) {
     /* Get the file length, allocate the data and read */
     fseek(fp, 0, SEEK_END);
     fileContents.length = (size_t)ftell(fp);
-    fileContents.data = (UA_Byte *)UA_malloc(fileContents.length * sizeof(UA_Byte));
+    fileContents.data = (UA_Byte *)UA_malloc((fileContents.length * sizeof(UA_Byte)));
     if(fileContents.data) {
         fseek(fp, 0, SEEK_SET);
         size_t read = fread(fileContents.data, sizeof(UA_Byte), fileContents.length, fp);
@@ -50,8 +50,8 @@ int main(void) {
 		UA_EndpointDescription* endpointArray      = NULL;
 		size_t endpointArraySize = 0;
 
-		UA_ByteString certificate = loadFile("opc2mqtt.pem");
-		UA_ByteString privateKey = loadFile("opc2mqtt.der");
+		UA_ByteString certificate = loadFile("opc2mqtt.der");
+		UA_ByteString privateKey = loadFile("opc2mqtt_key.der");
 
     client = UA_Client_new(UA_ClientConfig_default);
     remoteCertificate = UA_ByteString_new();
@@ -100,6 +100,7 @@ int main(void) {
     //     }
 		// }
 
+    printf("halklo2\n");
     client = UA_Client_secure_new(
 			UA_ClientConfig_default,
       certificate,
@@ -111,16 +112,24 @@ int main(void) {
       revocationListSize,
 			UA_SecurityPolicy_Basic256Sha256
 		);
-    printf("halklo2\n");
+    UA_ByteString_deleteMembers(&certificate);
+    UA_ByteString_deleteMembers(&privateKey);
+    for(size_t deleteCount = 0; deleteCount < trustListSize; deleteCount++) {
+        UA_ByteString_deleteMembers(&trustList[deleteCount]);
+    }
 
-    retval = UA_Client_connect(client, "opc.tcp://localhost:8004");
-    // UA_StatusCode retval = UA_Client_connect_username(client, "opc.tcp://localhost:8004","OpcUaClient","SUNRISE");
+    printf("client %d\n",client);
+    printf("halklo2a\n");
+
+    // retval = UA_Client_connect(client, "opc.tcp://localhost:8004");
+    retval = UA_Client_connect_username(client, "opc.tcp://localhost:8004","OpcUaClient","SUNRISE");
     printf("halklo3\n");
 
     if(retval != UA_STATUSCODE_GOOD) {
-        UA_Client_delete(client);
-        return (int)retval;
+      cleanupClient(client, remoteCertificate);
+      return (int)retval;
     }
+    printf("halklo4\n");
 
     /* Read the value attribute of the node. UA_Client_readValueAttribute is a
      * wrapper for the raw read service available as UA_Client_Service_read. */
@@ -130,7 +139,9 @@ int main(void) {
     /* NodeId of the variable holding the current time */
     // const UA_NodeId nodeId = UA_NODEID_NUMERIC(0, UA_NS0ID_SERVER_SERVERSTATUS_CURRENTTIME);
     const UA_NodeId nodeId = UA_NODEID_STRING(2, "/Channel/State/progStatus");
+    printf("halklo5\n");
     retval = UA_Client_readValueAttribute(client, nodeId, &value);
+    printf("halklo6\n");
     printf("Status: 0x%08" PRIx32 "\n",retval);
 
     if (retval == UA_STATUSCODE_GOOD) {
