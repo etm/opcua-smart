@@ -110,7 +110,7 @@ int main(void) {
       trustListSize,
       revocationList,
       revocationListSize,
-			UA_SecurityPolicy_Basic256Sha256
+			UA_SecurityPolicy_Basic128Rsa15
 		);
     UA_ByteString_deleteMembers(&certificate);
     UA_ByteString_deleteMembers(&privateKey);
@@ -123,6 +123,7 @@ int main(void) {
 
     // retval = UA_Client_connect(client, "opc.tcp://localhost:8004");
     retval = UA_Client_connect_username(client, "opc.tcp://localhost:8004","OpcUaClient","SUNRISE");
+    printf("connect_username status: 0x%08" PRIx32 "\n",retval);
     printf("halklo3\n");
 
     if(retval != UA_STATUSCODE_GOOD) {
