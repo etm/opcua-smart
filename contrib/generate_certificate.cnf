@@ -1,0 +1,18 @@
+[req]
+distinguished_name = req_distinguished_name
+req_extensions     = v3_req
+x509_extensions    = v3_req
+
+[req_distinguished_name]
+commonName       = opc2mqtt
+emailAddress     = annika.stahn@acdp.at
+organizationName = CDP
+localityName     = AT
+countryName      = Austria
+
+[v3_req]
+# The extentions to add to a self-signed cert
+subjectKeyIdentifier = hash
+basicConstraints     = critical,CA:true
+subjectAltName       = URI:opc2mqtt:pythonopcua:client
+keyUsage             = critical,digitalSignature,keyEncipherment

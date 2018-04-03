@@ -50,12 +50,12 @@ int main(void) {
 		UA_EndpointDescription* endpointArray      = NULL;
 		size_t endpointArraySize = 0;
 
-		UA_ByteString certificate = loadFile("opc2mqtt.der");
-		UA_ByteString privateKey = loadFile("opc2mqtt_key.der");
+		UA_ByteString certificate = loadFile("cert.der");
+		UA_ByteString privateKey = loadFile("cert_key.der");
 
     client = UA_Client_new(UA_ClientConfig_default);
     remoteCertificate = UA_ByteString_new();
-    retval = UA_Client_getEndpoints(client, "opc.tcp://localhost:8004",
+    retval = UA_Client_getEndpoints(client, "opc.tcp://tango.wst.univie.ac.at:9200",
                                     &endpointArraySize, &endpointArray);
     if(retval != UA_STATUSCODE_GOOD) {
         UA_Array_delete(endpointArray, endpointArraySize,
@@ -110,7 +110,7 @@ int main(void) {
       trustListSize,
       revocationList,
       revocationListSize,
-			UA_SecurityPolicy_Basic128Rsa15
+			UA_SecurityPolicy_Basic256Sha256
 		);
     UA_ByteString_deleteMembers(&certificate);
     UA_ByteString_deleteMembers(&privateKey);
@@ -121,8 +121,10 @@ int main(void) {
     printf("client %d\n",client);
     printf("halklo2a\n");
 
-    // retval = UA_Client_connect(client, "opc.tcp://localhost:8004");
-    retval = UA_Client_connect_username(client, "opc.tcp://localhost:8004","OpcUaClient","SUNRISE");
+    //retval = UA_Client_connect(client, "opc.tcp://localhost:8004");
+    //retval = UA_Client_connect_username(client, "opc.tcp://tango.wst.univie.ac.at:48030","OpcUaClient","SUNRISE");
+    //retval = UA_Client_connect_username(client, "opc.tcp://localhost:48030","joe","god");
+    retval = UA_Client_connect_username(client, "opc.tcp://tango.wst.univie.ac.at:9200","OpcUaClient","SUNRISE");
     printf("connect_username status: 0x%08" PRIx32 "\n",retval);
     printf("halklo3\n");
 
