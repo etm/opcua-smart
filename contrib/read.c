@@ -36,7 +36,7 @@ static void cleanupClient(UA_Client* client, UA_ByteString* remoteCertificate) {
     UA_Client_delete(client); /* Disconnects the client internally */
 }
 
-#define CONN "opc.tcp://tango.wst.univie.ac.at:9200"
+#define CONN "opc.tcp://10.0.22.59:4840"
 //#define CONN "opc.tcp://localhost:8004"
 //#define CONN "opc.tcp://localhost:48030"
 
@@ -125,7 +125,7 @@ int main(void) {
     printf("client %d\n",client);
     printf("halklo2a\n");
 
-    retval = UA_Client_connect(client, CONN);
+    UA_Client_connect_username(client,CONN,"OpcUaClient","SUNRISE");
     printf("connect_username status: 0x%08" PRIx32 "\n",retval);
     printf("halklo3\n");
 
