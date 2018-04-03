@@ -36,6 +36,10 @@ static void cleanupClient(UA_Client* client, UA_ByteString* remoteCertificate) {
     UA_Client_delete(client); /* Disconnects the client internally */
 }
 
+#define CONN "opc.tcp://tango.wst.univie.ac.at:9200"
+//#define CONN "opc.tcp://localhost:8004"
+//#define CONN "opc.tcp://localhost:48030"
+
 int main(void) {
     UA_Client* client = NULL;
 
@@ -55,7 +59,7 @@ int main(void) {
 
     client = UA_Client_new(UA_ClientConfig_default);
     remoteCertificate = UA_ByteString_new();
-    retval = UA_Client_getEndpoints(client, "opc.tcp://tango.wst.univie.ac.at:9200",
+    retval = UA_Client_getEndpoints(client, CONN,
                                     &endpointArraySize, &endpointArray);
     if(retval != UA_STATUSCODE_GOOD) {
         UA_Array_delete(endpointArray, endpointArraySize,
@@ -121,10 +125,7 @@ int main(void) {
     printf("client %d\n",client);
     printf("halklo2a\n");
 
-    //retval = UA_Client_connect(client, "opc.tcp://localhost:8004");
-    //retval = UA_Client_connect_username(client, "opc.tcp://tango.wst.univie.ac.at:48030","OpcUaClient","SUNRISE");
-    //retval = UA_Client_connect_username(client, "opc.tcp://localhost:48030","joe","god");
-    retval = UA_Client_connect_username(client, "opc.tcp://tango.wst.univie.ac.at:9200","OpcUaClient","SUNRISE");
+    retval = UA_Client_connect(client, CONN);
     printf("connect_username status: 0x%08" PRIx32 "\n",retval);
     printf("halklo3\n");
 
