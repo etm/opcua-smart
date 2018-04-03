@@ -36,8 +36,8 @@ static void cleanupClient(UA_Client* client, UA_ByteString* remoteCertificate) {
     UA_Client_delete(client); /* Disconnects the client internally */
 }
 
-#define CONN "opc.tcp://10.0.22.59:4840"
-//#define CONN "opc.tcp://localhost:8004"
+//#define CONN "opc.tcp://10.0.22.59:4840"
+#define CONN "opc.tcp://localhost:8004"
 //#define CONN "opc.tcp://localhost:48030"
 
 int main(void) {
@@ -141,8 +141,8 @@ int main(void) {
     UA_Variant_init(&value);
 
     /* NodeId of the variable holding the current time */
-    // const UA_NodeId nodeId = UA_NODEID_NUMERIC(0, UA_NS0ID_SERVER_SERVERSTATUS_CURRENTTIME);
-    const UA_NodeId nodeId = UA_NODEID_STRING(2, "/Channel/State/progStatus");
+    const UA_NodeId nodeId = UA_NODEID_NUMERIC(0, UA_NS0ID_SERVER_SERVERSTATUS_CURRENTTIME);
+    // const UA_NodeId nodeId = UA_NODEID_STRING(2, "/Channel/State/progStatus");
     printf("halklo5\n");
     retval = UA_Client_readValueAttribute(client, nodeId, &value);
     printf("halklo6\n");
