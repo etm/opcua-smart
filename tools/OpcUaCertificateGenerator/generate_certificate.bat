@@ -1,0 +1,1 @@
+Opc.Ua.CertificateGenerator.exe -an opc2mqtt -au urn:opc2mqtt:pythonopcua:client -pem false -sp .\ -ks 2048
