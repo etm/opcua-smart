@@ -1,6 +1,6 @@
 require 'mkmf'
 
-spec = eval(File.read(__dir__ + '/../../opcua-smart.gemspec'))
+spec = eval(File.read(__dir__ + '/../../../opcua-server.gemspec'))
 
 $CFLAGS  = '-g -Wall ' + $CFLAGS
 $CFLAGS  << ''

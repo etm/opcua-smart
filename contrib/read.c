@@ -36,7 +36,8 @@ static void cleanupClient(UA_Client* client, UA_ByteString* remoteCertificate) {
     UA_Client_delete(client); /* Disconnects the client internally */
 }
 
-#define CONN "opc.tcp://tango.wst.univie.ac.at:9200"
+//#define CONN "opc.tcp://tango.wst.univie.ac.at:9200"
+#define CONN "opc.tcp://localhost:9200"
 //#define CONN "opc.tcp://localhost:8004"
 //#define CONN "opc.tcp://localhost:48030"
 
