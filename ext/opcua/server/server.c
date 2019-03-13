@@ -74,13 +74,13 @@ VALUE server_add_object_type(VALUE self, VALUE name) {
 
   dtAttr.displayName = UA_LOCALIZEDTEXT("en-US", nstr);
   UA_Server_addObjectTypeNode(pss->server,
-                              UA_NODEID_NULL,
+                              pns->id,
                               UA_NODEID_NUMERIC(0, UA_NS0ID_BASEOBJECTTYPE),
                               UA_NODEID_NUMERIC(0, UA_NS0ID_HASSUBTYPE),
                               UA_QUALIFIEDNAME(1, nstr),
                               dtAttr,
                               NULL,
-                              &(pns->id));
+                              NULL);
 
   return self;
 }
@@ -103,6 +103,7 @@ VALUE server_add_variable(VALUE self, VALUE parent, VALUE name) {
   char *nstr = (char *)StringValuePtr(str);
 
   UA_VariableAttributes mnAttr = UA_VariableAttributes_default;
+  mnAttr.displayName = UA_LOCALIZEDTEXT("en-US", nstr);
 
   pns = (nodeid_struct *)malloc(sizeof(nodeid_struct));
   pns->name = name;
@@ -112,14 +113,14 @@ VALUE server_add_variable(VALUE self, VALUE parent, VALUE name) {
   Data_Get_Struct(rb_hash_aref(pss->nodes, parent), nodeid_struct, par);
 
   UA_Server_addVariableNode(pss->server,
-                            UA_NODEID_NULL,
+                            pns->id,
                             par->id,
                             UA_NODEID_NUMERIC(0, UA_NS0ID_HASCOMPONENT),
                             UA_QUALIFIEDNAME(1, nstr),
                             UA_NODEID_NUMERIC(0, UA_NS0ID_BASEDATAVARIABLETYPE),
                             mnAttr,
                             NULL,
-                            &(pns->id));
+                            NULL);
 
   return self;
 }
