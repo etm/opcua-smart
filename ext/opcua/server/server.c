@@ -161,9 +161,11 @@ void Init_server(void) {
   rb_define_method(cTypesTopNode, "add_object_type", (VALUE(*)(ANYARGS))node_add_object_type, 1);
   rb_define_method(cTypesSubNode, "add_object_type", (VALUE(*)(ANYARGS))node_add_object_type, 1);
   rb_define_method(cTypesSubNode, "add_variable", (VALUE(*)(ANYARGS))node_add_variable, 1);
-
-  // rb_define_alloc_func(cONode, conode_alloc);
-  // rb_define_method(cONode, "initialize", conode_init, 0);
-  // rb_define_method(cONode, "add_object", (VALUE(*)(ANYARGS))conode_add_object, 1);
-  // rb_define_method(cONode, "add_variable", (VALUE(*)(ANYARGS))conode_add_variable, 1);
 }
+
+/*
+  Questions:
+    UA_NS0ID_HASSUBTYPE bei add_object_type???
+    UA_NS0ID_HASCOMPONENT bei add_variable???
+    UA_NS0ID_ORGANIZES bei calimat???
+*/
