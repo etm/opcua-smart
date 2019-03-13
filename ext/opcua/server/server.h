@@ -2,15 +2,13 @@
 #include <stdio.h>
 #include <open62541.h>
 
-RUBY_EXTERN VALUE cNodeId;
-
 typedef struct server_struct {
   UA_ServerConfig *config;
   UA_Server *server;
-  VALUE nodes;
+  UA_UInt16 default_ns;
 } server_struct;
 
-typedef struct nodeid_struct {
+typedef struct node_struct {
+  server_struct *server;
   UA_NodeId id;
-  VALUE name;
-} nodeid_struct;
+} node_struct;
