@@ -37,8 +37,9 @@ static void cleanupClient(UA_Client* client, UA_ByteString* remoteCertificate) {
 }
 
 //#define CONN "opc.tcp://tango.wst.univie.ac.at:9200"
-#define CONN "opc.tcp://localhost:9200"
 //#define CONN "opc.tcp://localhost:8004"
+//#define CONN "opc.tcp://10.0.22.59:4840"
+#define CONN "opc.tcp://localhost:8004"
 //#define CONN "opc.tcp://localhost:48030"
 
 int main(void) {
@@ -126,7 +127,7 @@ int main(void) {
     printf("client %d\n",client);
     printf("halklo2a\n");
 
-    retval = UA_Client_connect(client, CONN);
+    UA_Client_connect_username(client,CONN,"OpcUaClient","SUNRISE");
     printf("connect_username status: 0x%08" PRIx32 "\n",retval);
     printf("halklo3\n");
 
@@ -142,8 +143,8 @@ int main(void) {
     UA_Variant_init(&value);
 
     /* NodeId of the variable holding the current time */
-    // const UA_NodeId nodeId = UA_NODEID_NUMERIC(0, UA_NS0ID_SERVER_SERVERSTATUS_CURRENTTIME);
-    const UA_NodeId nodeId = UA_NODEID_STRING(2, "/Channel/State/progStatus");
+    const UA_NodeId nodeId = UA_NODEID_NUMERIC(0, UA_NS0ID_SERVER_SERVERSTATUS_CURRENTTIME);
+    // const UA_NodeId nodeId = UA_NODEID_STRING(2, "/Channel/State/progStatus");
     printf("halklo5\n");
     retval = UA_Client_readValueAttribute(client, nodeId, &value);
     printf("halklo6\n");
