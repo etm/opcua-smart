@@ -1,0 +1,28 @@
+; 20.02.2019 15:20:54
+#ST
+#WZ 1
+#MP 1
+#G1 -49.427
+#G2 -114.815
+#WZ 2
+#WT Testwkz
+#AA HSK 63
+#GR .\0102s.plt
+#GZ .\120grad.plt
+#MA HT65PM
+#MF HSK63
+#MS 2
+#ZA 120
+#ZW 100
+#MP 1
+#G1 -44.345
+#G2 -94.533
+#MP 2
+#G1 -44.345
+#G2 -94.533
+#WZ CNC-Test
+#MP 1
+#MK CNCTest.par
+
+#EN
+
