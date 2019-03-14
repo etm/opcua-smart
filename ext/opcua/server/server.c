@@ -23,6 +23,11 @@ VALUE node_alloc(VALUE klass, server_struct *server, UA_NodeId nodeid) { //{{{
 	return Data_Wrap_Struct(klass, NULL, node_free, ns);
 } //}}}
 /* ++ */
+VALUE node_type_folder(VALUE self) { //{{{
+  node_struct *ns;
+  Data_Get_Struct(self, node_struct, ns);
+  return node_alloc(cTypesTopNode, ns->server, UA_NODEID_NUMERIC(0, UA_NS0ID_FOLDERTYPE));
+} //}}}
 VALUE node_add_object_type(VALUE self, VALUE name) { //{{{
   node_struct *ns;
 
@@ -105,7 +110,7 @@ VALUE node_add_object(VALUE self, VALUE name, VALUE type) { //{{{
                           NULL,
                           NULL);
 
-  return node_alloc(cObjectsNode,ns->server,n);
+  return node_alloc(CLASS_OF(self),ns->server,n);
 } //}}}
 
 /* -- */
@@ -193,8 +198,10 @@ void Init_server(void) {
   rb_define_method(cServer, "objects", (VALUE(*)(ANYARGS))server_objects, 0);
 
   rb_define_method(cTypesTopNode, "add_object_type", (VALUE(*)(ANYARGS))node_add_object_type, 1);
+  rb_define_method(cTypesTopNode, "folder", (VALUE(*)(ANYARGS))node_type_folder, 0);
   rb_define_method(cTypesSubNode, "add_object_type", (VALUE(*)(ANYARGS))node_add_object_type, 1);
   rb_define_method(cTypesSubNode, "add_variable", (VALUE(*)(ANYARGS))node_add_variable, 1);
+  rb_define_method(cTypesSubNode, "add_object", (VALUE(*)(ANYARGS))node_add_object, 2);
 
   rb_define_method(cObjectsNode, "add_object", (VALUE(*)(ANYARGS))node_add_object, 2);
 }
