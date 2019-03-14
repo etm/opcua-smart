@@ -75,6 +75,34 @@ VALUE node_add_variable(VALUE self, VALUE name) { //{{{
 
   return node_alloc(cLeafNode,ns->server,n);
 } //}}}
+VALUE node_add_object(VALUE self, VALUE name, VALUE type) { //{{{
+  node_struct *ns;
+  node_struct *ts;
+
+  Data_Get_Struct(self, node_struct, ns);
+  Data_Get_Struct(type, node_struct, ts);
+
+  VALUE str = rb_obj_as_string(name);
+  if (NIL_P(str) || TYPE(str) != T_STRING)
+    rb_raise(rb_eTypeError, "cannot convert obj to string");
+  char *nstr = (char *)StringValuePtr(str);
+
+  UA_NodeId n = UA_NODEID_STRING(ns->server->default_ns, nstr);
+
+  UA_ObjectAttributes oAttr = UA_ObjectAttributes_default;
+                      oAttr.displayName = UA_LOCALIZEDTEXT("en-US", nstr);
+  UA_Server_addObjectNode(ns->server->server,
+                          n,
+                          ns->id,
+                          UA_NODEID_NUMERIC(0, UA_NS0ID_ORGANIZES),
+                          UA_QUALIFIEDNAME(ns->server->default_ns, nstr),
+                          ts->id,
+                          oAttr,
+                          NULL,
+                          NULL);
+
+  return node_alloc(cObjectsNode,ns->server,n);
+} //}}}
 
 /* -- */
 void server_free(server_struct *pss) { //{{{
@@ -137,7 +165,9 @@ VALUE server_types(VALUE self) { //{{{
   return node_alloc(cTypesTopNode, pss, UA_NODEID_NUMERIC(0, UA_NS0ID_BASEOBJECTTYPE));
 } //}}}
 VALUE server_objects(VALUE self) { //{{{
-  return self;
+  server_struct *pss;
+  Data_Get_Struct(self, server_struct, pss);
+  return node_alloc(cObjectsNode, pss, UA_NODEID_NUMERIC(0, UA_NS0ID_OBJECTSFOLDER));
 } //}}}
 
 void Init_server(void) {
@@ -161,6 +191,8 @@ void Init_server(void) {
   rb_define_method(cTypesTopNode, "add_object_type", (VALUE(*)(ANYARGS))node_add_object_type, 1);
   rb_define_method(cTypesSubNode, "add_object_type", (VALUE(*)(ANYARGS))node_add_object_type, 1);
   rb_define_method(cTypesSubNode, "add_variable", (VALUE(*)(ANYARGS))node_add_variable, 1);
+
+  rb_define_method(cObjectsNode, "add_object", (VALUE(*)(ANYARGS))node_add_object, 2);
 }
 
 /*

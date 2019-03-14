@@ -3,9 +3,10 @@ require_relative '../lib/opcua/server'
 
 Daemonite.new do
   server = OPCUA::Server.new
-  server.types.add_object_type(:PresetterType).tap do |pt|
+  pt = server.types.add_object_type(:PresetterType).tap{ |pt|
     pt.add_variable :ManufacturerName
-  end
+  }
+  server.objects.add_object :KalimatC34, pt
   run do
     sleep server.run
   end
