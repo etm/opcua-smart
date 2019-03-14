@@ -53,7 +53,7 @@ VALUE node_add_object_type(VALUE self, VALUE name) { //{{{
 
   return node_alloc(cTypesSubNode,ns->server,n);
 } //}}}
-VALUE node_add_variable(VALUE self, VALUE name) { //{{{
+VALUE node_add_variable(VALUE self, VALUE name, VALUE rule) { //{{{
   node_struct *ns;
 
   Data_Get_Struct(self, node_struct, ns);
@@ -78,9 +78,15 @@ VALUE node_add_variable(VALUE self, VALUE name) { //{{{
                             NULL,
                             NULL);
 
+  UA_Server_addReference(ns->server->server,
+                         n,
+                         UA_NODEID_NUMERIC(0, UA_NS0ID_HASMODELLINGRULE),
+                         UA_EXPANDEDNODEID_NUMERIC(0, UA_NS0ID_MODELLINGRULE_MANDATORY),
+                         true);
+
   return node_alloc(cLeafNode,ns->server,n);
 } //}}}
-VALUE node_add_object(VALUE self, VALUE name, VALUE type) { //{{{
+VALUE node_add_object(VALUE self, VALUE name, VALUE type, VALUE rule) { //{{{
   node_struct *ns;
   node_struct *ts;
 
@@ -103,12 +109,17 @@ VALUE node_add_object(VALUE self, VALUE name, VALUE type) { //{{{
   UA_Server_addObjectNode(ns->server->server,
                           n,
                           ns->id,
-                          UA_NODEID_NUMERIC(0, UA_NS0ID_ORGANIZES),
+                          UA_NODEID_NUMERIC(0, UA_NS0ID_HASCOMPONENT),
                           UA_QUALIFIEDNAME(ns->server->default_ns, nstr),
                           ts->id,
                           oAttr,
                           NULL,
                           NULL);
+  UA_Server_addReference(ns->server->server,
+                         n,
+                         UA_NODEID_NUMERIC(0, UA_NS0ID_HASMODELLINGRULE),
+                         UA_EXPANDEDNODEID_NUMERIC(0, UA_NS0ID_MODELLINGRULE_MANDATORY),
+                         true);
 
   return node_alloc(CLASS_OF(self),ns->server,n);
 } //}}}
@@ -183,6 +194,8 @@ void Init_server(void) {
   mOPCUA = rb_define_module("OPCUA");
 
   rb_define_const(mOPCUA, "TYPES_DOUBLE", INT2NUM(UA_TYPES_DOUBLE));
+  rb_define_const(mOPCUA, "MANDATORY", INT2NUM(UA_NS0ID_MODELLINGRULE_MANDATORY));
+  rb_define_const(mOPCUA, "OPTIONAL", INT2NUM(UA_NS0ID_MODELLINGRULE_OPTIONAL));
 
   cServer = rb_define_class_under(mOPCUA, "Server", rb_cObject);
   cObjectsNode  = rb_define_class_under(mOPCUA, "cObjectsNode", rb_cObject);
@@ -200,10 +213,10 @@ void Init_server(void) {
   rb_define_method(cTypesTopNode, "add_object_type", (VALUE(*)(ANYARGS))node_add_object_type, 1);
   rb_define_method(cTypesTopNode, "folder", (VALUE(*)(ANYARGS))node_type_folder, 0);
   rb_define_method(cTypesSubNode, "add_object_type", (VALUE(*)(ANYARGS))node_add_object_type, 1);
-  rb_define_method(cTypesSubNode, "add_variable", (VALUE(*)(ANYARGS))node_add_variable, 1);
-  rb_define_method(cTypesSubNode, "add_object", (VALUE(*)(ANYARGS))node_add_object, 2);
+  rb_define_method(cTypesSubNode, "add_variable", (VALUE(*)(ANYARGS))node_add_variable, 2);
+  rb_define_method(cTypesSubNode, "add_object", (VALUE(*)(ANYARGS))node_add_object, 3);
 
-  rb_define_method(cObjectsNode, "add_object", (VALUE(*)(ANYARGS))node_add_object, 2);
+  rb_define_method(cObjectsNode, "add_object", (VALUE(*)(ANYARGS))node_add_object, 3);
 }
 
 /*
