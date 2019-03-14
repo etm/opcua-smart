@@ -79,6 +79,10 @@ VALUE node_add_object(VALUE self, VALUE name, VALUE type) { //{{{
   node_struct *ns;
   node_struct *ts;
 
+  if (!(rb_obj_is_kind_of(type,cTypesTopNode) || rb_obj_is_kind_of(type,cTypesSubNode))) {
+    rb_raise(rb_eArgError, "argument 2 has to be a type.");
+  }
+
   Data_Get_Struct(self, node_struct, ns);
   Data_Get_Struct(type, node_struct, ts);
 
