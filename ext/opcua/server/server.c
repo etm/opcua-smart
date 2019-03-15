@@ -8,10 +8,10 @@ VALUE cTypesSubNode = Qnil;
 VALUE cLeafNode = Qnil;
 
 /* -- */
-void  node_free(node_struct *ns) { //{{{
+static void  node_free(node_struct *ns) { //{{{
   if (ns != NULL) { free(ns); }
 } //}}}
-VALUE node_alloc(VALUE klass, server_struct *server, UA_NodeId nodeid) { //{{{
+static VALUE node_alloc(VALUE klass, server_struct *server, UA_NodeId nodeid) { //{{{
   node_struct *ns;
   ns = (node_struct *)malloc(sizeof(node_struct));
   if (ns == NULL)
@@ -23,12 +23,12 @@ VALUE node_alloc(VALUE klass, server_struct *server, UA_NodeId nodeid) { //{{{
 	return Data_Wrap_Struct(klass, NULL, node_free, ns);
 } //}}}
 /* ++ */
-VALUE node_type_folder(VALUE self) { //{{{
+static VALUE node_type_folder(VALUE self) { //{{{
   node_struct *ns;
   Data_Get_Struct(self, node_struct, ns);
   return node_alloc(cTypesTopNode, ns->server, UA_NODEID_NUMERIC(0, UA_NS0ID_FOLDERTYPE));
 } //}}}
-VALUE node_add_object_type(VALUE self, VALUE name) { //{{{
+static VALUE node_add_object_type(VALUE self, VALUE name) { //{{{
   node_struct *ns;
 
   Data_Get_Struct(self, node_struct, ns);
@@ -53,12 +53,23 @@ VALUE node_add_object_type(VALUE self, VALUE name) { //{{{
 
   return node_alloc(cTypesSubNode,ns->server,n);
 } //}}}
-VALUE node_add_variable(VALUE self, VALUE name, VALUE rule) { //{{{
+static VALUE node_add_variable(int argc, VALUE* argv, VALUE self) { //{{{
   node_struct *ns;
+
+  if (argc > 2 || argc == 0) {  // there should only be 1 or 2 arguments
+    rb_raise(rb_eArgError, "wrong number of arguments");
+  }
+
+  UA_UInt32 type;
+  if (argc == 2) {
+    type = NUM2INT(argv[1]);
+  } else {
+    type = UA_NS0ID_MODELLINGRULE_MANDATORY;
+  }
 
   Data_Get_Struct(self, node_struct, ns);
 
-  VALUE str = rb_obj_as_string(name);
+  VALUE str = rb_obj_as_string(argv[0]);
   if (NIL_P(str) || TYPE(str) != T_STRING)
     rb_raise(rb_eTypeError, "cannot convert obj to string");
   char *nstr = (char *)StringValuePtr(str);
@@ -81,23 +92,34 @@ VALUE node_add_variable(VALUE self, VALUE name, VALUE rule) { //{{{
   UA_Server_addReference(ns->server->server,
                          n,
                          UA_NODEID_NUMERIC(0, UA_NS0ID_HASMODELLINGRULE),
-                         UA_EXPANDEDNODEID_NUMERIC(0, UA_NS0ID_MODELLINGRULE_MANDATORY),
+                         UA_EXPANDEDNODEID_NUMERIC(0, type),
                          true);
 
   return node_alloc(cLeafNode,ns->server,n);
 } //}}}
-VALUE node_add_object(VALUE self, VALUE name, VALUE type, VALUE rule) { //{{{
+static VALUE node_add_object(int argc, VALUE* argv, VALUE self) { //{{{
   node_struct *ns;
   node_struct *ts;
 
-  if (!(rb_obj_is_kind_of(type,cTypesTopNode) || rb_obj_is_kind_of(type,cTypesSubNode))) {
+  if (argc > 3 || argc < 2) {  // there should only be 2 or 3 arguments
+    rb_raise(rb_eArgError, "wrong number of arguments");
+  }
+
+  UA_UInt32 type;
+  if (argc == 3) {
+    type = NUM2INT(argv[2]);
+  } else {
+    type = UA_NS0ID_MODELLINGRULE_MANDATORY;
+  }
+
+  if (!(rb_obj_is_kind_of(argv[1],cTypesTopNode) || rb_obj_is_kind_of(argv[1],cTypesSubNode))) {
     rb_raise(rb_eArgError, "argument 2 has to be a type.");
   }
 
   Data_Get_Struct(self, node_struct, ns);
-  Data_Get_Struct(type, node_struct, ts);
+  Data_Get_Struct(argv[1], node_struct, ts);
 
-  VALUE str = rb_obj_as_string(name);
+  VALUE str = rb_obj_as_string(argv[0]);
   if (NIL_P(str) || TYPE(str) != T_STRING)
     rb_raise(rb_eTypeError, "cannot convert obj to string");
   char *nstr = (char *)StringValuePtr(str);
@@ -118,21 +140,21 @@ VALUE node_add_object(VALUE self, VALUE name, VALUE type, VALUE rule) { //{{{
   UA_Server_addReference(ns->server->server,
                          n,
                          UA_NODEID_NUMERIC(0, UA_NS0ID_HASMODELLINGRULE),
-                         UA_EXPANDEDNODEID_NUMERIC(0, UA_NS0ID_MODELLINGRULE_MANDATORY),
+                         UA_EXPANDEDNODEID_NUMERIC(0, type),
                          true);
 
   return node_alloc(CLASS_OF(self),ns->server,n);
 } //}}}
 
 /* -- */
-void server_free(server_struct *pss) { //{{{
+static void  server_free(server_struct *pss) { //{{{
   if (pss != NULL) {
     UA_Server_delete(pss->server);
     UA_ServerConfig_delete(pss->config);
     free(pss);
   }
 } //}}}
-VALUE server_alloc(VALUE self) { //{{{
+static VALUE server_alloc(VALUE self) { //{{{
   server_struct *pss;
   pss = (server_struct *)malloc(sizeof(server_struct));
   if (pss == NULL)
@@ -145,7 +167,7 @@ VALUE server_alloc(VALUE self) { //{{{
 	return Data_Wrap_Struct(self, NULL, server_free, pss);
 } //}}}
 /* ++ */ //}}}
-VALUE server_init(VALUE self) { //{{{
+static VALUE server_init(VALUE self) { //{{{
   server_struct *pss;
 
   Data_Get_Struct(self, server_struct, pss);
@@ -156,7 +178,7 @@ VALUE server_init(VALUE self) { //{{{
 
   return self;
 } //}}}
-VALUE server_run(VALUE self) { //{{{
+static VALUE server_run(VALUE self) { //{{{
   server_struct *pss;
 
   Data_Get_Struct(self, server_struct, pss);
@@ -165,7 +187,7 @@ VALUE server_run(VALUE self) { //{{{
 
   return rb_float_new(timeout/1000.0);
 } //}}}
-VALUE server_add_namespace(VALUE self, VALUE name) { //{{{
+static VALUE server_add_namespace(VALUE self, VALUE name) { //{{{
   server_struct *pss;
 
   Data_Get_Struct(self, server_struct, pss);
@@ -179,12 +201,12 @@ VALUE server_add_namespace(VALUE self, VALUE name) { //{{{
   pss->default_ns = UA_Server_addNamespace(pss->server, nstr);
   return self;
 } //}}}
-VALUE server_types(VALUE self) { //{{{
+static VALUE server_types(VALUE self) { //{{{
   server_struct *pss;
   Data_Get_Struct(self, server_struct, pss);
   return node_alloc(cTypesTopNode, pss, UA_NODEID_NUMERIC(0, UA_NS0ID_BASEOBJECTTYPE));
 } //}}}
-VALUE server_objects(VALUE self) { //{{{
+static VALUE server_objects(VALUE self) { //{{{
   server_struct *pss;
   Data_Get_Struct(self, server_struct, pss);
   return node_alloc(cObjectsNode, pss, UA_NODEID_NUMERIC(0, UA_NS0ID_OBJECTSFOLDER));
@@ -194,6 +216,10 @@ void Init_server(void) {
   mOPCUA = rb_define_module("OPCUA");
 
   rb_define_const(mOPCUA, "TYPES_DOUBLE", INT2NUM(UA_TYPES_DOUBLE));
+  rb_define_const(mOPCUA, "TYPES_STRING", INT2NUM(UA_TYPES_STRING));
+  rb_define_const(mOPCUA, "TYPES_BOOLEAN", INT2NUM(UA_TYPES_BOOLEAN));
+  rb_define_const(mOPCUA, "TYPES_DATETIME", INT2NUM(UA_TYPES_DATETIME));
+
   rb_define_const(mOPCUA, "MANDATORY", INT2NUM(UA_NS0ID_MODELLINGRULE_MANDATORY));
   rb_define_const(mOPCUA, "OPTIONAL", INT2NUM(UA_NS0ID_MODELLINGRULE_OPTIONAL));
 
@@ -205,18 +231,18 @@ void Init_server(void) {
 
   rb_define_alloc_func(cServer, server_alloc);
   rb_define_method(cServer, "initialize", server_init, 0);
-  rb_define_method(cServer, "run", (VALUE(*)(ANYARGS))server_run, 0);
-  rb_define_method(cServer, "add_namespace", (VALUE(*)(ANYARGS))server_add_namespace, 1);
-  rb_define_method(cServer, "types", (VALUE(*)(ANYARGS))server_types, 0);
-  rb_define_method(cServer, "objects", (VALUE(*)(ANYARGS))server_objects, 0);
+  rb_define_method(cServer, "run", server_run, 0);
+  rb_define_method(cServer, "add_namespace", server_add_namespace, 1);
+  rb_define_method(cServer, "types", server_types, 0);
+  rb_define_method(cServer, "objects", server_objects, 0);
 
-  rb_define_method(cTypesTopNode, "add_object_type", (VALUE(*)(ANYARGS))node_add_object_type, 1);
-  rb_define_method(cTypesTopNode, "folder", (VALUE(*)(ANYARGS))node_type_folder, 0);
-  rb_define_method(cTypesSubNode, "add_object_type", (VALUE(*)(ANYARGS))node_add_object_type, 1);
-  rb_define_method(cTypesSubNode, "add_variable", (VALUE(*)(ANYARGS))node_add_variable, 2);
-  rb_define_method(cTypesSubNode, "add_object", (VALUE(*)(ANYARGS))node_add_object, 3);
+  rb_define_method(cTypesTopNode, "add_object_type", node_add_object_type, 1);
+  rb_define_method(cTypesTopNode, "folder", node_type_folder, 0);
+  rb_define_method(cTypesSubNode, "add_object_type", node_add_object_type, 1);
+  rb_define_method(cTypesSubNode, "add_variable", node_add_variable, -1);
+  rb_define_method(cTypesSubNode, "add_object", node_add_object, -1);
 
-  rb_define_method(cObjectsNode, "add_object", (VALUE(*)(ANYARGS))node_add_object, 3);
+  rb_define_method(cObjectsNode, "add_object", node_add_object, -1);
 }
 
 /*

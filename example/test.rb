@@ -1,7 +1,22 @@
 #!/usr/bin/ruby
-require_relative '../lib/opcua/server'
 
-server = OPCUA::Server.new
-p server.types
-p (pt = server.types.add_object_type :PresetterType)
-p pt.add_variable :ManufacturerName
+
+tools = {}
+active = false
+current = nil
+File.read('kelch.KMT').lines.each do |l|
+  l.chop!
+  next if l.empty?
+  if l == "#ST"
+    active = true
+    next
+  end
+  active = false if l == "#EN"
+  if active
+    parts = l.split(' ',2)
+    if parts[0] == '#WZ'
+      current = parts[1]
+      tools[current] = {}
+    end
+  end
+end
