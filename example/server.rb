@@ -25,9 +25,8 @@ Daemonite.new do
     }
   }
 
-  root = server.objects.instantiate :KalimatC34, pt
+  tools = server.objects.instantiate(:KalimatC34, pt).find(:Tools)
 
-  tools = root.find(:Tools)
   t1 = tools.instantiate(:Tool1,tt)
   t2 = tools.instantiate(:Tool2,tt)
   t3 = tools.instantiate(:Tool3,tt)
