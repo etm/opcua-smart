@@ -61,7 +61,7 @@ static VALUE node_add_variable(int argc, VALUE* argv, VALUE self) { //{{{
   }
 
   UA_UInt32 type;
-  if (argc == 2) {
+  if (argc == 2 && argv[1] != Qnil) {
     type = NUM2INT(argv[1]);
   } else {
     type = UA_NS0ID_MODELLINGRULE_MANDATORY;
@@ -89,13 +89,19 @@ static VALUE node_add_variable(int argc, VALUE* argv, VALUE self) { //{{{
                             NULL,
                             NULL);
 
-  UA_Server_addReference(ns->server->server,
-                         n,
-                         UA_NODEID_NUMERIC(0, UA_NS0ID_HASMODELLINGRULE),
-                         UA_EXPANDEDNODEID_NUMERIC(0, type),
-                         true);
+  if (argv[1] != Qnil) {
+    UA_Server_addReference(ns->server->server,
+                           n,
+                           UA_NODEID_NUMERIC(0, UA_NS0ID_HASMODELLINGRULE),
+                           UA_EXPANDEDNODEID_NUMERIC(0, type),
+                           true);
+  }
 
   return node_alloc(cLeafNode,ns->server,n);
+} //}}}
+static VALUE node_add_variable_without(VALUE self, VALUE name) { //{{{
+  VALUE argv[] = { name, Qnil };
+  return node_add_variable(2,argv,self);
 } //}}}
 static VALUE node_add_object(int argc, VALUE* argv, VALUE self) { //{{{
   node_struct *ns;
@@ -106,7 +112,7 @@ static VALUE node_add_object(int argc, VALUE* argv, VALUE self) { //{{{
   }
 
   UA_UInt32 type;
-  if (argc == 3) {
+  if (argc == 3 && argv[2] != Qnil) {
     type = NUM2INT(argv[2]);
   } else {
     type = UA_NS0ID_MODELLINGRULE_MANDATORY;
@@ -137,13 +143,20 @@ static VALUE node_add_object(int argc, VALUE* argv, VALUE self) { //{{{
                           oAttr,
                           NULL,
                           NULL);
-  UA_Server_addReference(ns->server->server,
-                         n,
-                         UA_NODEID_NUMERIC(0, UA_NS0ID_HASMODELLINGRULE),
-                         UA_EXPANDEDNODEID_NUMERIC(0, type),
-                         true);
+
+  if (argv[2] != Qnil) {
+    UA_Server_addReference(ns->server->server,
+                           n,
+                           UA_NODEID_NUMERIC(0, UA_NS0ID_HASMODELLINGRULE),
+                           UA_EXPANDEDNODEID_NUMERIC(0, type),
+                           true);
+  }
 
   return node_alloc(CLASS_OF(self),ns->server,n);
+} //}}}
+static VALUE node_add_object_without(VALUE self, VALUE name, VALUE parent) { //{{{
+  VALUE argv[] = { name, parent, Qnil };
+  return node_add_object(3,argv,self);
 } //}}}
 
 /* -- */
@@ -221,7 +234,9 @@ void Init_server(void) {
   rb_define_const(mOPCUA, "TYPES_DATETIME", INT2NUM(UA_TYPES_DATETIME));
 
   rb_define_const(mOPCUA, "MANDATORY", INT2NUM(UA_NS0ID_MODELLINGRULE_MANDATORY));
+  rb_define_const(mOPCUA, "MANDATORYPLACEHOLDER", INT2NUM(UA_NS0ID_MODELLINGRULE_MANDATORYPLACEHOLDER));
   rb_define_const(mOPCUA, "OPTIONAL", INT2NUM(UA_NS0ID_MODELLINGRULE_OPTIONAL));
+  rb_define_const(mOPCUA, "OPTIONALPLACEHOLDER", INT2NUM(UA_NS0ID_MODELLINGRULE_OPTIONALPLACEHOLDER));
 
   cServer = rb_define_class_under(mOPCUA, "Server", rb_cObject);
   cObjectsNode  = rb_define_class_under(mOPCUA, "cObjectsNode", rb_cObject);
@@ -242,7 +257,8 @@ void Init_server(void) {
   rb_define_method(cTypesSubNode, "add_variable", node_add_variable, -1);
   rb_define_method(cTypesSubNode, "add_object", node_add_object, -1);
 
-  rb_define_method(cObjectsNode, "add_object", node_add_object, -1);
+  rb_define_method(cObjectsNode, "add_object", node_add_object_without, 2);
+  rb_define_method(cObjectsNode, "add_variable", node_add_variable_without, 1);
 }
 
 /*
