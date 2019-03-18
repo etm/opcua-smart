@@ -200,7 +200,9 @@ static VALUE node_set_value(VALUE self, VALUE value) { //{{{
 
   UA_Variant variant;
   if (rb_obj_is_kind_of(value,rb_cTime)) {
-    return Qnil;
+    UA_DateTime tmp = UA_DateTime_fromUnixTime(rb_time_timeval(value).tv_sec);
+    UA_Variant_setScalar(&variant, &tmp, &UA_TYPES[UA_TYPES_DATETIME]);
+    UA_Server_writeValue(ns->server->server, ns->id, variant);
   } else {
     switch (TYPE(value)) {
       case T_FALSE:
@@ -236,8 +238,6 @@ static VALUE node_set_value(VALUE self, VALUE value) { //{{{
           UA_Server_writeValue(ns->server->server, ns->id, variant);
           break;
         }
-      default:
-        return Qnil;
     }
   }
   return Qnil;
@@ -251,25 +251,25 @@ static VALUE node_value(VALUE self) { //{{{
   UA_Variant_init(&value);
   UA_StatusCode retval = UA_Server_readValue(ns->server->server, ns->id, &value);
 
+  VALUE ret = Qnil;
   if (retval == UA_STATUSCODE_GOOD) {
     if (UA_Variant_hasScalarType(&value, &UA_TYPES[UA_TYPES_DATETIME])) {
       UA_DateTime raw = *(UA_DateTime *) value.data;
-      UA_DateTimeStruct dts = UA_DateTime_toStruct(raw);
-      UA_LOG_INFO(UA_Log_Stdout, UA_LOGCATEGORY_USERLAND, "date is: %u-%u-%u %u:%u:%u.%03u\n", dts.day, dts.month, dts.year, dts.hour, dts.min, dts.sec, dts.milliSec);
+      ret = rb_time_new(UA_DateTime_toUnixTime(raw),0);
     } else if (UA_Variant_hasScalarType(&value, &UA_TYPES[UA_TYPES_BOOLEAN])) {
       UA_Boolean raw = *(UA_Boolean *) value.data;
-      return raw ? Qtrue : Qfalse;
+      ret = raw ? Qtrue : Qfalse;
     } else if (UA_Variant_hasScalarType(&value, &UA_TYPES[UA_TYPES_DOUBLE])) {
       UA_Double raw = *(UA_Double *) value.data;
-      return DBL2NUM(raw);
+      ret = DBL2NUM(raw);
     } else if (UA_Variant_hasScalarType(&value, &UA_TYPES[UA_TYPES_STRING])) {
       UA_String raw = *(UA_String *) value.data;
-      return rb_str_new((char *)(raw.data),raw.length);
+      ret = rb_str_new((char *)(raw.data),raw.length);
     }
   }
 
   UA_Variant_clear(&value);
-  return Qnil;
+  return ret;
 } //}}}
 /* -- */
 static void  server_free(server_struct *pss) { //{{{
@@ -339,12 +339,6 @@ static VALUE server_objects(VALUE self) { //{{{
 
 void Init_server(void) {
   mOPCUA = rb_define_module("OPCUA");
-
-  rb_define_const(mOPCUA, "TYPES_DOUBLE", INT2NUM(UA_TYPES_DOUBLE));
-  rb_define_const(mOPCUA, "TYPES_STRING", INT2NUM(UA_TYPES_STRING));
-  rb_define_const(mOPCUA, "TYPES_BOOLEAN", INT2NUM(UA_TYPES_BOOLEAN));
-  rb_define_const(mOPCUA, "TYPES_DATETIME", INT2NUM(UA_TYPES_DATETIME));
-
   rb_define_const(mOPCUA, "MANDATORY", INT2NUM(UA_NS0ID_MODELLINGRULE_MANDATORY));
   rb_define_const(mOPCUA, "MANDATORYPLACEHOLDER", INT2NUM(UA_NS0ID_MODELLINGRULE_MANDATORYPLACEHOLDER));
   rb_define_const(mOPCUA, "OPTIONAL", INT2NUM(UA_NS0ID_MODELLINGRULE_OPTIONAL));
