@@ -21,13 +21,15 @@ Daemonite.new do
   pt = server.types.add_object_type(:PresetterType).tap{ |t|
     t.add_variable :ManufacturerName
     t.add_object(:Tools, server.types.folder).tap{ |u|
-      u.add_object :Tool, tt, OPCUA::OPTIONALPLACEHOLDER
+      u.add_object :Tool, tt, OPCUA::OPTIONAL
     }
   }
 
+  p OPCUA::OPTIONALPLACEHOLDER
+
   server.objects.add_object :KalimatC34, pt
 
-  # tools = server.objects.find(:Tools)
+  p tools = server.objects.find(:Tools)
 
   # t1 = tools.instantiate(:Tool,:Tool1)
   # t2 = tools.instantiate(:Tool,:Tool2)

@@ -158,6 +158,38 @@ static VALUE node_add_object_without(VALUE self, VALUE name, VALUE parent) { //{
   VALUE argv[] = { name, parent, Qnil };
   return node_add_object(3,argv,self);
 } //}}}
+static VALUE node_find(VALUE self, VALUE qname) { //{{{
+  node_struct *ns;
+
+  Data_Get_Struct(self, node_struct, ns);
+
+  VALUE str = rb_obj_as_string(qname);
+  if (NIL_P(str) || TYPE(str) != T_STRING)
+    rb_raise(rb_eTypeError, "cannot convert obj to string");
+  char *nstr = (char *)StringValuePtr(str);
+
+  /* Find the NodeId of the status child variable */
+  UA_RelativePathElement rpe;
+  UA_RelativePathElement_init(&rpe);
+  rpe.referenceTypeId = UA_NODEID_NUMERIC(0, UA_NS0ID_HIERARCHICALREFERENCES);
+  rpe.isInverse = false;
+  rpe.includeSubtypes = false;
+  rpe.targetName = UA_QUALIFIEDNAME(1, nstr);
+
+  UA_BrowsePath bp;
+  UA_BrowsePath_init(&bp);
+  bp.startingNode = ns->id;
+  bp.relativePath.elementsSize = 1;
+  bp.relativePath.elements = &rpe;
+
+  UA_BrowsePathResult bpr = UA_Server_translateBrowsePathToNodeIds(ns->server->server, &bp);
+
+  if(bpr.statusCode != UA_STATUSCODE_GOOD || bpr.targetsSize < 1) {}
+
+  UA_BrowsePathResult_clear(&bpr);
+
+  return node_alloc(CLASS_OF(self),ns->server,bpr.targets[0].targetId.nodeId);
+} //}}}
 
 /* -- */
 static void  server_free(server_struct *pss) { //{{{
@@ -259,6 +291,7 @@ void Init_server(void) {
 
   rb_define_method(cObjectsNode, "add_object", node_add_object_without, 2);
   rb_define_method(cObjectsNode, "add_variable", node_add_variable_without, 1);
+  rb_define_method(cObjectsNode, "find", node_find, 1);
 }
 
 /*
