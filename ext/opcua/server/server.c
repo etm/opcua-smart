@@ -171,10 +171,10 @@ static VALUE node_find(VALUE self, VALUE qname) { //{{{
   /* Find the NodeId of the status child variable */
   UA_RelativePathElement rpe;
   UA_RelativePathElement_init(&rpe);
-  rpe.referenceTypeId = UA_NODEID_NUMERIC(0, UA_NS0ID_HIERARCHICALREFERENCES);
+  rpe.referenceTypeId = UA_NODEID_NUMERIC(0, UA_NS0ID_HASCOMPONENT);
   rpe.isInverse = false;
   rpe.includeSubtypes = false;
-  rpe.targetName = UA_QUALIFIEDNAME(1, nstr);
+  rpe.targetName = UA_QUALIFIEDNAME(ns->server->default_ns, nstr);
 
   UA_BrowsePath bp;
   UA_BrowsePath_init(&bp);
@@ -184,13 +184,93 @@ static VALUE node_find(VALUE self, VALUE qname) { //{{{
 
   UA_BrowsePathResult bpr = UA_Server_translateBrowsePathToNodeIds(ns->server->server, &bp);
 
-  if(bpr.statusCode != UA_STATUSCODE_GOOD || bpr.targetsSize < 1) {}
-
-  UA_BrowsePathResult_clear(&bpr);
-
-  return node_alloc(CLASS_OF(self),ns->server,bpr.targets[0].targetId.nodeId);
+  if(bpr.statusCode != UA_STATUSCODE_GOOD || bpr.targetsSize < 1) {
+    return Qnil;
+  } else {
+    UA_NodeId ret = bpr.targets[0].targetId.nodeId;
+    UA_BrowsePathResult_clear(&bpr);
+    return node_alloc(CLASS_OF(self),ns->server,ret);
+  }
 } //}}}
 
+static VALUE node_set_value(VALUE self, VALUE value) { //{{{
+  node_struct *ns;
+
+  Data_Get_Struct(self, node_struct, ns);
+
+  UA_Variant variant;
+  if (rb_obj_is_kind_of(value,rb_cTime)) {
+    return Qnil;
+  } else {
+    switch (TYPE(value)) {
+      case T_FALSE:
+        {
+          UA_Boolean tmp = false;
+          UA_Variant_setScalar(&variant, &tmp, &UA_TYPES[UA_TYPES_BOOLEAN]);
+          UA_Server_writeValue(ns->server->server, ns->id, variant);
+          break;
+        }
+      case T_TRUE:
+        {
+          UA_Boolean tmp = true;
+          UA_Variant_setScalar(&variant, &tmp, &UA_TYPES[UA_TYPES_BOOLEAN]);
+          UA_Server_writeValue(ns->server->server, ns->id, variant);
+          break;
+        }
+      case T_FLOAT:
+      case T_FIXNUM:
+        {
+          UA_Double tmp = NUM2DBL(value);
+          UA_Variant_setScalar(&variant, &tmp, &UA_TYPES[UA_TYPES_DOUBLE]);
+          UA_Server_writeValue(ns->server->server, ns->id, variant);
+          break;
+        }
+      case T_STRING:
+      case T_SYMBOL:
+        {
+          VALUE str = rb_obj_as_string(value);
+          if (NIL_P(str) || TYPE(str) != T_STRING)
+            rb_raise(rb_eTypeError, "cannot convert obj to string");
+          UA_String tmp = UA_STRING(StringValuePtr(str));
+          UA_Variant_setScalar(&variant, &tmp, &UA_TYPES[UA_TYPES_STRING]);
+          UA_Server_writeValue(ns->server->server, ns->id, variant);
+          break;
+        }
+      default:
+        return Qnil;
+    }
+  }
+  return Qnil;
+} //}}}
+static VALUE node_value(VALUE self) { //{{{
+  node_struct *ns;
+
+  Data_Get_Struct(self, node_struct, ns);
+
+  UA_Variant value;
+  UA_Variant_init(&value);
+  UA_StatusCode retval = UA_Server_readValue(ns->server->server, ns->id, &value);
+
+  if (retval == UA_STATUSCODE_GOOD) {
+    if (UA_Variant_hasScalarType(&value, &UA_TYPES[UA_TYPES_DATETIME])) {
+      UA_DateTime raw = *(UA_DateTime *) value.data;
+      UA_DateTimeStruct dts = UA_DateTime_toStruct(raw);
+      UA_LOG_INFO(UA_Log_Stdout, UA_LOGCATEGORY_USERLAND, "date is: %u-%u-%u %u:%u:%u.%03u\n", dts.day, dts.month, dts.year, dts.hour, dts.min, dts.sec, dts.milliSec);
+    } else if (UA_Variant_hasScalarType(&value, &UA_TYPES[UA_TYPES_BOOLEAN])) {
+      UA_Boolean raw = *(UA_Boolean *) value.data;
+      return raw ? Qtrue : Qfalse;
+    } else if (UA_Variant_hasScalarType(&value, &UA_TYPES[UA_TYPES_DOUBLE])) {
+      UA_Double raw = *(UA_Double *) value.data;
+      return DBL2NUM(raw);
+    } else if (UA_Variant_hasScalarType(&value, &UA_TYPES[UA_TYPES_STRING])) {
+      UA_String raw = *(UA_String *) value.data;
+      return rb_str_new((char *)(raw.data),raw.length);
+    }
+  }
+
+  UA_Variant_clear(&value);
+  return Qnil;
+} //}}}
 /* -- */
 static void  server_free(server_struct *pss) { //{{{
   if (pss != NULL) {
@@ -289,9 +369,11 @@ void Init_server(void) {
   rb_define_method(cTypesSubNode, "add_variable", node_add_variable, -1);
   rb_define_method(cTypesSubNode, "add_object", node_add_object, -1);
 
-  rb_define_method(cObjectsNode, "add_object", node_add_object_without, 2);
+  rb_define_method(cObjectsNode, "instantiate", node_add_object_without, 2);
   rb_define_method(cObjectsNode, "add_variable", node_add_variable_without, 1);
   rb_define_method(cObjectsNode, "find", node_find, 1);
+  rb_define_method(cObjectsNode, "value", node_value, 0);
+  rb_define_method(cObjectsNode, "value=", node_set_value, 1);
 }
 
 /*

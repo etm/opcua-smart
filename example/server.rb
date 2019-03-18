@@ -21,29 +21,24 @@ Daemonite.new do
   pt = server.types.add_object_type(:PresetterType).tap{ |t|
     t.add_variable :ManufacturerName
     t.add_object(:Tools, server.types.folder).tap{ |u|
-      u.add_object :Tool, tt, OPCUA::OPTIONAL
+      u.add_object :Tool, tt, OPCUA::OPTIONALPLACEHOLDER
     }
   }
 
-  p OPCUA::OPTIONALPLACEHOLDER
+  root = server.objects.instantiate :KalimatC34, pt
 
-  server.objects.add_object :KalimatC34, pt
+  tools = root.find(:Tools)
+  t1 = tools.instantiate(:Tool1,tt)
+  t2 = tools.instantiate(:Tool2,tt)
+  t3 = tools.instantiate(:Tool3,tt)
 
-  p tools = server.objects.find(:Tools)
+  t1.find(:ToolNumber).value = 1
 
-  # t1 = tools.instantiate(:Tool,:Tool1)
-  # t2 = tools.instantiate(:Tool,:Tool2)
-  # t3 = tools.instantiate(:Tool,:Tool3)
-  # t1.find(:ToolNumber).scalar = 15
-
-  # measurments_t1 = t1.find(:Measurements)
-  # measurments_t1.instantiate(:M,M1)
-  # measurments_t1.instantiate(:M,M2)
-
+  measurments_t1 = t1.find(:Measurements)
+  measurments_t1.instantiate(:M1,mt)
+  measurments_t1.instantiate(:M2,mt)
 
   run do
     sleep server.run
-
-
   end
 end.loop!
