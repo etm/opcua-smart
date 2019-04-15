@@ -5,8 +5,9 @@ require 'pp'
 
 task :default => [:compile]
 
-spec = eval(File.read('opcua-server.gemspec'))
-Rake::ExtensionTask.new "opcua/server", spec
+spec = eval(File.read('opcua.gemspec'))
+#Rake::ExtensionTask.new "opcua/server", spec
+Rake::ExtensionTask.new "opcua/client", spec
 
 Gem::PackageTask.new(spec) do |pkg|
   pkg.need_zip = true

@@ -1,5 +1,5 @@
 Gem::Specification.new do |s|
-  s.name             = "opcua-server"
+  s.name             = "opcua"
   s.version          = "0.1"
   s.platform         = Gem::Platform::RUBY
   s.license          = "LGPL-3.0"
@@ -7,7 +7,7 @@ Gem::Specification.new do |s|
 
   s.description      = "see http://centurio.work"
 
-  s.files            = Dir['{example/**/*,tools/**/*,lib/**/*,contrib/logo*}'] + %w(COPYING Rakefile opcua-server.gemspec README.md)
+  s.files            = Dir['{example/**/*,tools/**/*,lib/**/*,contrib/logo*}'] + %w(COPYING Rakefile opcua.gemspec README.md)
   s.extensions       = Dir["ext/**/extconf.rb"]
   s.require_path     = 'lib'
   s.extra_rdoc_files = ['README.md']

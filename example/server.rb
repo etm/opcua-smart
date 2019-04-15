@@ -32,7 +32,6 @@ Daemonite.new do
   t3 = tools.instantiate(:Tool3,tt)
 
   tn = t1.find(:ToolNumber)
-  tn.value = Time.now
 
   measurments_t1 = t1.find(:Measurements)
   measurments_t1.instantiate(:M1,mt)
@@ -40,5 +39,6 @@ Daemonite.new do
 
   run do
     sleep server.run
+    tn.value = Time.now
   end
 end.loop!

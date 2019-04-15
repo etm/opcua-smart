@@ -3,8 +3,7 @@
 #include <inttypes.h>
 #include <open62541.h>
 
-static UA_INLINE UA_ByteString
-loadFile(const char *const path) {
+static UA_INLINE UA_ByteString loadFile(const char *const path) {
     UA_ByteString fileContents = UA_STRING_NULL;
 
     /* Open the file */
