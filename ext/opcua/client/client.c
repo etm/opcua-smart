@@ -62,10 +62,8 @@ static VALUE client_init(VALUE self,VALUE url,VALUE user,VALUE pass) { //{{{
     rb_raise(rb_eTypeError, "cannot convert url to string");
   char *nstr = (char *)StringValuePtr(str);
 
-  // UA_ByteString certificate = loadFile("cert.der");
-  // UA_ByteString privateKey = loadFile("cert_key.der");
-  UA_ByteString certificate = UA_BYTESTRING_NULL;
-  UA_ByteString privateKey = UA_BYTESTRING_NULL;
+  UA_ByteString certificate = loadFile("cert.der");
+  UA_ByteString privateKey = loadFile("cert_key.der");
 
   /* Load the trustList. Load revocationList is not supported now */
   size_t trustListSize = 0;
@@ -87,7 +85,7 @@ static VALUE client_init(VALUE self,VALUE url,VALUE user,VALUE pass) { //{{{
   /* Secure client connect */
   pss->config->securityMode = UA_MESSAGESECURITYMODE_NONE; /* require encryption */
 
-  UA_ClientConfig_setDefault(pss->config);
+  //UA_ClientConfig_setDefault(pss->config);
   ///* Listing endpoints */
   //UA_EndpointDescription* endpointArray = NULL;
   //size_t endpointArraySize = 0;

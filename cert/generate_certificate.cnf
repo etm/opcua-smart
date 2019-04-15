@@ -4,9 +4,9 @@ req_extensions     = v3_req
 x509_extensions    = v3_req
 
 [req_distinguished_name]
-commonName       = opc2mqtt
-emailAddress     = annika.stahn@acdp.at
-organizationName = CDP
+commonName       = ruby-opcua
+emailAddress     = juergen.mangler@gmail.com
+organizationName = ruby-opcua DEVS
 localityName     = AT
 countryName      = Austria
 
@@ -14,5 +14,5 @@ countryName      = Austria
 # The extentions to add to a self-signed cert
 subjectKeyIdentifier = hash
 basicConstraints     = critical,CA:true
-subjectAltName       = URI:opc2mqtt:pythonopcua:client
+subjectAltName       = URI:ruby-opcua:client
 keyUsage             = critical,digitalSignature,keyEncipherment
