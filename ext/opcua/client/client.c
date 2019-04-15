@@ -1,4 +1,6 @@
 #include "client.h"
+#include "../../../cert/cert.h"
+#include "../../../cert/cert_key.h"
 
 VALUE mOPCUA = Qnil;
 VALUE cClient = Qnil;
@@ -62,8 +64,12 @@ static VALUE client_init(VALUE self,VALUE url,VALUE user,VALUE pass) { //{{{
     rb_raise(rb_eTypeError, "cannot convert url to string");
   char *nstr = (char *)StringValuePtr(str);
 
-  UA_ByteString certificate = loadFile("cert.der");
-  UA_ByteString privateKey = loadFile("cert_key.der");
+  UA_ByteString certificate;
+                certificate.data = (UA_Byte *)cert_der;
+                certificate.length  = cert_der_len;
+  UA_ByteString privateKey;
+                privateKey.data = (UA_Byte *)cert_key_der;
+                privateKey.length = cert_key_der_len;
 
   /* Load the trustList. Load revocationList is not supported now */
   size_t trustListSize = 0;
@@ -76,8 +82,6 @@ static VALUE client_init(VALUE self,VALUE url,VALUE user,VALUE pass) { //{{{
                                        trustList, trustListSize,
                                        revocationList, revocationListSize);
 
-  UA_ByteString_clear(&certificate);
-  UA_ByteString_clear(&privateKey);
   for(size_t deleteCount = 0; deleteCount < trustListSize; deleteCount++) {
       UA_ByteString_clear(&trustList[deleteCount]);
   }
@@ -127,7 +131,6 @@ static VALUE client_init(VALUE self,VALUE url,VALUE user,VALUE pass) { //{{{
   //  }
   //}
   //UA_Array_delete(endpointArray,endpointArraySize, &UA_TYPES[UA_TYPES_ENDPOINTDESCRIPTION]);
-  printf("xxxxxxxxxxxxxxxxxxxxxx\n");
 
   if (NIL_P(user) || NIL_P(pass)) {
     retval = UA_Client_connect(pss->client,nstr);

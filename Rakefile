@@ -10,6 +10,7 @@ spec = eval(File.read('opcua.gemspec'))
 Rake::ExtensionTask.new "opcua/client", spec
 
 Gem::PackageTask.new(spec) do |pkg|
+  puts `cert/generate_certificate.sh`
   pkg.need_zip = true
   pkg.need_tar = true
   # `rm pkg/* -rf`
