@@ -6,6 +6,11 @@ VALUE mOPCUA = Qnil;
 VALUE cClient = Qnil;
 VALUE cNode = Qnil;
 
+void UA_Log_None_log(void *_, UA_LogLevel level, UA_LogCategory category, const char *msg, va_list args) { }
+void UA_Log_None_clear(void *logContext) { }
+const UA_Logger UA_Log_None_ = {UA_Log_None_log, NULL, UA_Log_None_clear};
+const UA_Logger *UA_Log_None = &UA_Log_None_;
+
 /* -- */
 static void  node_free(node_struct *ns) { //{{{
   if (ns != NULL) { free(ns); }
@@ -105,6 +110,7 @@ static VALUE client_init(VALUE self,VALUE url,VALUE user,VALUE pass) { //{{{
   }
 
   pss->config->securityMode = UA_MESSAGESECURITYMODE_NONE; /* require no encryption, but tokens might be still enc'd */
+  pss->config->logger = UA_Log_None_;
 
   //{{{
   // UA_ClientConfig_setDefault(pss->config);
