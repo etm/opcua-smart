@@ -193,7 +193,7 @@ static VALUE node_find(VALUE self, VALUE qname) { //{{{
   }
 } //}}}
 
-static VALUE node_set_value(VALUE self, VALUE value) { //{{{
+static VALUE node_value_set(VALUE self, VALUE value) { //{{{
   node_struct *ns;
 
   Data_Get_Struct(self, node_struct, ns);
@@ -240,7 +240,7 @@ static VALUE node_set_value(VALUE self, VALUE value) { //{{{
         }
     }
   }
-  return Qnil;
+  return self;
 } //}}}
 static VALUE node_value(VALUE self) { //{{{
   node_struct *ns;
@@ -269,6 +269,24 @@ static VALUE node_value(VALUE self) { //{{{
   }
 
   UA_Variant_clear(&value);
+  return ret;
+} //}}}
+static VALUE node_id(VALUE self) { //{{{
+  node_struct *ns;
+
+  Data_Get_Struct(self, node_struct, ns);
+
+  VALUE ret = rb_ary_new();
+
+  rb_ary_push(ret,UINT2NUM(ns->id.namespaceIndex));
+  if (ns->id.identifierType == UA_NODEIDTYPE_NUMERIC) {
+    VALUE id = UINT2NUM((UA_UInt32)(ns->id.identifier.numeric));
+    rb_ary_push(ret,id);
+  } else if (ns->id.identifierType == UA_NODEIDTYPE_STRING) {
+    rb_ary_push(ret,rb_str_new((const char *)ns->id.identifier.string.data,ns->id.identifier.string.length));
+  } else if (ns->id.identifierType == UA_NODEIDTYPE_BYTESTRING) {
+    rb_ary_push(ret,rb_str_new((const char *)ns->id.identifier.byteString.data,ns->id.identifier.byteString.length));
+  }
   return ret;
 } //}}}
 /* -- */
@@ -362,17 +380,12 @@ void Init_server(void) {
   rb_define_method(cTypesSubNode, "add_object_type", node_add_object_type, 1);
   rb_define_method(cTypesSubNode, "add_variable", node_add_variable, -1);
   rb_define_method(cTypesSubNode, "add_object", node_add_object, -1);
+  rb_define_method(cTypesSubNode, "id", node_id, 0);
 
   rb_define_method(cObjectsNode, "instantiate", node_add_object_without, 2);
   rb_define_method(cObjectsNode, "add_variable", node_add_variable_without, 1);
   rb_define_method(cObjectsNode, "find", node_find, 1);
   rb_define_method(cObjectsNode, "value", node_value, 0);
-  rb_define_method(cObjectsNode, "value=", node_set_value, 1);
+  rb_define_method(cObjectsNode, "value=", node_value_set, 1);
+  rb_define_method(cObjectsNode, "id", node_id, 0);
 }
-
-/*
-  Questions:
-    UA_NS0ID_HASSUBTYPE bei add_object_type???
-    UA_NS0ID_HASCOMPONENT bei add_variable???
-    UA_NS0ID_ORGANIZES bei calimat???
-*/

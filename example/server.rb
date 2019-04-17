@@ -37,6 +37,8 @@ Daemonite.new do
   measurments_t1.instantiate(:M1,mt)
   measurments_t1.instantiate(:M2,mt)
 
+  p tn.id
+
   run do
     sleep server.run
     tn.value = Time.now

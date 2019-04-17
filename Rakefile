@@ -1,7 +1,5 @@
-require 'rubygems'
 require 'rubygems/package_task'
 require 'rake/extensiontask'
-require 'pp'
 
 spec = eval(File.read('opcua.gemspec'))
 

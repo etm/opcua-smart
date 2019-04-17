@@ -12,6 +12,26 @@ const UA_Logger UA_Log_None_ = {UA_Log_None_log, NULL, UA_Log_None_clear};
 const UA_Logger *UA_Log_None = &UA_Log_None_;
 
 /* -- */
+static VALUE extract_value(UA_Variant value) { //{{{
+  VALUE ret = Qnil;
+  if (UA_Variant_hasScalarType(&value, &UA_TYPES[UA_TYPES_DATETIME])) {
+    UA_DateTime raw = *(UA_DateTime *) value.data;
+    ret = rb_time_new(UA_DateTime_toUnixTime(raw),0);
+  } else if (UA_Variant_hasScalarType(&value, &UA_TYPES[UA_TYPES_BOOLEAN])) {
+    UA_Boolean raw = *(UA_Boolean *) value.data;
+    ret = raw ? Qtrue : Qfalse;
+  } else if (UA_Variant_hasScalarType(&value, &UA_TYPES[UA_TYPES_DOUBLE])) {
+    UA_Double raw = *(UA_Double *) value.data;
+    ret = DBL2NUM(raw);
+  } else if (UA_Variant_hasScalarType(&value, &UA_TYPES[UA_TYPES_STRING])) {
+    UA_String raw = *(UA_String *) value.data;
+    ret = rb_str_new((char *)(raw.data),raw.length);
+  }
+  return ret;
+} //}}}
+/* ++ */
+
+/* -- */
 static void  node_free(node_struct *ns) { //{{{
   if (ns != NULL) { free(ns); }
 } //}}}
@@ -23,6 +43,7 @@ static VALUE node_alloc(VALUE klass, client_struct *client, UA_NodeId nodeid) { 
 
   ns->client = client;
   ns->id  = nodeid;
+  ns->on_change  = Qnil;
 
 	return Data_Wrap_Struct(klass, NULL, node_free, ns);
 } //}}}
@@ -38,23 +59,25 @@ static VALUE node_value(VALUE self) { //{{{
 
   VALUE ret = Qnil;
   if (retval == UA_STATUSCODE_GOOD) {
-    if (UA_Variant_hasScalarType(&value, &UA_TYPES[UA_TYPES_DATETIME])) {
-      UA_DateTime raw = *(UA_DateTime *) value.data;
-      ret = rb_time_new(UA_DateTime_toUnixTime(raw),0);
-    } else if (UA_Variant_hasScalarType(&value, &UA_TYPES[UA_TYPES_BOOLEAN])) {
-      UA_Boolean raw = *(UA_Boolean *) value.data;
-      ret = raw ? Qtrue : Qfalse;
-    } else if (UA_Variant_hasScalarType(&value, &UA_TYPES[UA_TYPES_DOUBLE])) {
-      UA_Double raw = *(UA_Double *) value.data;
-      ret = DBL2NUM(raw);
-    } else if (UA_Variant_hasScalarType(&value, &UA_TYPES[UA_TYPES_STRING])) {
-      UA_String raw = *(UA_String *) value.data;
-      ret = rb_str_new((char *)(raw.data),raw.length);
-    }
+    ret = extract_value(value);
   }
 
   UA_Variant_clear(&value);
   return ret;
+} //}}}
+static VALUE node_on_change(VALUE self) { //{{{
+  node_struct *ns;
+  Data_Get_Struct(self, node_struct, ns);
+
+  if (!rb_block_given_p())
+    rb_raise(rb_eArgError, "you need to supply a block with #on_change");
+
+  ns->on_change = rb_block_proc();
+
+  rb_ary_push(ns->client->subs,self);
+  ns->client->subs_changed = true;
+
+  return self;
 } //}}}
 
 /* -- */
@@ -72,9 +95,22 @@ static VALUE client_alloc(VALUE self) { //{{{
 
   pss->client = UA_Client_new();
   pss->config = UA_Client_getConfig(pss->client);
+  pss->firstrun = true;
+  pss->subs = rb_ary_new();
+  pss->subs_changed = false;
+  pss->publishing_interval = 500;
+
+  UA_CreateSubscriptionRequest_init(&pss->subscription_request);
+  pss->subscription_request.requestedPublishingInterval = pss->publishing_interval;
+  pss->subscription_request.requestedLifetimeCount = 10000;
+  pss->subscription_request.requestedMaxKeepAliveCount = 10;
+  pss->subscription_request.maxNotificationsPerPublish = 0;
+  pss->subscription_request.publishingEnabled = true;
+  pss->subscription_request.priority = 0;
 
 	return Data_Wrap_Struct(self, NULL, client_free, pss);
 } //}}}
+
 /* ++ */ //}}}
 static VALUE client_init(VALUE self,VALUE url,VALUE user,VALUE pass) { //{{{
   client_struct *pss;
@@ -177,7 +213,7 @@ static VALUE client_init(VALUE self,VALUE url,VALUE user,VALUE pass) { //{{{
 
   return self;
 } //}}}
-static VALUE client_find(VALUE self,VALUE ns,VALUE id) { //{{{
+static VALUE client_get(VALUE self,VALUE ns,VALUE id) { //{{{
   client_struct *pss;
   Data_Get_Struct(self, client_struct, pss);
 
@@ -194,6 +230,79 @@ static VALUE client_find(VALUE self,VALUE ns,VALUE id) { //{{{
     return node_alloc(cNode, pss, UA_NODEID_STRING(NUM2INT(ns), nstr));
   }
 } //}}}
+static VALUE client_publishing_interval(VALUE self) { //{{{
+  client_struct *pss;
+  Data_Get_Struct(self, client_struct, pss);
+
+  return UINT2NUM(pss->subscription_request.requestedPublishingInterval);
+} //}}}
+static VALUE client_publishing_interval_set(VALUE self, VALUE val) { //{{{
+  client_struct *pss;
+  Data_Get_Struct(self, client_struct, pss);
+
+  if (NIL_P(val) || TYPE(val) != T_FIXNUM)
+    rb_raise(rb_eTypeError, "publishing interval is not an integer");
+
+  pss->subscription_request.requestedPublishingInterval = NUM2UINT(val);
+  return self;
+} //}}}
+
+static void  client_run_handler(UA_Client *client, UA_UInt32 subId, void *subContext, UA_UInt32 monId, void *monContext, UA_DataValue *value) { //{{{
+  VALUE key = (VALUE)monContext;
+
+  node_struct *ns;
+  Data_Get_Struct(key, node_struct, ns);
+
+  VALUE val = ns->on_change;
+
+  if (NIL_P(val) || TYPE(val) != T_NIL) {
+    VALUE args = rb_ary_new2(3);
+    rb_ary_push(args,extract_value(value->value));
+    rb_ary_push(args,key);
+    if (value->hasSourceTimestamp) {
+      rb_ary_push(args,rb_time_new(UA_DateTime_toUnixTime(value->sourceTimestamp),0));
+    } else {
+      if (value->hasServerTimestamp) {
+        rb_ary_push(args,rb_time_new(UA_DateTime_toUnixTime(value->serverTimestamp),0));
+      } else {
+        rb_ary_push(args,Qnil);
+      }
+    }
+    rb_eval_cmd(val,args,1);
+  }
+} //}}}
+static void  client_run_iterate(VALUE key) { //{{{
+  node_struct *ns;
+  Data_Get_Struct(key, node_struct, ns);
+
+  UA_MonitoredItemCreateRequest monRequest = UA_MonitoredItemCreateRequest_default(ns->id);
+
+  UA_MonitoredItemCreateResult monResponse =
+  UA_Client_MonitoredItems_createDataChange(ns->client->client, ns->client->subscription_response.subscriptionId,
+                                            UA_TIMESTAMPSTORETURN_BOTH,
+                                            monRequest, (void *)key, client_run_handler, NULL);
+  if(monResponse.statusCode != UA_STATUSCODE_GOOD)
+    rb_raise(rb_eRuntimeError, "Monitoring item failed.");
+} //}}}
+static VALUE client_run(VALUE self) { //{{{
+  client_struct *pss;
+  Data_Get_Struct(self, client_struct, pss);
+
+  if (pss->firstrun) {
+    pss->firstrun = false;
+    pss->subs_changed = false;
+    pss->subscription_response = UA_Client_Subscriptions_create(pss->client, pss->subscription_request, NULL, NULL, NULL);
+    if (pss->subscription_response.responseHeader.serviceResult != UA_STATUSCODE_GOOD)
+      rb_raise(rb_eRuntimeError, "Subscription could not be created.");
+
+    for (int i = 0; i < RARRAY_LEN(pss->subs); i++) {
+      client_run_iterate(RARRAY_PTR(pss->subs)[i]);
+    }
+  }
+  UA_Client_run_iterate(pss->client, 100);
+
+  return self;
+} //}}}
 
 void Init_client(void) {
   mOPCUA = rb_define_module("OPCUA");
@@ -204,7 +313,11 @@ void Init_client(void) {
   rb_define_alloc_func(cClient, client_alloc);
   rb_define_method(cClient, "initialize", client_init, 3);
   rb_define_method(cClient, "initialize", client_init, 3);
-  rb_define_method(cClient, "find", client_find, 2);
+  rb_define_method(cClient, "get", client_get, 2);
+  rb_define_method(cClient, "check_subscription", client_run, 0);
+  rb_define_method(cClient, "publishing_interval", client_publishing_interval, 0);
+  rb_define_method(cClient, "publishing_interval=", client_publishing_interval_set, 1);
 
   rb_define_method(cNode, "value", node_value, 0);
+  rb_define_method(cNode, "on_change", node_on_change, 0);
 }
