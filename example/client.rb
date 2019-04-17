@@ -7,12 +7,12 @@ require_relative '../lib/opcua/client'
 client = OPCUA::Client.new("opc.tcp://localhost:4840")
 
 node = client.get 2, 2117628832
-node.on_change do |value|
+node.on_change do |value,timestamp|
   p value
 end
 
-client.publishing_interval = 2000
+client.publishing_interval = 100
 while true
   client.check_subscription
-  sleep 0.1
+  sleep client.publishing_interval / 1000
 end

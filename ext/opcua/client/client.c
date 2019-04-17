@@ -258,7 +258,6 @@ static void  client_run_handler(UA_Client *client, UA_UInt32 subId, void *subCon
   if (NIL_P(val) || TYPE(val) != T_NIL) {
     VALUE args = rb_ary_new2(3);
     rb_ary_push(args,extract_value(value->value));
-    rb_ary_push(args,key);
     if (value->hasSourceTimestamp) {
       rb_ary_push(args,rb_time_new(UA_DateTime_toUnixTime(value->sourceTimestamp),0));
     } else {
@@ -268,6 +267,7 @@ static void  client_run_handler(UA_Client *client, UA_UInt32 subId, void *subCon
         rb_ary_push(args,Qnil);
       }
     }
+    rb_ary_push(args,key);
     rb_eval_cmd(val,args,1);
   }
 } //}}}
