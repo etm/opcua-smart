@@ -23,3 +23,11 @@ Gem::PackageTask.new(spec) do |pkg|
   `rm pkg/* -rf`
   `ln -sf #{pkg.name}.gem #{pkg.package_dir}/#{spec.name}.gem`
 end
+
+task :push => :gem do |r|
+  `gem push pkg/xml-smart.gem`
+end
+
+task :install => :gem do |r|
+  `gem install pkg/xml-smart.gem`
+end
