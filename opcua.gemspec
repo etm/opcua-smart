@@ -22,5 +22,5 @@ Gem::Specification.new do |s|
   s.homepage         = 'http://centurio.work/'
 
   s.add_runtime_dependency 'riddl', '~> 0.99'
-  s.add_development_dependency 'rake-compiler', '>= 0.7.9'
+  s.add_development_dependency 'rake-compiler', '~> 1.0'
 end

@@ -15,7 +15,7 @@ spec.extensions.each do |f|
 end
 Rake.application.clear
 
-task :default => []
+task :default => [:gem]
 
 Gem::PackageTask.new(spec) do |pkg|
   pkg.need_zip = true
