@@ -7,7 +7,7 @@ require_relative '../lib/opcua/client'
 client = OPCUA::Client.new("opc.tcp://localhost:4840")
 client.publishing_interval = 100 # default 500
 
-node = client.get 2, 874565491 # get mode from nodeid
+node = client.get 2, 874565491 # get node from nodeid
 node.on_change do |value,timestamp|
   p value
 end
