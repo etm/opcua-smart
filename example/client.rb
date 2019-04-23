@@ -6,7 +6,7 @@ require_relative '../lib/opcua/client'
 
 client = OPCUA::Client.new("opc.tcp://localhost:4840")
 
-node = client.get 2, 2117628832
+node = client.get 2, 874565491
 node.on_change do |value,timestamp|
   p value
 end
