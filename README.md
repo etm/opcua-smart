@@ -2,7 +2,7 @@
 
 Copyright (C) 2019-* Jürgen "eTM" Mangler <juergen.mangler@gmail.com>.
 
-ui-scaler.html is freely distributable according to the terms of the GNU Lesser
+opcua-smart is freely distributable according to the terms of the GNU Lesser
 General Public License 3.0 (see the file 'COPYING').
 
 This code is distributed without any warranty. See the file 'COPYING' for
