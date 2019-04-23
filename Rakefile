@@ -25,9 +25,9 @@ Gem::PackageTask.new(spec) do |pkg|
 end
 
 task :push => :gem do |r|
-  `gem push pkg/xml-smart.gem`
+  `gem push pkg/opcua.gem`
 end
 
 task :install => :gem do |r|
-  `gem install pkg/xml-smart.gem`
+  `gem install pkg/opcua.gem`
 end
