@@ -20,6 +20,6 @@ Gem::Specification.new do |s|
   s.email            = 'juergen.mangler@gmail.com'
   s.homepage         = 'https://github.com/etm/opcua-smart'
 
-  s.add_runtime_dependency 'daemonite', '~> 0.99'
+  s.add_runtime_dependency 'daemonite', '~> 0'
   s.add_development_dependency 'rake-compiler', '~> 1.0'
 end

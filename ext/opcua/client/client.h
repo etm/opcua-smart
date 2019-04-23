@@ -8,7 +8,7 @@ typedef struct client_struct {
   UA_CreateSubscriptionRequest subscription_request;
   UA_CreateSubscriptionResponse subscription_response;
 
-  UA_UInt32 publishing_interval;
+  UA_UInt32 subscription_interval;
   bool firstrun;
   VALUE subs;
   bool subs_changed;

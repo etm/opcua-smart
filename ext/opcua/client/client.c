@@ -98,10 +98,10 @@ static VALUE client_alloc(VALUE self) { //{{{
   pss->firstrun = true;
   pss->subs = rb_ary_new();
   pss->subs_changed = false;
-  pss->publishing_interval = 500;
+  pss->subscription_interval = 500;
 
   UA_CreateSubscriptionRequest_init(&pss->subscription_request);
-  pss->subscription_request.requestedPublishingInterval = pss->publishing_interval;
+  pss->subscription_request.requestedPublishingInterval = pss->subscription_interval;
   pss->subscription_request.requestedLifetimeCount = 10000;
   pss->subscription_request.requestedMaxKeepAliveCount = 10;
   pss->subscription_request.maxNotificationsPerPublish = 0;
@@ -146,7 +146,7 @@ static VALUE client_init(VALUE self,VALUE url,VALUE user,VALUE pass) { //{{{
   }
 
   pss->config->securityMode = UA_MESSAGESECURITYMODE_NONE; /* require no encryption, but tokens might be still enc'd */
-  pss->config->logger = UA_Log_None_;
+  // pss->config->logger = UA_Log_None_;
 
   //{{{
   // UA_ClientConfig_setDefault(pss->config);
@@ -230,18 +230,18 @@ static VALUE client_get(VALUE self,VALUE ns,VALUE id) { //{{{
     return node_alloc(cNode, pss, UA_NODEID_STRING(NUM2INT(ns), nstr));
   }
 } //}}}
-static VALUE client_publishing_interval(VALUE self) { //{{{
+static VALUE client_subscription_interval(VALUE self) { //{{{
   client_struct *pss;
   Data_Get_Struct(self, client_struct, pss);
 
   return UINT2NUM(pss->subscription_request.requestedPublishingInterval);
 } //}}}
-static VALUE client_publishing_interval_set(VALUE self, VALUE val) { //{{{
+static VALUE client_subscription_interval_set(VALUE self, VALUE val) { //{{{
   client_struct *pss;
   Data_Get_Struct(self, client_struct, pss);
 
   if (NIL_P(val) || TYPE(val) != T_FIXNUM)
-    rb_raise(rb_eTypeError, "publishing interval is not an integer");
+    rb_raise(rb_eTypeError, "subscription interval is not an integer");
 
   pss->subscription_request.requestedPublishingInterval = NUM2UINT(val);
   return self;
@@ -315,8 +315,8 @@ void Init_client(void) {
   rb_define_method(cClient, "initialize", client_init, 3);
   rb_define_method(cClient, "get", client_get, 2);
   rb_define_method(cClient, "check_subscription", client_run, 0);
-  rb_define_method(cClient, "publishing_interval", client_publishing_interval, 0);
-  rb_define_method(cClient, "publishing_interval=", client_publishing_interval_set, 1);
+  rb_define_method(cClient, "subscription_interval", client_subscription_interval, 0);
+  rb_define_method(cClient, "subscription_interval=", client_subscription_interval_set, 1);
 
   rb_define_method(cNode, "value", node_value, 0);
   rb_define_method(cNode, "on_change", node_on_change, 0);

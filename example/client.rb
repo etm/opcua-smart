@@ -5,7 +5,9 @@ require_relative '../lib/opcua/client'
 # client = OPCUA::Client.new("opc.tcp://OpcUaClient:SUNRISE@localhost:4840")
 
 client = OPCUA::Client.new("opc.tcp://localhost:4840")
-client.publishing_interval = 100 # default 500
+client.subscription_interval = 100 # default 500
+
+exit
 
 node = client.get 2, 874565491 # get node from nodeid
 node.on_change do |value,timestamp|
