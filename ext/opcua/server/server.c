@@ -293,7 +293,6 @@ static VALUE node_id(VALUE self) { //{{{
 static void  server_free(server_struct *pss) { //{{{
   if (pss != NULL) {
     UA_Server_delete(pss->server);
-    UA_ServerConfig_delete(pss->config);
     free(pss);
   }
 } //}}}
@@ -303,9 +302,11 @@ static VALUE server_alloc(VALUE self) { //{{{
   if (pss == NULL)
     rb_raise(rb_eNoMemError, "No memory left for OPCUA server.");
 
-  pss->config = UA_ServerConfig_new_default();
-  pss->server = UA_Server_new(pss->config);
+  pss->server = UA_Server_new();
+  pss->config = UA_Server_getConfig(pss->server);
   pss->default_ns = 1;
+
+  UA_ServerConfig_setDefault(pss->config);
 
 	return Data_Wrap_Struct(self, NULL, server_free, pss);
 } //}}}

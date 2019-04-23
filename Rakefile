@@ -15,13 +15,18 @@ spec.extensions.each do |f|
 end
 Rake.application.clear
 
-task :default => [:gem]
+task :default => [:doit]
 
-Gem::PackageTask.new(spec) do |pkg|
+pkg = Gem::PackageTask.new(spec) { |pkg|
   pkg.need_zip = true
   pkg.need_tar = true
+}
+
+p pkg.class
+
+task :doit => :gem do |r|
   `rm pkg/* -rf`
-  `ln -sf #{pkg.name}.gem #{pkg.package_dir}/#{spec.name}.gem`
+  `ln -sf #{spec.name}.gem pkg/#{spec.name}.gem`
 end
 
 task :push => :gem do |r|
