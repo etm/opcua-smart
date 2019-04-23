@@ -15,19 +15,15 @@ spec.extensions.each do |f|
 end
 Rake.application.clear
 
-task :default => [:doit]
+task :default => [:gem]
 
 pkg = Gem::PackageTask.new(spec) { |pkg|
   pkg.need_zip = true
   pkg.need_tar = true
-}
-
-p pkg.class
-
-task :doit => :gem do |r|
+  `mkdir pkg`
   `rm pkg/* -rf`
-  `ln -sf #{spec.name}.gem pkg/#{spec.name}.gem`
-end
+  `ln -sf #{pkg.name}.gem pkg/#{spec.name}.gem`
+}
 
 task :push => :gem do |r|
   `gem push pkg/opcua.gem`
