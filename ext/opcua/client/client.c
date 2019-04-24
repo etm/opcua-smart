@@ -14,24 +14,24 @@ const UA_Logger *UA_Log_None = &UA_Log_None_;
 /* -- */
 static VALUE extract_value(UA_Variant value) { //{{{
   VALUE ret = rb_ary_new2(2);
-  RARRAY_ASET(ret,0,Qnil);
-  RARRAY_ASET(ret,1,Qnil);
+  rb_ary_store(ret,0,Qnil);
+  rb_ary_store(ret,1,Qnil);
   if (UA_Variant_hasScalarType(&value, &UA_TYPES[UA_TYPES_DATETIME])) {
     UA_DateTime raw = *(UA_DateTime *) value.data;
-    RARRAY_ASET(ret,0,rb_time_new(UA_DateTime_toUnixTime(raw),0));
-    RARRAY_ASET(ret,1,rb_intern("VariantType.Double"));
+    rb_ary_store(ret,0,rb_time_new(UA_DateTime_toUnixTime(raw),0));
+    rb_ary_store(ret,1,ID2SYM(rb_intern("VariantType.Double")));
   } else if (UA_Variant_hasScalarType(&value, &UA_TYPES[UA_TYPES_BOOLEAN])) {
     UA_Boolean raw = *(UA_Boolean *) value.data;
-    RARRAY_ASET(ret,0,raw ? Qtrue : Qfalse);
-    RARRAY_ASET(ret,1,rb_intern("VariantType.Boolean"));
+    rb_ary_store(ret,0,raw ? Qtrue : Qfalse);
+    rb_ary_store(ret,1,ID2SYM(rb_intern("VariantType.Boolean")));
   } else if (UA_Variant_hasScalarType(&value, &UA_TYPES[UA_TYPES_DOUBLE])) {
     UA_Double raw = *(UA_Double *) value.data;
-    RARRAY_ASET(ret,0,DBL2NUM(raw));
-    RARRAY_ASET(ret,1,rb_intern("VariantType.Double"));
+    rb_ary_store(ret,0,DBL2NUM(raw));
+    rb_ary_store(ret,1,ID2SYM(rb_intern("VariantType.Double")));
   } else if (UA_Variant_hasScalarType(&value, &UA_TYPES[UA_TYPES_STRING])) {
     UA_String raw = *(UA_String *) value.data;
-    RARRAY_ASET(ret,0,rb_str_new((char *)(raw.data),raw.length));
-    RARRAY_ASET(ret,1,rb_intern("VariantType.String"));
+    rb_ary_store(ret,0,rb_str_export_locale(rb_str_new((char *)(raw.data),raw.length)));
+    rb_ary_store(ret,1,ID2SYM(rb_intern("VariantType.String")));
   }
   return ret;
 } //}}}
@@ -69,7 +69,7 @@ static VALUE node_value(VALUE self) { //{{{
   }
 
   UA_Variant_clear(&value);
-  return RARRAY_AREF(ret,0);
+  return rb_ary_entry(ret,0);
 } //}}}
 static VALUE node_on_change(VALUE self) { //{{{
   node_struct *ns;
@@ -262,20 +262,21 @@ static void  client_run_handler(UA_Client *client, UA_UInt32 subId, void *subCon
   VALUE val = ns->on_change;
 
   if (NIL_P(val) || TYPE(val) != T_NIL) {
-    VALUE args = rb_ary_new2(4);
+    VALUE args = rb_ary_new();
     VALUE ret = extract_value(value->value);
-    rb_ary_push(args,RARRAY_AREF(ret,0));
+    rb_ary_store(args,0,rb_ary_entry(ret,0));
     if (value->hasSourceTimestamp) {
-      rb_ary_push(args,rb_time_new(UA_DateTime_toUnixTime(value->sourceTimestamp),0));
+      rb_ary_store(args,1,rb_time_new(UA_DateTime_toUnixTime(value->sourceTimestamp),0));
     } else {
       if (value->hasServerTimestamp) {
-        rb_ary_push(args,rb_time_new(UA_DateTime_toUnixTime(value->serverTimestamp),0));
+        rb_ary_store(args,1,rb_time_new(UA_DateTime_toUnixTime(value->serverTimestamp),0));
       } else {
-        rb_ary_push(args,Qnil);
+        rb_ary_store(args,1,Qnil);
       }
     }
-    rb_ary_push(args,key);
-    rb_ary_push(args,RARRAY_AREF(ret,1));
+    rb_ary_store(args,2,rb_ary_entry(ret,1));
+    rb_ary_store(args,3,key);
+    printf("bbb\n");
     rb_eval_cmd(val,args,1);
   }
 } //}}}
@@ -306,9 +307,10 @@ static VALUE client_run(VALUE self) { //{{{
       rb_raise(rb_eRuntimeError, "Subscription could not be created.");
 
     for (int i = 0; i < RARRAY_LEN(pss->subs); i++) {
-      client_run_iterate(RARRAY_AREF(pss->subs,i));
+      client_run_iterate(rb_ary_entry(pss->subs,i));
     }
   }
+  printf("aaa\n");
   UA_Client_run_iterate(pss->client, 100);
 
   return self;
