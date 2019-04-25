@@ -2,6 +2,8 @@
 #include "../../../cert/cert.h"
 #include "../../../cert/cert_key.h"
 
+static int counter = 0;
+
 VALUE mOPCUA = Qnil;
 VALUE cClient = Qnil;
 VALUE cNode = Qnil;
@@ -33,6 +35,7 @@ static VALUE extract_value(UA_Variant value) { //{{{
     rb_ary_store(ret,0,rb_str_export_locale(rb_str_new((char *)(raw.data),raw.length)));
     rb_ary_store(ret,1,ID2SYM(rb_intern("VariantType.String")));
   }
+
   return ret;
 } //}}}
 /* ++ */
@@ -74,11 +77,13 @@ static VALUE node_value(VALUE self) { //{{{
 static VALUE node_on_change(VALUE self) { //{{{
   node_struct *ns;
   Data_Get_Struct(self, node_struct, ns);
+  RB_GC_GUARD(self);
 
   if (!rb_block_given_p())
     rb_raise(rb_eArgError, "you need to supply a block with #on_change");
 
   ns->on_change = rb_block_proc();
+  RB_GC_GUARD(ns->on_change);
 
   rb_ary_push(ns->client->subs,self);
   ns->client->subs_changed = true;
@@ -254,15 +259,10 @@ static VALUE client_subscription_interval_set(VALUE self, VALUE val) { //{{{
 } //}}}
 
 static void  client_run_handler(UA_Client *client, UA_UInt32 subId, void *subContext, UA_UInt32 monId, void *monContext, UA_DataValue *value) { //{{{
-  VALUE key = (VALUE)monContext;
-
-  node_struct *ns;
-  Data_Get_Struct(key, node_struct, ns);
-
-  VALUE val = ns->on_change;
+  VALUE val = (VALUE)monContext;
 
   if (NIL_P(val) || TYPE(val) != T_NIL) {
-    VALUE args = rb_ary_new();
+    VALUE args = rb_ary_new2(3);
     VALUE ret = extract_value(value->value);
     rb_ary_store(args,0,rb_ary_entry(ret,0));
     if (value->hasSourceTimestamp) {
@@ -275,21 +275,22 @@ static void  client_run_handler(UA_Client *client, UA_UInt32 subId, void *subCon
       }
     }
     rb_ary_store(args,2,rb_ary_entry(ret,1));
-    rb_ary_store(args,3,key);
-    printf("bbb\n");
-    rb_eval_cmd(val,args,1);
+    rb_proc_call(val,args);
+    printf("aaaa - %d\n",counter);
+    counter += 1;
   }
 } //}}}
 static void  client_run_iterate(VALUE key) { //{{{
   node_struct *ns;
   Data_Get_Struct(key, node_struct, ns);
+  RB_GC_GUARD(key);
 
   UA_MonitoredItemCreateRequest monRequest = UA_MonitoredItemCreateRequest_default(ns->id);
 
   UA_MonitoredItemCreateResult monResponse =
   UA_Client_MonitoredItems_createDataChange(ns->client->client, ns->client->subscription_response.subscriptionId,
                                             UA_TIMESTAMPSTORETURN_BOTH,
-                                            monRequest, (void *)key, client_run_handler, NULL);
+                                            monRequest, (void *)ns->on_change, client_run_handler, NULL);
 
   if(monResponse.statusCode != UA_STATUSCODE_GOOD) {
     rb_raise(rb_eRuntimeError, "Monitoring item failed: %s\n", UA_StatusCode_name(monResponse.statusCode));
@@ -310,8 +311,7 @@ static VALUE client_run(VALUE self) { //{{{
       client_run_iterate(rb_ary_entry(pss->subs,i));
     }
   }
-  printf("aaa\n");
-  UA_Client_run_iterate(pss->client, 100);
+  UA_Client_run_iterate(pss->client, 0);
 
   return self;
 } //}}}
