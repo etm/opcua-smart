@@ -2,8 +2,6 @@
 #include "../../../cert/cert.h"
 #include "../../../cert/cert_key.h"
 
-static int counter = 0;
-
 VALUE mOPCUA = Qnil;
 VALUE cClient = Qnil;
 VALUE cNode = Qnil;
@@ -278,8 +276,6 @@ static void  client_run_handler(UA_Client *client, UA_UInt32 subId, void *subCon
     }
     rb_ary_store(args,2,rb_ary_entry(ret,1));
     rb_proc_call(val,args);
-    printf("aaaa - %d\n",counter);
-    counter += 1;
   }
 } //}}}
 static void  client_run_iterate(VALUE key) { //{{{

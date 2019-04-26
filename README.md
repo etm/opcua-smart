@@ -10,7 +10,7 @@ details.
 
 ## Installation
 
-Dependency: https://github.com/open62541/open62541 >= 0.4
+Dependency: https://github.com/open62541/open62541 > 0.4 (master branch as of 2019-04-26)
 
 ```sh
 git clone https://github.com/open62541/open62541.git
