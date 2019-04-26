@@ -312,7 +312,7 @@ static VALUE client_run(VALUE self) { //{{{
       client_run_iterate(rb_ary_entry(pss->subs,i));
     }
   }
-  UA_Client_run_iterate(pss->client, 0);
+  UA_Client_run_iterate(pss->client, 100);
 
   return self;
 } //}}}
