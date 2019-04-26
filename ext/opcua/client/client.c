@@ -40,7 +40,10 @@ static VALUE extract_value(UA_Variant value) { //{{{
 
 /* -- */
 static void  node_free(node_struct *ns) { //{{{
-  if (ns != NULL) { free(ns); }
+  if (ns != NULL) {
+    rb_gc_unregister_address(&ns->on_change);
+    free(ns);
+  }
 } //}}}
 static VALUE node_alloc(VALUE klass, client_struct *client, UA_NodeId nodeid) { //{{{
   node_struct *ns;
@@ -75,13 +78,12 @@ static VALUE node_value(VALUE self) { //{{{
 static VALUE node_on_change(VALUE self) { //{{{
   node_struct *ns;
   Data_Get_Struct(self, node_struct, ns);
-  RB_GC_GUARD(self);
 
   if (!rb_block_given_p())
     rb_raise(rb_eArgError, "you need to supply a block with #on_change");
 
   ns->on_change = rb_block_proc();
-  RB_GC_GUARD(ns->on_change);
+  rb_gc_register_address(&ns->on_change);
 
   rb_ary_push(ns->client->subs,self);
   ns->client->subs_changed = true;
@@ -279,7 +281,6 @@ static void  client_run_handler(UA_Client *client, UA_UInt32 subId, void *subCon
 static void  client_run_iterate(VALUE key) { //{{{
   node_struct *ns;
   Data_Get_Struct(key, node_struct, ns);
-  RB_GC_GUARD(key);
 
   UA_MonitoredItemCreateRequest monRequest = UA_MonitoredItemCreateRequest_default(ns->id);
 
