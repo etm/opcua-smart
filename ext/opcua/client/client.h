@@ -10,6 +10,8 @@ typedef struct client_struct {
 
   UA_UInt32 subscription_interval;
   bool firstrun;
+  bool started;
+  bool debug;
   VALUE subs;
   bool subs_changed;
 } client_struct;

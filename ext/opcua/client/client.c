@@ -60,8 +60,8 @@ static VALUE node_alloc(VALUE klass, client_struct *client, UA_NodeId nodeid) { 
 /* ++ */
 static VALUE node_value(VALUE self) { //{{{
   node_struct *ns;
-
   Data_Get_Struct(self, node_struct, ns);
+  if (!ns->client->started) rb_raise(rb_eRuntimeError, "Client disconnected.");
 
   UA_Variant value;
   UA_Variant_init(&value);
@@ -78,6 +78,7 @@ static VALUE node_value(VALUE self) { //{{{
 static VALUE node_on_change(VALUE self) { //{{{
   node_struct *ns;
   Data_Get_Struct(self, node_struct, ns);
+  if (!ns->client->started) rb_raise(rb_eRuntimeError, "Client disconnected.");
 
   if (!rb_block_given_p())
     rb_raise(rb_eArgError, "you need to supply a block with #on_change");
@@ -94,6 +95,11 @@ static VALUE node_on_change(VALUE self) { //{{{
 /* -- */
 static void  client_free(client_struct *pss) { //{{{
   if (pss != NULL) {
+    if (!pss->firstrun) {
+      // do we need to delete the individual monResponse (#UA_MonitoredItemCreateResult_clear)?
+      UA_Client_Subscriptions_deleteSingle(pss->client,pss->subscription_response.subscriptionId);
+    }
+    UA_Client_disconnect(pss->client);
     UA_Client_delete(pss->client);
     free(pss);
   }
@@ -107,6 +113,8 @@ static VALUE client_alloc(VALUE self) { //{{{
   pss->client = UA_Client_new();
   pss->config = UA_Client_getConfig(pss->client);
   pss->firstrun = true;
+  pss->started = true;
+  pss->debug = true;
   pss->subs = rb_ary_new();
   pss->subs_changed = false;
   pss->subscription_interval = 500;
@@ -130,8 +138,10 @@ static VALUE client_init(VALUE self,VALUE url,VALUE user,VALUE pass) { //{{{
   Data_Get_Struct(self, client_struct, pss);
 
   VALUE str = rb_obj_as_string(url);
-  if (NIL_P(str) || TYPE(str) != T_STRING)
+  if (NIL_P(str) || TYPE(str) != T_STRING) {
+    pss->started = false;
     rb_raise(rb_eTypeError, "cannot convert url to string");
+  }
   char *nstr = (char *)StringValuePtr(str);
 
   UA_ByteString certificate;
@@ -157,7 +167,6 @@ static VALUE client_init(VALUE self,VALUE url,VALUE user,VALUE pass) { //{{{
   }
 
   pss->config->securityMode = UA_MESSAGESECURITYMODE_NONE; /* require no encryption, but tokens might be still enc'd */
-  // pss->config->logger = UA_Log_None_;
 
   //{{{
   // UA_ClientConfig_setDefault(pss->config);
@@ -208,25 +217,32 @@ static VALUE client_init(VALUE self,VALUE url,VALUE user,VALUE pass) { //{{{
     retval = UA_Client_connect(pss->client,nstr);
   } else {
     VALUE vustr = rb_obj_as_string(user);
-    if (NIL_P(vustr) || TYPE(vustr) != T_STRING)
+    if (NIL_P(vustr) || TYPE(vustr) != T_STRING) {
+      pss->started = false;
       rb_raise(rb_eTypeError, "cannot convert user to string");
+    }
     char *ustr = (char *)StringValuePtr(vustr);
 
     VALUE vpstr = rb_obj_as_string(pass);
-    if (NIL_P(vpstr) || TYPE(vpstr) != T_STRING)
+    if (NIL_P(vpstr) || TYPE(vpstr) != T_STRING) {
+      pss->started = false;
       rb_raise(rb_eTypeError, "cannot convert user to string");
+    }
     char *pstr = (char *)StringValuePtr(vpstr);
 
     retval = UA_Client_connect_username(pss->client, nstr, ustr, pstr);
   }
-  if (retval != UA_STATUSCODE_GOOD)
+  if (retval != UA_STATUSCODE_GOOD) {
+    pss->started = false;
     rb_raise(rb_eRuntimeError, "Client could not be started.");
+  }
 
   return self;
 } //}}}
 static VALUE client_get(VALUE self,VALUE ns,VALUE id) { //{{{
   client_struct *pss;
   Data_Get_Struct(self, client_struct, pss);
+  if (!pss->started) rb_raise(rb_eRuntimeError, "Client disconnected.");
 
   if (NIL_P(ns) || TYPE(ns) != T_FIXNUM)
     rb_raise(rb_eTypeError, "ns is not a valid (numeric) namespace id");
@@ -244,17 +260,40 @@ static VALUE client_get(VALUE self,VALUE ns,VALUE id) { //{{{
 static VALUE client_subscription_interval(VALUE self) { //{{{
   client_struct *pss;
   Data_Get_Struct(self, client_struct, pss);
+  if (!pss->started) rb_raise(rb_eRuntimeError, "Client disconnected.");
 
   return UINT2NUM(pss->subscription_request.requestedPublishingInterval);
 } //}}}
 static VALUE client_subscription_interval_set(VALUE self, VALUE val) { //{{{
   client_struct *pss;
   Data_Get_Struct(self, client_struct, pss);
+  if (!pss->started) rb_raise(rb_eRuntimeError, "Client disconnected.");
 
   if (NIL_P(val) || TYPE(val) != T_FIXNUM)
     rb_raise(rb_eTypeError, "subscription interval is not an integer");
 
   pss->subscription_request.requestedPublishingInterval = NUM2UINT(val);
+  return self;
+} //}}}
+static VALUE client_debug(VALUE self) { //{{{
+  client_struct *pss;
+  Data_Get_Struct(self, client_struct, pss);
+  if (!pss->started) rb_raise(rb_eRuntimeError, "Client disconnected.");
+
+  return (pss->debug) ? Qtrue : Qfalse;
+} //}}}
+static VALUE client_debug_set(VALUE self, VALUE val) { //{{{
+  client_struct *pss;
+  Data_Get_Struct(self, client_struct, pss);
+  if (!pss->started) rb_raise(rb_eRuntimeError, "Client disconnected.");
+
+  if (val == Qtrue) {
+    pss->config->logger = UA_Log_Stdout_;
+    pss->debug = Qtrue;
+  } else {
+    pss->config->logger = UA_Log_None_;
+    pss->debug = Qfalse;
+  }
   return self;
 } //}}}
 
@@ -296,6 +335,7 @@ static void  client_run_iterate(VALUE key) { //{{{
 static VALUE client_run(VALUE self) { //{{{
   client_struct *pss;
   Data_Get_Struct(self, client_struct, pss);
+  if (!pss->started) rb_raise(rb_eRuntimeError, "Client disconnected.");
 
   if (pss->firstrun) {
     pss->firstrun = false;
@@ -312,6 +352,20 @@ static VALUE client_run(VALUE self) { //{{{
 
   return self;
 } //}}}
+static VALUE client_disconnect(VALUE self) { //{{{
+  client_struct *pss;
+  Data_Get_Struct(self, client_struct, pss);
+  if (!pss->started) rb_raise(rb_eRuntimeError, "Client disconnected.");
+
+  if (!pss->firstrun) {
+    // do we need to delete the individual monResponse (#UA_MonitoredItemCreateResult_clear)?
+    UA_Client_Subscriptions_deleteSingle(pss->client,pss->subscription_response.subscriptionId);
+  }
+  UA_Client_disconnect(pss->client);
+  pss->started = false;
+
+  return self;
+} //}}}
 
 void Init_client(void) {
   mOPCUA = rb_define_module("OPCUA");
@@ -321,11 +375,13 @@ void Init_client(void) {
 
   rb_define_alloc_func(cClient, client_alloc);
   rb_define_method(cClient, "initialize", client_init, 3);
-  rb_define_method(cClient, "initialize", client_init, 3);
+  rb_define_method(cClient, "disconnect", client_disconnect, 0);
   rb_define_method(cClient, "get", client_get, 2);
   rb_define_method(cClient, "check_subscription", client_run, 0);
   rb_define_method(cClient, "subscription_interval", client_subscription_interval, 0);
   rb_define_method(cClient, "subscription_interval=", client_subscription_interval_set, 1);
+  rb_define_method(cClient, "debug", client_debug, 0);
+  rb_define_method(cClient, "debug=", client_debug_set, 1);
 
   rb_define_method(cNode, "value", node_value, 0);
   rb_define_method(cNode, "on_change", node_on_change, 0);
