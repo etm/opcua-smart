@@ -3,6 +3,7 @@
 require 'opcua/server'
 
 Daemonite.new do
+
   server = OPCUA::Server.new
   server.add_namespace "https://centurio.work/kelch"
 

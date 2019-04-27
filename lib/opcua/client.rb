@@ -1,4 +1,8 @@
-require 'opcua/client/client.so'
+if File.exists?(File.join(__dir__,'../../ext/opcua/client/client.so'))
+  require_relative  '../../ext/opcua/client/client.so'
+else
+  require_relative 'client.so'
+end
 require 'daemonite'
 
 module OPCUA

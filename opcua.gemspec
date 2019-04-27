@@ -1,6 +1,6 @@
 Gem::Specification.new do |s|
   s.name             = "opcua"
-  s.version          = "0.6"
+  s.version          = "0.7"
   s.platform         = Gem::Platform::RUBY
   s.license          = "LGPL-3.0"
   s.summary          = "Preliminary release of opcua (open62541) ruby bindings. C performance, Ruby elegance, simplicity, and productivity."
@@ -20,7 +20,7 @@ Gem::Specification.new do |s|
   s.email            = 'juergen.mangler@gmail.com'
   s.homepage         = 'https://github.com/etm/opcua-smart'
 
-  s.add_runtime_dependency 'daemonite', '~> 0'
+  s.add_runtime_dependency 'daemonite', '~> 0', '>= 0.5'
   s.add_development_dependency 'rake', '~> 12'
   s.add_development_dependency 'rake-compiler', '~> 1.0'
 end
