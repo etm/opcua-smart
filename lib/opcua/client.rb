@@ -1,4 +1,5 @@
-require_relative 'client.so'
+require 'opcua/client/client.so'
+require 'daemonite'
 
 module OPCUA
   class Client

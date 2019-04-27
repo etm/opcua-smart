@@ -7,7 +7,7 @@ Gem::Specification.new do |s|
 
   s.description      = "see https://github.com/etm/opcua-smart"
 
-  s.files            = Dir['{example/**/*,tools/**/*,lib/**/*,contrib/logo*}'] + %w(COPYING Rakefile opcua.gemspec README.md)
+  s.files            = Dir['{example/**/*,tools/**/*,lib/**/*.rb,ext/**/*.c,ext/**/*.h,cert/*.h,contrib/logo*}'] + %w(COPYING Rakefile opcua.gemspec README.md)
   s.extensions       = Dir["ext/**/extconf.rb"]
   s.require_path     = 'lib'
   s.extra_rdoc_files = ['README.md']

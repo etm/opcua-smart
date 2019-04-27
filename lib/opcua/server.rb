@@ -1,2 +1,2 @@
-require_relative 'server.so'
+require 'opcua/server/server.so'
 require 'daemonite'
