@@ -26,7 +26,6 @@ nodeIter(UA_NodeId childId, UA_Boolean isInverse, UA_NodeId referenceTypeId, voi
 }
 
 
-
 int main(int argc, char *argv[]) {
     UA_Client *client = UA_Client_new();
     UA_ClientConfig_setDefault(UA_Client_getConfig(client));
@@ -59,6 +58,8 @@ int main(int argc, char *argv[]) {
     }
     printf("%s\n","Connected to Server\n" );
 
+    UA_Variant value;
+
 
     //Read ARRAY
     UA_ReadRequest request;
@@ -72,26 +73,31 @@ int main(int argc, char *argv[]) {
 
     printf("TEst1\n");
     UA_ReadResponse response = UA_Client_Service_read(client, request);
-    printf("%*\n", response.responseHeader.serviceResult);
+    printf("%*\n", response);
     retval = UA_STATUSCODE_GOOD;
-    if(response.responseHeader.serviceResult != UA_STATUSCODE_GOOD)
+    if(response.responseHeader.serviceResult != UA_STATUSCODE_GOOD) {
         retval = response.responseHeader.serviceResult;
-    else if(response.resultsSize != 1 || !response.results[0].hasValue)
+        printf("%s\n","1" );
+      }
+    else if(response.resultsSize != 1 || !response.results[0].hasValue) {
         retval = UA_STATUSCODE_BADNODEATTRIBUTESINVALID;
-    else if(response.results[0].value.type != &UA_TYPES[UA_TYPES_STRING])
+        printf("%s\n","2" );
+      }
+    else if(response.results[0].value.type != &UA_TYPES[UA_TYPES_DOUBLE]) {
         retval = UA_STATUSCODE_BADTYPEMISMATCH;
-
+        printf("%s\n","3");
+      }
     if(retval != UA_STATUSCODE_GOOD) {
         UA_ReadResponse_deleteMembers(&response);
+        printf("%s\n","4" );
         return retval;
     }
 
-    printf("TEst2\n");
     retval = UA_STATUSCODE_BADNOTFOUND;
     UA_Double *n = (UA_Double *)response.results[0].value.data;
     printf("%s\n\n","Test" );
     for(size_t i = 0; i < response.results[0].value.arrayLength; ++i){
-      printf("%s\n", n[i]);
+      printf("%lf\n", n[i]);
       //printf("%s\n", ns[i].length);
     }
 
@@ -133,9 +139,9 @@ int main(int argc, char *argv[]) {
 
     //WriteArray
     printf("\nWriting MyArray Values\n");
-    UA_Variant value;
+
     UA_Variant_init(&value);
-    short v = 123;
+    double v = 123;
     UA_Variant_setArrayCopy(&value,&v,1,&UA_TYPES[UA_TYPES_DOUBLE]);
 
     UA_WriteValue wValue;
@@ -144,7 +150,7 @@ int main(int argc, char *argv[]) {
     wValue.attributeId = UA_ATTRIBUTEID_VALUE;
     wValue.value.value = value;
     wValue.value.hasValue = true;
-    wValue.indexRange = UA_STRING("5");
+    wValue.indexRange = UA_STRING("4");     //index of array
 
     UA_WriteRequest wReq;
     UA_WriteRequest_init(&wReq);
