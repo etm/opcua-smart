@@ -251,21 +251,10 @@ static VALUE node_value(VALUE self) { //{{{
   UA_Variant_init(&value);
   UA_StatusCode retval = UA_Server_readValue(ns->server->server, ns->id, &value);
 
+
   VALUE ret = Qnil;
   if (retval == UA_STATUSCODE_GOOD) {
-    if (UA_Variant_hasScalarType(&value, &UA_TYPES[UA_TYPES_DATETIME])) {
-      UA_DateTime raw = *(UA_DateTime *) value.data;
-      ret = rb_time_new(UA_DateTime_toUnixTime(raw),0);
-    } else if (UA_Variant_hasScalarType(&value, &UA_TYPES[UA_TYPES_BOOLEAN])) {
-      UA_Boolean raw = *(UA_Boolean *) value.data;
-      ret = raw ? Qtrue : Qfalse;
-    } else if (UA_Variant_hasScalarType(&value, &UA_TYPES[UA_TYPES_DOUBLE])) {
-      UA_Double raw = *(UA_Double *) value.data;
-      ret = DBL2NUM(raw);
-    } else if (UA_Variant_hasScalarType(&value, &UA_TYPES[UA_TYPES_STRING])) {
-      UA_String raw = *(UA_String *) value.data;
-      ret = rb_str_new((char *)(raw.data),raw.length);
-    }
+    ret = extract_value(value);
   }
 
   UA_Variant_clear(&value);
