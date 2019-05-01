@@ -238,6 +238,16 @@ static VALUE node_value_set(VALUE self, VALUE value) { //{{{
           UA_Server_writeValue(ns->server->server, ns->id, variant);
           break;
         }
+      case T_ARRAY:
+        {
+
+          UA_UInt32 arrayDims = 0;
+          attr.valueRank = UA_VALUERANK_ONE_DIMENSION;
+          attr.arrayDimensions = &arrayDims;
+          attr.arrayDimensionsSize = 1;
+          UA_Variant_setArray(&attr.value, UA_Array_new(10, &UA_TYPES[type]), 10, &UA_TYPES[type]);
+        }
+
     }
   }
   return self;
