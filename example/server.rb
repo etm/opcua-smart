@@ -1,6 +1,6 @@
 #!/usr/bin/ruby
-#require_relative '../lib/opcua/server'
-require 'opcua/server'
+require_relative '../lib/opcua/server'
+#require 'opcua/server'
 
 Daemonite.new do
 
@@ -27,22 +27,24 @@ Daemonite.new do
     }
   }
 
-  tools = server.objects.instantiate(:KalimatC34, pt).find(:Tools)
+  # tools = server.objects.instantiate(:KalimatC34, pt).find(:Tools)
 
-  t1 = tools.instantiate(:Tool1,tt)
-  t2 = tools.instantiate(:Tool2,tt)
-  t3 = tools.instantiate(:Tool3,tt)
+  tools = server.objects.manifest(:KalimatC34, pt)
 
-  tn = t1.find(:ToolNumber)
+  # t1 = tools.instantiate(:Tool1,tt)
+  # t2 = tools.instantiate(:Tool2,tt)
+  # t3 = tools.instantiate(:Tool3,tt)
 
-  measurments_t1 = t1.find(:Measurements)
-  measurments_t1.instantiate(:M1,mt)
-  measurments_t1.instantiate(:M2,mt)
+  # tn = t1.find(:ToolNumber)
 
-  p tn.id
+  # measurments_t1 = t1.find(:Measurements)
+  # measurments_t1.instantiate(:M1,mt)
+  # measurments_t1.instantiate(:M2,mt)
+
+  # p tn.id
 
   run do
     sleep server.run
-    tn.value = Time.now
+    # tn.value = Time.now
   end
 end.loop!

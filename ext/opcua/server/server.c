@@ -158,6 +158,57 @@ static VALUE node_add_object_without(VALUE self, VALUE name, VALUE parent) { //{
   VALUE argv[] = { name, parent, Qnil };
   return node_add_object(3,argv,self);
 } //}}}
+static UA_StatusCode node_manifest_iter(UA_NodeId childId, UA_Boolean isInverse, UA_NodeId referenceTypeId, void *handle) {
+    if (isInverse) return UA_STATUSCODE_GOOD;
+
+    server_struct *server = (server_struct *)handle;
+
+    if (childId.namespaceIndex == server->default_ns) {
+      UA_NodeClass *nc = UA_NodeClass_new();
+      UA_QualifiedName *qn = UA_QualifiedName_new();
+      UA_Server_readNodeClass(server->server, childId, nc);
+      UA_Server_readBrowseName(server->server, childId, qn);
+      printf("%d ---> NodeId %d, %-16.*s, nc: %d\n",
+             referenceTypeId.identifier.numeric,
+             childId.namespaceIndex,
+             (int)qn->name.length,
+             qn->name.data,
+             *nc
+      );
+      if (*nc == UA_NODECLASS_OBJECT && childId.namespaceIndex != server->default_ns) {
+        printf("---->\n");
+        UA_Server_forEachChildNodeCall(server->server, childId, node_manifest_iter, (void *)server);
+        printf("<----\n");
+      }
+
+      UA_NodeClass_delete(nc);
+      UA_QualifiedName_delete(qn);
+    }
+    return UA_STATUSCODE_GOOD;
+}
+static VALUE node_manifest(VALUE self, VALUE name, VALUE parent) { //{{{
+  node_struct *ns;
+  node_struct *ts;
+
+  // UA_UInt32 type = UA_NS0ID_MODELLINGRULE_MANDATORY;
+
+  if (!(rb_obj_is_kind_of(parent,cTypesTopNode) || rb_obj_is_kind_of(parent,cTypesSubNode))) {
+    rb_raise(rb_eArgError, "argument 2 has to be a type.");
+  }
+
+  Data_Get_Struct(self, node_struct, ns);
+  Data_Get_Struct(parent, node_struct, ts);
+
+  VALUE str = rb_obj_as_string(name);
+  if (NIL_P(str) || TYPE(str) != T_STRING)
+    rb_raise(rb_eTypeError, "cannot convert obj to string");
+  char *nstr = (char *)StringValuePtr(str);
+
+  // UA_NodeId n = UA_NODEID_STRING(ns->server->default_ns, nstr);
+
+  UA_Server_forEachChildNodeCall(ns->server->server, ts->id, node_manifest_iter, (void *)ts->server);
+  return self;
+} //}}}
 static VALUE node_find(VALUE self, VALUE qname) { //{{{
   node_struct *ns;
 
@@ -240,12 +291,11 @@ static VALUE node_value_set(VALUE self, VALUE value) { //{{{
         }
       case T_ARRAY:
         {
-
-          UA_UInt32 arrayDims = 0;
-          attr.valueRank = UA_VALUERANK_ONE_DIMENSION;
-          attr.arrayDimensions = &arrayDims;
-          attr.arrayDimensionsSize = 1;
-          UA_Variant_setArray(&attr.value, UA_Array_new(10, &UA_TYPES[type]), 10, &UA_TYPES[type]);
+          // UA_UInt32 arrayDims = 0;
+          // attr.valueRank = UA_VALUERANK_ONE_DIMENSION;
+          // attr.arrayDimensions = &arrayDims;
+          // attr.arrayDimensionsSize = 1;
+          // UA_Variant_setArray(&attr.value, UA_Array_new(10, &UA_TYPES[type]), 10, &UA_TYPES[type]);
         }
 
     }
@@ -362,11 +412,11 @@ void Init_server(void) {
   rb_define_const(mOPCUA, "OPTIONAL", INT2NUM(UA_NS0ID_MODELLINGRULE_OPTIONAL));
   rb_define_const(mOPCUA, "OPTIONALPLACEHOLDER", INT2NUM(UA_NS0ID_MODELLINGRULE_OPTIONALPLACEHOLDER));
 
-  cServer = rb_define_class_under(mOPCUA, "Server", rb_cObject);
+  cServer       = rb_define_class_under(mOPCUA, "Server", rb_cObject);
   cObjectsNode  = rb_define_class_under(mOPCUA, "cObjectsNode", rb_cObject);
-  cTypesTopNode  = rb_define_class_under(mOPCUA, "cTypesTopNode", rb_cObject);
-  cTypesSubNode  = rb_define_class_under(mOPCUA, "cTypesSubNode", rb_cObject);
-  cLeafNode  = rb_define_class_under(mOPCUA, "cLeafNode", rb_cObject);
+  cTypesTopNode = rb_define_class_under(mOPCUA, "cTypesTopNode", rb_cObject);
+  cTypesSubNode = rb_define_class_under(mOPCUA, "cTypesSubNode", rb_cObject);
+  cLeafNode     = rb_define_class_under(mOPCUA, "cLeafNode", rb_cObject);
 
   rb_define_alloc_func(cServer, server_alloc);
   rb_define_method(cServer, "initialize", server_init, 0);
@@ -383,6 +433,7 @@ void Init_server(void) {
   rb_define_method(cTypesSubNode, "id", node_id, 0);
 
   rb_define_method(cObjectsNode, "instantiate", node_add_object_without, 2);
+  rb_define_method(cObjectsNode, "manifest", node_manifest, 2);
   rb_define_method(cObjectsNode, "add_variable", node_add_variable_without, 1);
   rb_define_method(cObjectsNode, "find", node_find, 1);
   rb_define_method(cObjectsNode, "value", node_value, 0);
