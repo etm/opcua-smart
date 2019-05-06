@@ -17,17 +17,17 @@ Daemonite.new do
     t.add_variable :DuploNumber
     t.add_variable :testValue1
     t.add_object(:Measurements, server.types.folder).tap{ |u|
-      u.add_object :M, mt, OPCUA::OPTIONALPLACEHOLDER
+      u.add_object :M, mt, OPCUA::OPTIONAL
     }
   }
   pt = server.types.add_object_type(:PresetterType).tap{ |t|
     t.add_variable :ManufacturerName
     t.add_object(:Tools, server.types.folder).tap{ |u|
-      u.add_object :Tool, tt, OPCUA::OPTIONALPLACEHOLDER
+      u.add_object :Tool, tt, OPCUA::OPTIONAL
     }
   }
 
-  # tools = server.objects.instantiate(:KalimatC34, pt).find(:Tools)
+  # tools = server.objects.instantiate("/KalimatC34", pt).find(:Tools)
 
   tools = server.objects.manifest(:KalimatC34, pt)
 
