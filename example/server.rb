@@ -27,13 +27,16 @@ Daemonite.new do
     }
   }
 
-  # tools = server.objects.instantiate("/KalimatC34", pt).find(:Tools)
+  # tools = server.objects.instantiate(:KalimatC34, pt).find(:Tools)
 
-  tools = server.objects.manifest(:KalimatC34, pt)
+  kalim = server.objects.manifest(:KalimatC34, pt)
+  tools = kalim.find(:Tools)
 
-  # t1 = tools.instantiate(:Tool1,tt)
-  # t2 = tools.instantiate(:Tool2,tt)
-  # t3 = tools.instantiate(:Tool3,tt)
+  puts tools.to_s
+
+  # t1 = tools.manifest(:Tool1,tt)
+  # t2 = tools.manifest(:Tool2,tt)
+  # t3 = tools.manifest(:Tool3,tt)
 
   # tn = t1.find(:ToolNumber)
 
