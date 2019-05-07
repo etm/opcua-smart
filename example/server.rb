@@ -27,27 +27,22 @@ Daemonite.new do
     }
   }
 
-  # tools = server.objects.instantiate(:KalimatC34, pt).find(:Tools)
+  tools = server.objects.manifest(:KalimatC34, pt).find(:Tools)
 
-  kalim = server.objects.manifest(:KalimatC34, pt)
-  tools = kalim.find(:Tools)
+  t1 = tools.manifest(:Tool1,tt)
+  t2 = tools.manifest(:Tool2,tt)
+  t3 = tools.manifest(:Tool3,tt)
 
-  puts tools.to_s
+  tn = t1.find(:ToolNumber)
 
-  # t1 = tools.manifest(:Tool1,tt)
-  # t2 = tools.manifest(:Tool2,tt)
-  # t3 = tools.manifest(:Tool3,tt)
+  measurments_t1 = t1.find(:Measurements)
+  measurments_t1.manifest(:M1,mt)
+  measurments_t1.manifest(:M2,mt)
 
-  # tn = t1.find(:ToolNumber)
-
-  # measurments_t1 = t1.find(:Measurements)
-  # measurments_t1.instantiate(:M1,mt)
-  # measurments_t1.instantiate(:M2,mt)
-
-  # p tn.id
+  p tn.id
 
   run do
     sleep server.run
-    # tn.value = Time.now
+    tn.value = Time.now
   end
 end.loop!
