@@ -1,11 +1,14 @@
 #include "server.h"
 
 VALUE mOPCUA = Qnil;
+VALUE mTYPES = Qnil;
 VALUE cServer = Qnil;
 VALUE cObjectsNode = Qnil;
 VALUE cTypesTopNode = Qnil;
 VALUE cTypesSubNode = Qnil;
 VALUE cLeafNode = Qnil;
+
+#include "../values.h"
 
 /* -- */
 static void  node_free(node_struct *ns) { //{{{
@@ -337,7 +340,7 @@ static VALUE node_manifest(VALUE self, VALUE name, VALUE parent) { //{{{
 
   char *nidstr = strnautocat(NULL,"",1);
   if (ns->id.identifierType == UA_NODEIDTYPE_STRING) {
-    nidstr = strnautocat(nidstr,ns->id.identifier.string.data,ns->id.identifier.string.length);
+    nidstr = strnautocat(nidstr,(char *)ns->id.identifier.string.data,ns->id.identifier.string.length);
     nidstr = strnautocat(nidstr,"/",1);
   }
   nidstr = strnautocat(nidstr,nstr,strlen(nstr));
@@ -392,60 +395,8 @@ static VALUE node_find(VALUE self, VALUE qname) { //{{{
 
 static VALUE node_value_set(VALUE self, VALUE value) { //{{{
   node_struct *ns;
-
   Data_Get_Struct(self, node_struct, ns);
-
-  UA_Variant variant;
-  if (rb_obj_is_kind_of(value,rb_cTime)) {
-    UA_DateTime tmp = UA_DateTime_fromUnixTime(rb_time_timeval(value).tv_sec);
-    UA_Variant_setScalar(&variant, &tmp, &UA_TYPES[UA_TYPES_DATETIME]);
-    UA_Server_writeValue(ns->server->server, ns->id, variant);
-  } else {
-    switch (TYPE(value)) {
-      case T_FALSE:
-        {
-          UA_Boolean tmp = false;
-          UA_Variant_setScalar(&variant, &tmp, &UA_TYPES[UA_TYPES_BOOLEAN]);
-          UA_Server_writeValue(ns->server->server, ns->id, variant);
-          break;
-        }
-      case T_TRUE:
-        {
-          UA_Boolean tmp = true;
-          UA_Variant_setScalar(&variant, &tmp, &UA_TYPES[UA_TYPES_BOOLEAN]);
-          UA_Server_writeValue(ns->server->server, ns->id, variant);
-          break;
-        }
-      case T_FLOAT:
-      case T_FIXNUM:
-        {
-          UA_Double tmp = NUM2DBL(value);
-          UA_Variant_setScalar(&variant, &tmp, &UA_TYPES[UA_TYPES_DOUBLE]);
-          UA_Server_writeValue(ns->server->server, ns->id, variant);
-          break;
-        }
-      case T_STRING:
-      case T_SYMBOL:
-        {
-          VALUE str = rb_obj_as_string(value);
-          if (NIL_P(str) || TYPE(str) != T_STRING)
-            rb_raise(rb_eTypeError, "cannot convert obj to string");
-          UA_String tmp = UA_STRING(StringValuePtr(str));
-          UA_Variant_setScalar(&variant, &tmp, &UA_TYPES[UA_TYPES_STRING]);
-          UA_Server_writeValue(ns->server->server, ns->id, variant);
-          break;
-        }
-      case T_ARRAY:
-        {
-          // UA_UInt32 arrayDims = 0;
-          // attr.valueRank = UA_VALUERANK_ONE_DIMENSION;
-          // attr.arrayDimensions = &arrayDims;
-          // attr.arrayDimensionsSize = 1;
-          // UA_Variant_setArray(&attr.value, UA_Array_new(10, &UA_TYPES[type]), 10, &UA_TYPES[type]);
-        }
-
-    }
-  }
+  set_node_to_value(ns,value);
   return self;
 } //}}}
 static VALUE node_value(VALUE self) { //{{{
@@ -559,6 +510,8 @@ void Init_server(void) {
   rb_define_const(mOPCUA, "MANDATORYPLACEHOLDER", INT2NUM(UA_NS0ID_MODELLINGRULE_MANDATORYPLACEHOLDER));
   rb_define_const(mOPCUA, "OPTIONAL", INT2NUM(UA_NS0ID_MODELLINGRULE_OPTIONAL));
   rb_define_const(mOPCUA, "OPTIONALPLACEHOLDER", INT2NUM(UA_NS0ID_MODELLINGRULE_OPTIONALPLACEHOLDER));
+
+  Init_types();
 
   cServer       = rb_define_class_under(mOPCUA, "Server", rb_cObject);
   cObjectsNode  = rb_define_class_under(mOPCUA, "cObjectsNode", rb_cObject);

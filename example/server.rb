@@ -16,6 +16,7 @@ Daemonite.new do
     t.add_variable :ToolNumber
     t.add_variable :DuploNumber
     t.add_variable :testValue1
+    # t.add_method :testMethod, OPCUA::OPTIONAL
     t.add_object(:Measurements, server.types.folder).tap{ |u|
       u.add_object :M, mt, OPCUA::OPTIONAL
     }
@@ -44,5 +45,7 @@ Daemonite.new do
   run do
     sleep server.run
     tn.value = Time.now
+    p tn.value
+
   end
 end.loop!
