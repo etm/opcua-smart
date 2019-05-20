@@ -76,6 +76,94 @@ static VALUE node_to_s(VALUE self) { //{{{
   }
   return ret;
 } //}}}
+static UA_StatusCode node_add_method_callback(
+  UA_Server *server,
+  const UA_NodeId *sessionId, void *sessionContext,
+  const UA_NodeId *methodId, void *methodContext,
+  const UA_NodeId *objectId, void *objectContext,
+  size_t inputSize, const UA_Variant *input,
+  size_t outputSize, UA_Variant *output
+) {
+  return UA_STATUSCODE_GOOD;
+}
+static UA_NodeId node_add_method_ua(UA_NodeId n, UA_LocalizedText dn, UA_QualifiedName qn, node_struct *parent,size_t inputArgumentsSize,const UA_Argument *inputArguments,VALUE blk) { //{{{
+  UA_MethodAttributes mnAttr = UA_MethodAttributes_default;
+  mnAttr.displayName = dn;
+  mnAttr.executable = true;
+  mnAttr.userExecutable = true;
+
+  UA_Server_addMethodNode(parent->server->server,
+                         n,
+                         parent->id,
+                         UA_NODEID_NUMERIC(0, UA_NS0ID_HASCOMPONENT),
+                         qn,
+                         mnAttr,
+                         &node_add_method_callback,
+                         inputArgumentsSize,
+                         inputArguments,
+                         0,
+                         NULL,
+                         (void *)blk,
+                         NULL);
+
+
+  UA_Server_addReference(parent->server->server,
+                         n,
+                         UA_NODEID_NUMERIC(0, UA_NS0ID_HASMODELLINGRULE),
+                         UA_EXPANDEDNODEID_NUMERIC(0, UA_NS0ID_MODELLINGRULE_MANDATORY),
+                         true);
+
+  return n;
+} //}}}
+static UA_NodeId node_add_method_ua_simple(char* nstr, node_struct *parent, VALUE opts, VALUE blk) { //{{{
+  UA_Argument inputArguments[RHASH_SIZE(opts)];
+
+  VALUE ary = rb_funcall(opts, rb_intern("to_a"), 0);
+  for (long i=0; i<RARRAY_LEN(ary); i++) {
+	  VALUE item = RARRAY_AREF(ary, i);
+    VALUE str = rb_obj_as_string(RARRAY_AREF(item, 0));
+    if (NIL_P(str) || TYPE(str) != T_STRING)
+      rb_raise(rb_eTypeError, "cannot convert obj to string");
+    char *nstr = (char *)StringValuePtr(str);
+    UA_Argument_init(&inputArguments[i]);
+    inputArguments[i].description = UA_LOCALIZEDTEXT("en-US", nstr);
+    inputArguments[i].name = UA_STRING(nstr);
+    inputArguments[i].dataType = UA_TYPES[NUM2INT(RARRAY_AREF(item, 1))].typeId;
+    inputArguments[i].valueRank = UA_VALUERANK_SCALAR;
+  }
+
+  return node_add_method_ua(
+    UA_NODEID_STRING(parent->server->default_ns,nstr),
+    UA_LOCALIZEDTEXT("en-US", nstr),
+    UA_QUALIFIEDNAME(parent->server->default_ns, nstr),
+    parent,
+    RHASH_SIZE(opts),
+    inputArguments,
+    blk
+  );
+} //}}}
+static VALUE node_add_method(int argc, VALUE* argv, VALUE self) { //{{{
+  node_struct *parent;
+
+  VALUE name;
+	VALUE opts;
+	VALUE blk;
+
+  if (argc < 2) {  // there should only be 2 or 3 arguments
+    rb_raise(rb_eArgError, "wrong number of arguments");
+  }
+	rb_scan_args(argc, argv, "1:&", &name, &opts, &blk);
+  if (NIL_P(opts)) opts = rb_hash_new();
+
+  Data_Get_Struct(self, node_struct, parent);
+
+  VALUE str = rb_obj_as_string(name);
+  if (NIL_P(str) || TYPE(str) != T_STRING)
+    rb_raise(rb_eTypeError, "cannot convert obj to string");
+  char *nstr = (char *)StringValuePtr(str);
+
+  return node_wrap(CLASS_OF(self),node_alloc(parent->server,node_add_method_ua_simple(nstr,parent,opts,blk)));
+} //}}}
 
 static UA_NodeId node_add_variable_ua(UA_Int32 type, UA_NodeId n, UA_LocalizedText dn, UA_QualifiedName qn, node_struct *parent, VALUE ref) { //{{{
   UA_VariableAttributes mnAttr = UA_VariableAttributes_default;
@@ -174,7 +262,7 @@ static UA_NodeId node_add_object_ua_simple(UA_Int32 type, char* nstr, node_struc
     datatype,
     ref
   );
-} //}}}
+}  //}}}
 static VALUE node_add_object(int argc, VALUE* argv, VALUE self) { //{{{
   node_struct *parent;
   node_struct *datatype;
@@ -531,6 +619,7 @@ void Init_server(void) {
   rb_define_method(cTypesSubNode, "add_object_type", node_add_object_type, 1);
   rb_define_method(cTypesSubNode, "add_variable", node_add_variable, -1);
   rb_define_method(cTypesSubNode, "add_object", node_add_object, -1);
+  rb_define_method(cTypesSubNode, "add_method", node_add_method, -1);
   rb_define_method(cTypesSubNode, "id", node_id, 0);
 
   rb_define_method(cObjectsNode, "instantiate", node_add_object_without, 2);

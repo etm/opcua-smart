@@ -1,4 +1,5 @@
 #include <ruby.h>
+#include <ruby/intern.h>
 #include <stdio.h>
 #include <open62541.h>
 #include <malloc.h>

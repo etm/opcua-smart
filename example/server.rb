@@ -16,7 +16,9 @@ Daemonite.new do
     t.add_variable :ToolNumber
     t.add_variable :DuploNumber
     t.add_variable :testValue1
-    # t.add_method :testMethod, OPCUA::OPTIONAL
+    t.add_method :testMethod, test1: OPCUA::TYPES::STRING, test2: OPCUA::TYPES::DATETIME do |node, test1, test2|
+      # do something
+    end
     t.add_object(:Measurements, server.types.folder).tap{ |u|
       u.add_object :M, mt, OPCUA::OPTIONAL
     }
