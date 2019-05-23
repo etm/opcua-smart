@@ -166,8 +166,10 @@ static VALUE node_add_method(int argc, VALUE* argv, VALUE self) { //{{{
 } //}}}
 
 static UA_NodeId node_add_variable_ua(UA_Int32 type, UA_NodeId n, UA_LocalizedText dn, UA_QualifiedName qn, node_struct *parent, VALUE ref) { //{{{
-  UA_VariableAttributes mnAttr = UA_VariableAttributes_default;
-  mnAttr.displayName = dn;
+  UA_VariableAttributes vAttr = UA_VariableAttributes_default;
+  vAttr.displayName = dn;
+
+  vAttr.accessLevel = UA_ACCESSLEVELMASK_READ | UA_ACCESSLEVELMASK_WRITE;
 
   UA_Server_addVariableNode(parent->server->server,
                             n,
@@ -175,7 +177,7 @@ static UA_NodeId node_add_variable_ua(UA_Int32 type, UA_NodeId n, UA_LocalizedTe
                             UA_NODEID_NUMERIC(0, UA_NS0ID_HASCOMPONENT),
                             qn,
                             UA_NODEID_NUMERIC(0, UA_NS0ID_BASEDATAVARIABLETYPE),
-                            mnAttr,
+                            vAttr,
                             NULL,
                             NULL);
 
