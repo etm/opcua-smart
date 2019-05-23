@@ -13,9 +13,12 @@ Daemonite.new do
     t.add_variable :SollWertZ
   }
   tt = server.types.add_object_type(:ToolType).tap{ |t|
+    t.add_variable :SollWertX
+    t.add_variable :SollWertY
+    t.add_variable :SollWertZ
     t.add_variable :ToolNumber
     t.add_variable :DuploNumber
-    t.add_variable :testValue1, OPCUA::
+    t.add_variable :testValue1
     t.add_method :testMethod, test1: OPCUA::TYPES::STRING, test2: OPCUA::TYPES::DATETIME do |node, test1, test2|
       # do something
     end
@@ -42,12 +45,8 @@ Daemonite.new do
   measurments_t1.manifest(:M1,mt)
   measurments_t1.manifest(:M2,mt)
 
-  p tn.id
-
   run do
     sleep server.run
     tn.value = Time.now
-    p tn.value
-
   end
 end.loop!

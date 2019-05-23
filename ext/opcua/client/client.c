@@ -6,6 +6,8 @@ VALUE mOPCUA = Qnil;
 VALUE cClient = Qnil;
 VALUE cNode = Qnil;
 
+#include "../values.h"
+
 /* -- */
 static void  node_free(node_struct *ns) { //{{{
   if (ns != NULL) {
@@ -19,7 +21,7 @@ static VALUE node_alloc(VALUE klass, client_struct *client, UA_NodeId nodeid) { 
   if (ns == NULL)
     rb_raise(rb_eNoMemError, "No memory left for node.");
 
-  ns->client = client;
+  ns->master = client;
   ns->id  = nodeid;
   ns->on_change  = Qnil;
 
@@ -29,11 +31,11 @@ static VALUE node_alloc(VALUE klass, client_struct *client, UA_NodeId nodeid) { 
 static VALUE node_value(VALUE self) { //{{{
   node_struct *ns;
   Data_Get_Struct(self, node_struct, ns);
-  if (!ns->client->started) rb_raise(rb_eRuntimeError, "Client disconnected.");
+  if (!ns->master->started) rb_raise(rb_eRuntimeError, "Client disconnected.");
 
   UA_Variant value;
   UA_Variant_init(&value);
-  UA_StatusCode retval = UA_Client_readValueAttribute(ns->client->client, ns->id, &value);
+  UA_StatusCode retval = UA_Client_readValueAttribute(ns->master->master, ns->id, &value);
 
   VALUE ret = Qnil;
   if (retval == UA_STATUSCODE_GOOD) {
@@ -46,7 +48,7 @@ static VALUE node_value(VALUE self) { //{{{
 static VALUE node_on_change(VALUE self) { //{{{
   node_struct *ns;
   Data_Get_Struct(self, node_struct, ns);
-  if (!ns->client->started) rb_raise(rb_eRuntimeError, "Client disconnected.");
+  if (!ns->master->started) rb_raise(rb_eRuntimeError, "Client disconnected.");
 
   if (!rb_block_given_p())
     rb_raise(rb_eArgError, "you need to supply a block with #on_change");
@@ -54,8 +56,8 @@ static VALUE node_on_change(VALUE self) { //{{{
   ns->on_change = rb_block_proc();
   rb_gc_register_address(&ns->on_change);
 
-  rb_ary_push(ns->client->subs,self);
-  ns->client->subs_changed = true;
+  rb_ary_push(ns->master->subs,self);
+  ns->master->subs_changed = true;
 
   return self;
 } //}}}
@@ -65,10 +67,10 @@ static void  client_free(client_struct *pss) { //{{{
   if (pss != NULL) {
     if (!pss->firstrun) {
       // do we need to delete the individual monResponse (#UA_MonitoredItemCreateResult_clear)?
-      UA_Client_Subscriptions_deleteSingle(pss->client,pss->subscription_response.subscriptionId);
+      UA_Client_Subscriptions_deleteSingle(pss->master,pss->subscription_response.subscriptionId);
     }
-    UA_Client_disconnect(pss->client);
-    UA_Client_delete(pss->client);
+    UA_Client_disconnect(pss->master);
+    UA_Client_delete(pss->master);
     free(pss);
   }
 } //}}}
@@ -78,8 +80,8 @@ static VALUE client_alloc(VALUE self) { //{{{
   if (pss == NULL)
     rb_raise(rb_eNoMemError, "No memory left for OPCUA client.");
 
-  pss->client = UA_Client_new();
-  pss->config = UA_Client_getConfig(pss->client);
+  pss->master = UA_Client_new();
+  pss->config = UA_Client_getConfig(pss->master);
   pss->firstrun = true;
   pss->started = true;
   pss->debug = true;
@@ -141,11 +143,11 @@ static VALUE client_init(VALUE self,VALUE url,VALUE user,VALUE pass) { //{{{
   // /* Listing endpoints */
   // UA_EndpointDescription* endpointArray = NULL;
   // size_t endpointArraySize = 0;
-  // retval = UA_Client_getEndpoints(pss->client, "opc.tcp://localhost:4840",
+  // retval = UA_Client_getEndpoints(pss->master, "opc.tcp://localhost:4840",
   //                                               &endpointArraySize, &endpointArray);
   // if(retval != UA_STATUSCODE_GOOD) {
   //     UA_Array_delete(endpointArray, endpointArraySize, &UA_TYPES[UA_TYPES_ENDPOINTDESCRIPTION]);
-  //     UA_Client_delete(pss->client);
+  //     UA_Client_delete(pss->master);
   //     return EXIT_FAILURE;
   // }
   // printf("%i endpoints found\n", (int)endpointArraySize);
@@ -182,7 +184,7 @@ static VALUE client_init(VALUE self,VALUE url,VALUE user,VALUE pass) { //{{{
   //}}}
 
   if (NIL_P(user) || NIL_P(pass)) {
-    retval = UA_Client_connect(pss->client,nstr);
+    retval = UA_Client_connect(pss->master,nstr);
   } else {
     VALUE vustr = rb_obj_as_string(user);
     if (NIL_P(vustr) || TYPE(vustr) != T_STRING) {
@@ -198,7 +200,7 @@ static VALUE client_init(VALUE self,VALUE url,VALUE user,VALUE pass) { //{{{
     }
     char *pstr = (char *)StringValuePtr(vpstr);
 
-    retval = UA_Client_connect_username(pss->client, nstr, ustr, pstr);
+    retval = UA_Client_connect_username(pss->master, nstr, ustr, pstr);
   }
   if (retval != UA_STATUSCODE_GOOD) {
     pss->started = false;
@@ -292,7 +294,7 @@ static void  client_run_iterate(VALUE key) { //{{{
   UA_MonitoredItemCreateRequest monRequest = UA_MonitoredItemCreateRequest_default(ns->id);
 
   UA_MonitoredItemCreateResult monResponse =
-  UA_Client_MonitoredItems_createDataChange(ns->client->client, ns->client->subscription_response.subscriptionId,
+  UA_Client_MonitoredItems_createDataChange(ns->master->master, ns->master->subscription_response.subscriptionId,
                                             UA_TIMESTAMPSTORETURN_BOTH,
                                             monRequest, (void *)ns->on_change, client_run_handler, NULL);
 
@@ -308,7 +310,7 @@ static VALUE client_run(VALUE self) { //{{{
   if (pss->firstrun) {
     pss->firstrun = false;
     pss->subs_changed = false;
-    pss->subscription_response = UA_Client_Subscriptions_create(pss->client, pss->subscription_request, NULL, NULL, NULL);
+    pss->subscription_response = UA_Client_Subscriptions_create(pss->master, pss->subscription_request, NULL, NULL, NULL);
     if (pss->subscription_response.responseHeader.serviceResult != UA_STATUSCODE_GOOD)
       rb_raise(rb_eRuntimeError, "Subscription could not be created.");
 
@@ -316,7 +318,7 @@ static VALUE client_run(VALUE self) { //{{{
       client_run_iterate(rb_ary_entry(pss->subs,i));
     }
   }
-  UA_Client_run_iterate(pss->client, 100);
+  UA_Client_run_iterate(pss->master, 100);
 
   return self;
 } //}}}
@@ -327,9 +329,9 @@ static VALUE client_disconnect(VALUE self) { //{{{
 
   if (!pss->firstrun) {
     // do we need to delete the individual monResponse (#UA_MonitoredItemCreateResult_clear)?
-    UA_Client_Subscriptions_deleteSingle(pss->client,pss->subscription_response.subscriptionId);
+    UA_Client_Subscriptions_deleteSingle(pss->master,pss->subscription_response.subscriptionId);
   }
-  UA_Client_disconnect(pss->client);
+  UA_Client_disconnect(pss->master);
   pss->started = false;
 
   return self;
@@ -340,6 +342,8 @@ void Init_client(void) {
 
   cClient = rb_define_class_under(mOPCUA, "Client", rb_cObject);
   cNode   = rb_define_class_under(mOPCUA, "cNode", rb_cObject);
+
+  Init_types();
 
   rb_define_alloc_func(cClient, client_alloc);
   rb_define_method(cClient, "initialize", client_init, 3);

@@ -8,11 +8,12 @@
 
 typedef struct server_struct {
   UA_ServerConfig *config;
-  UA_Server *server;
+  UA_Server *master;
   UA_UInt16 default_ns;
+  bool debug;
 } server_struct;
 
 typedef struct node_struct {
-  server_struct *server;
+  server_struct *master;
   UA_NodeId id;
 } node_struct;
