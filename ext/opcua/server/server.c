@@ -470,6 +470,11 @@ static UA_StatusCode node_manifest_iter(UA_NodeId child_id, UA_Boolean is_invers
           if(nc == UA_NODECLASS_VARIABLE) {
             node_add_variable_ua(UA_NS0ID_MODELLINGRULE_MANDATORY,UA_NODEID_STRING(parent->master->default_ns,buffer),dn,qn,newnode,Qtrue,al);
           }
+          if(nc == UA_NODECLASS_METHOD) {
+            UA_BrowsePathResult property = node_browse_path(parent->master->master, child_id, UA_NODEID_NUMERIC(0, UA_NS0ID_HASPROPERTY), mqn);
+            node_add_method_ua(UA_NODEID_STRING(parent->master->default_ns,buffer),dn,qn,newnode,size,args,blk);
+            UA_BrowsePathResult_clear(&property);
+          }
         }
         UA_BrowsePathResult_clear(&mandatory);
         UA_QualifiedName_clear(&mqn);
