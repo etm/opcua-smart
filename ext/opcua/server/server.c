@@ -165,11 +165,11 @@ static VALUE node_add_method(int argc, VALUE* argv, VALUE self) { //{{{
   return node_wrap(CLASS_OF(self),node_alloc(parent->server,node_add_method_ua_simple(nstr,parent,opts,blk)));
 } //}}}
 
-static UA_NodeId node_add_variable_ua(UA_Int32 type, UA_NodeId n, UA_LocalizedText dn, UA_QualifiedName qn, node_struct *parent, VALUE ref) { //{{{
+static UA_NodeId node_add_variable_ua(UA_Int32 type, UA_NodeId n, UA_LocalizedText dn, UA_QualifiedName qn, node_struct *parent, VALUE ref, UA_Byte accesslevelmask) { //{{{
   UA_VariableAttributes vAttr = UA_VariableAttributes_default;
   vAttr.displayName = dn;
 
-  vAttr.accessLevel = UA_ACCESSLEVELMASK_READ | UA_ACCESSLEVELMASK_WRITE;
+  vAttr.accessLevel = accesslevelmask;
 
   UA_Server_addVariableNode(parent->server->server,
                             n,
@@ -192,17 +192,18 @@ static UA_NodeId node_add_variable_ua(UA_Int32 type, UA_NodeId n, UA_LocalizedTe
   return n;
 
 } //}}}
-static UA_NodeId node_add_variable_ua_simple(UA_Int32 type, char* nstr, node_struct *parent, VALUE ref) { //{{{
+static UA_NodeId node_add_variable_ua_simple(UA_Int32 type, char* nstr, node_struct *parent, VALUE ref, UA_Byte accesslevelmask) { //{{{
   return node_add_variable_ua(
     type,
     UA_NODEID_STRING(parent->server->default_ns,nstr),
     UA_LOCALIZEDTEXT("en-US", nstr),
     UA_QUALIFIEDNAME(parent->server->default_ns, nstr),
     parent,
-    ref
+    ref,
+    accesslevelmask
   );
 } //}}}
-static VALUE node_add_variable(int argc, VALUE* argv, VALUE self) { //{{{
+static VALUE node_add_variable_wrap(int argc, VALUE* argv, VALUE self, UA_Byte accesslevelmask) { //{{{
   node_struct *parent;
 
   if (argc > 2 || argc == 0) {  // there should only be 1 or 2 arguments
@@ -223,11 +224,21 @@ static VALUE node_add_variable(int argc, VALUE* argv, VALUE self) { //{{{
     rb_raise(rb_eTypeError, "cannot convert obj to string");
   char *nstr = (char *)StringValuePtr(str);
 
-  return node_wrap(cLeafNode,node_alloc(parent->server,node_add_variable_ua_simple(type,nstr,parent,argv[1])));
+  return node_wrap(cLeafNode,node_alloc(parent->server,node_add_variable_ua_simple(type,nstr,parent,argv[1],accesslevelmask)));
+} //}}}
+static VALUE node_add_variable(int argc, VALUE* argv, VALUE self) { //{{{
+  return node_add_variable_wrap(argc,argv,self,UA_ACCESSLEVELMASK_READ);
+} //}}}
+static VALUE node_add_variable_rw(int argc, VALUE* argv, VALUE self) { //{{{
+  return node_add_variable_wrap(argc,argv,self,UA_ACCESSLEVELMASK_READ | UA_ACCESSLEVELMASK_WRITE);
 } //}}}
 static VALUE node_add_variable_without(VALUE self, VALUE name) { //{{{
   VALUE argv[] = { name, Qnil };
   return node_add_variable(2,argv,self);
+} //}}}
+static VALUE node_add_variable_rw_without(VALUE self, VALUE name) { //{{{
+  VALUE argv[] = { name, Qnil };
+  return node_add_variable_rw(2,argv,self);
 } //}}}
 
 static UA_NodeId node_add_object_ua(UA_Int32 type, UA_NodeId n, UA_LocalizedText dn, UA_QualifiedName qn, node_struct *parent, node_struct *datatype, VALUE ref) { //{{{
@@ -348,9 +359,12 @@ static UA_StatusCode node_manifest_iter(UA_NodeId child_id, UA_Boolean is_invers
       UA_QualifiedName pqn; UA_QualifiedName_init(&pqn);
       UA_QualifiedName nqn; UA_QualifiedName_init(&nqn);
 
+      UA_Byte al; UA_Byte_init(&al);
+
       UA_Server_readNodeClass(parent->server->server, child_id, &nc);
       UA_Server_readBrowseName(parent->server->server, child_id, &qn);
       UA_Server_readDisplayName(parent->server->server, child_id, &dn);
+      UA_Server_readAccessLevel(parent->server->server, child_id, &al);
       UA_Server_readBrowseName(parent->server->server, parent->id, &pqn);
       UA_Server_readBrowseName(parent->server->server, newnode->id, &nqn);
 
@@ -398,7 +412,7 @@ static UA_StatusCode node_manifest_iter(UA_NodeId child_id, UA_Boolean is_invers
             free(newparent);
           }
           if(nc == UA_NODECLASS_VARIABLE) {
-            node_add_variable_ua(UA_NS0ID_MODELLINGRULE_MANDATORY,UA_NODEID_STRING(parent->server->default_ns,buffer),dn,qn,newnode,Qtrue);
+            node_add_variable_ua(UA_NS0ID_MODELLINGRULE_MANDATORY,UA_NODEID_STRING(parent->server->default_ns,buffer),dn,qn,newnode,Qtrue,al);
           }
         }
         UA_BrowsePathResult_clear(&mandatory);
@@ -406,6 +420,7 @@ static UA_StatusCode node_manifest_iter(UA_NodeId child_id, UA_Boolean is_invers
       }
 
       UA_NodeClass_clear(&nc);
+      UA_Byte_clear(&al);
       UA_QualifiedName_clear(&qn);
       UA_QualifiedName_clear(&pqn);
       UA_LocalizedText_clear(&dn);
@@ -620,6 +635,7 @@ void Init_server(void) {
   rb_define_method(cTypesTopNode, "folder", node_type_folder, 0);
   rb_define_method(cTypesSubNode, "add_object_type", node_add_object_type, 1);
   rb_define_method(cTypesSubNode, "add_variable", node_add_variable, -1);
+  rb_define_method(cTypesSubNode, "add_variable_rw", node_add_variable_rw, -1);
   rb_define_method(cTypesSubNode, "add_object", node_add_object, -1);
   rb_define_method(cTypesSubNode, "add_method", node_add_method, -1);
   rb_define_method(cTypesSubNode, "id", node_id, 0);
@@ -627,6 +643,7 @@ void Init_server(void) {
   rb_define_method(cObjectsNode, "instantiate", node_add_object_without, 2);
   rb_define_method(cObjectsNode, "manifest", node_manifest, 2);
   rb_define_method(cObjectsNode, "add_variable", node_add_variable_without, 1);
+  rb_define_method(cObjectsNode, "add_variable_rw", node_add_variable_rw_without, 1);
   rb_define_method(cObjectsNode, "find", node_find, 1);
   rb_define_method(cObjectsNode, "value", node_value, 0);
   rb_define_method(cObjectsNode, "value=", node_value_set, 1);
