@@ -69,7 +69,7 @@ static void set_node_to_value(node_struct *ns, VALUE value) { //{{{
 /* -- */
 static void  node_free(node_struct *ns) { //{{{
   if (ns != NULL) { free(ns); }
-} //}}}
+}  //}}}
 static node_struct * node_alloc(server_struct *server, UA_NodeId nodeid) { //{{{
   node_struct *ns;
   ns = (node_struct *)malloc(sizeof(node_struct));
@@ -204,6 +204,7 @@ static UA_NodeId node_add_method_ua_simple(char* nstr, node_struct *parent, VALU
   int nodeid = nodecounter++;
 
   rb_hash_aset(parent->master->methods,INT2NUM(nodeid),blk);
+  rb_gc_register_address(&blk);
 
   return node_add_method_ua(
     UA_NODEID_NUMERIC(parent->master->default_ns,nodeid),
@@ -305,14 +306,6 @@ static VALUE node_add_variable(int argc, VALUE* argv, VALUE self) { //{{{
 static VALUE node_add_variable_rw(int argc, VALUE* argv, VALUE self) { //{{{
   return node_add_variable_wrap(argc,argv,self,UA_ACCESSLEVELMASK_READ | UA_ACCESSLEVELMASK_WRITE,true);
 } //}}}
-// static VALUE node_add_variable_without(VALUE self, VALUE name) { //{{{
-//   VALUE argv[] = { name, Qnil };
-//   return node_add_variable_wrap(2,argv,self,UA_ACCESSLEVELMASK_READ,false);
-// } //}}}
-// static VALUE node_add_variable_rw_without(VALUE self, VALUE name) { //{{{
-//  VALUE argv[] = { name, Qnil };
-//  return node_add_variable_wrap(2,argv,self,UA_ACCESSLEVELMASK_READ | UA_ACCESSLEVELMASK_WRITE,false);
-//} //}}}
 
 static UA_NodeId node_add_object_ua(UA_Int32 type, UA_NodeId n, UA_LocalizedText dn, UA_QualifiedName qn, node_struct *parent, node_struct *datatype, VALUE ref) { //{{{
   UA_ObjectAttributes oAttr = UA_ObjectAttributes_default;
@@ -378,10 +371,6 @@ static VALUE node_add_object(int argc, VALUE* argv, VALUE self) { //{{{
 
   return node_wrap(CLASS_OF(self),node_alloc(parent->master,node_add_object_ua_simple(type,nstr,parent,datatype,argv[2])));
 } //}}}
-// static VALUE node_add_object_without(VALUE self, VALUE name, VALUE parent) { //{{{
-//   VALUE argv[] = { name, parent, Qnil };
-//   return node_add_object(3,argv,self);
-// } //}}}
 
 static UA_BrowsePathResult node_browse_path(UA_Server *server, UA_NodeId relative, UA_NodeId ref, UA_QualifiedName mqn) { //{{{
   UA_RelativePathElement rpe;
@@ -747,15 +736,18 @@ void Init_server(void) {
   rb_define_method(cTypesSubNode, "add_variable_rw", node_add_variable_rw, -1);
   rb_define_method(cTypesSubNode, "add_object", node_add_object, -1);
   rb_define_method(cTypesSubNode, "add_method", node_add_method, -1);
+  rb_define_method(cTypesSubNode, "to_s", node_to_s, 0);
   rb_define_method(cTypesSubNode, "id", node_id, 0);
 
   rb_define_method(cObjectsNode, "manifest", node_manifest, 2);
-  // rb_define_method(cObjectsNode, "instantiate", node_add_object_without, 2);
-  // rb_define_method(cObjectsNode, "add_variable", node_add_variable_without, 1);
-  // rb_define_method(cObjectsNode, "add_variable_rw", node_add_variable_rw_without, 1);
   rb_define_method(cObjectsNode, "find", node_find, 1);
-  rb_define_method(cObjectsNode, "value", node_value, 0);
-  rb_define_method(cObjectsNode, "value=", node_value_set, 1);
   rb_define_method(cObjectsNode, "to_s", node_to_s, 0);
   rb_define_method(cObjectsNode, "id", node_id, 0);
+  rb_define_method(cObjectsNode, "value", node_value, 0);
+  rb_define_method(cObjectsNode, "value=", node_value_set, 1);
+
+  rb_define_method(cLeafNode, "to_s", node_to_s, 0);
+  rb_define_method(cLeafNode, "id", node_id, 0);
+  rb_define_method(cLeafNode, "value", node_value, 0);
+  rb_define_method(cLeafNode, "value=", node_value_set, 1);
 }

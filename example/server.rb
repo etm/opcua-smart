@@ -3,6 +3,7 @@ require_relative '../lib/opcua/server'
 #require 'opcua/server'
 
 Daemonite.new do
+  begin
   server = OPCUA::Server.new
   server.add_namespace "https://centurio.work/kelch"
 
@@ -19,7 +20,8 @@ Daemonite.new do
     t.add_variable :DuploNumber
     t.add_variable :testValue1
     t.add_method :testMethod, test1: OPCUA::TYPES::STRING, test2: OPCUA::TYPES::DATETIME do |node, test1, test2, test4|
-      p node.to_s
+      ns, nid = node.id
+      p nid
       p test1
       p test2
       p test4
@@ -48,6 +50,10 @@ Daemonite.new do
   measurments_t1 = t1.find(:Measurements)
   measurments_t1.manifest(:M1,mt)
   measurments_t1.manifest(:M2,mt)
+
+  rescue => e
+    puts e
+  end
 
   run do
     # GC.start
