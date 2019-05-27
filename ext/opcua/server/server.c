@@ -6,6 +6,7 @@ VALUE cObjectsNode = Qnil;
 VALUE cTypesTopNode = Qnil;
 VALUE cTypesSubNode = Qnil;
 VALUE cLeafNode = Qnil;
+VALUE cMethodNode = Qnil;
 
 #include "../values.h"
 
@@ -585,7 +586,22 @@ static VALUE node_find(VALUE self, VALUE qname) { //{{{
     UA_NodeId ret;UA_NodeId_init(&ret);
     UA_NodeId_copy(&bpr.targets[0].targetId.nodeId,&ret);
     UA_BrowsePathResult_clear(&bpr);
-    return node_wrap(CLASS_OF(self),node_alloc(ns->master,ret));
+
+    UA_NodeClass nc;UA_NodeClass_init(&nc);
+    UA_Server_readNodeClass(ns->master->master, ret, &nc);
+
+    VALUE node;
+
+    if (nc == UA_NODECLASS_VARIABLE) {
+      node = node_wrap(cLeafNode,node_alloc(ns->master,ret));
+    } else if (nc == UA_NODECLASS_METHOD) {
+      node = node_wrap(cMethodNode,node_alloc(ns->master,ret));
+    } else {
+      node = node_wrap(cObjectsNode,node_alloc(ns->master,ret));
+    }
+    UA_NodeClass_clear(&nc);
+
+    return node;
   }
 } //}}}
 
@@ -735,6 +751,7 @@ void Init_server(void) {
   cTypesTopNode = rb_define_class_under(mOPCUA, "cTypesTopNode", rb_cObject);
   cTypesSubNode = rb_define_class_under(mOPCUA, "cTypesSubNode", rb_cObject);
   cLeafNode     = rb_define_class_under(mOPCUA, "cLeafNode", rb_cObject);
+  cMethodNode   = rb_define_class_under(mOPCUA, "cMethodNode", rb_cObject);
 
   rb_define_alloc_func(cServer, server_alloc);
   rb_define_method(cServer, "initialize", server_init, 0);
@@ -759,11 +776,12 @@ void Init_server(void) {
   rb_define_method(cObjectsNode, "find", node_find, 1);
   rb_define_method(cObjectsNode, "to_s", node_to_s, 0);
   rb_define_method(cObjectsNode, "id", node_id, 0);
-  rb_define_method(cObjectsNode, "value", node_value, 0);
-  rb_define_method(cObjectsNode, "value=", node_value_set, 1);
 
   rb_define_method(cLeafNode, "to_s", node_to_s, 0);
   rb_define_method(cLeafNode, "id", node_id, 0);
   rb_define_method(cLeafNode, "value", node_value, 0);
   rb_define_method(cLeafNode, "value=", node_value_set, 1);
+
+  rb_define_method(cMethodNode, "to_s", node_to_s, 0);
+  rb_define_method(cMethodNode, "id", node_id, 0);
 }
