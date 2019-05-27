@@ -52,12 +52,16 @@ Daemonite.new do
   measurments_t1.manifest(:M2,mt)
 
   rescue => e
-    puts e
+    puts e.message
   end
 
   run do
-    # GC.start
-    sleep server.run
-    tn.value = Time.now
+    begin
+      GC.start
+      sleep server.run
+      tn.value = Time.now
+    rescue => e
+      puts e.message
+    end
   end
 end.loop!

@@ -68,8 +68,13 @@ static void set_node_to_value(node_struct *ns, VALUE value) { //{{{
 
 /* -- */
 static void  node_free(node_struct *ns) { //{{{
-  if (ns != NULL) { free(ns); }
-}  //}}}
+  if (ns != NULL) {
+    if (!NIL_P(ns->method)) {
+      rb_gc_unregister_address(&ns->method);
+    }
+    free(ns);
+  }
+} //}}}
 static node_struct * node_alloc(server_struct *server, UA_NodeId nodeid) { //{{{
   node_struct *ns;
   ns = (node_struct *)malloc(sizeof(node_struct));
@@ -77,7 +82,8 @@ static node_struct * node_alloc(server_struct *server, UA_NodeId nodeid) { //{{{
     rb_raise(rb_eNoMemError, "No memory left for node.");
 
   ns->master = server;
-  ns->id  = nodeid;
+  ns->id     = nodeid;
+  ns->method = Qnil;
 
 	return ns;
 } //}}}
@@ -140,16 +146,20 @@ static UA_StatusCode node_add_method_callback(
   size_t inputSize, const UA_Variant *input,
   size_t outputSize, UA_Variant *output
 ) {
-  node_struct *me = (node_struct *)methodContext;
+  node_struct *me;
+  VALUE node = (VALUE)methodContext;
+
+  Data_Get_Struct(node, node_struct, me);
 
   VALUE args = rb_ary_new();
-  rb_ary_push(args, node_wrap(cLeafNode,me));
+
+  // rb_ary_push(args, node);
   for (int i = 0; i < inputSize; i++) {
     VALUE ret = extract_value(input[i]);
     rb_ary_push(args,rb_ary_entry(ret,0));
   }
 
-  rb_proc_call(me->method,args);
+  // rb_proc_call(me->method,args);
 
   return UA_STATUSCODE_GOOD;
 }
@@ -161,6 +171,9 @@ static UA_NodeId node_add_method_ua(UA_NodeId n, UA_LocalizedText dn, UA_Qualifi
 
   node_struct *me = node_alloc(parent->master,n);
   me->method = blk;
+  rb_gc_register_address(&blk);
+  rb_gc_register_address(&me->method);
+  VALUE node = Data_Wrap_Struct(cObjectsNode, NULL, NULL, me),
 
   UA_Server_addMethodNode(parent->master->master,
                          n,
@@ -173,7 +186,7 @@ static UA_NodeId node_add_method_ua(UA_NodeId n, UA_LocalizedText dn, UA_Qualifi
                          inputArguments,
                          0,
                          NULL,
-                         (void *)me,
+                         (void *)node,
                          NULL);
 
 
@@ -204,7 +217,6 @@ static UA_NodeId node_add_method_ua_simple(char* nstr, node_struct *parent, VALU
   int nodeid = nodecounter++;
 
   rb_hash_aset(parent->master->methods,INT2NUM(nodeid),blk);
-  rb_gc_register_address(&blk);
 
   return node_add_method_ua(
     UA_NODEID_NUMERIC(parent->master->default_ns,nodeid),
