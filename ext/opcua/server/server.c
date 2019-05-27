@@ -140,13 +140,27 @@ static UA_StatusCode node_add_method_callback(
   size_t inputSize, const UA_Variant *input,
   size_t outputSize, UA_Variant *output
 ) {
+  node_struct *me = (node_struct *)methodContext;
+
+  VALUE args = rb_ary_new();
+  rb_ary_push(args, node_wrap(cLeafNode,me));
+  for (int i = 0; i < inputSize; i++) {
+    VALUE ret = extract_value(input[i]);
+    rb_ary_push(args,rb_ary_entry(ret,0));
+  }
+
+  rb_proc_call(me->method,args);
+
   return UA_STATUSCODE_GOOD;
 }
-static UA_NodeId node_add_method_ua(UA_NodeId n, UA_LocalizedText dn, UA_QualifiedName qn, node_struct *parent,size_t inputArgumentsSize,const UA_Argument *inputArguments,VALUE blk) { //{{{
+static UA_NodeId node_add_method_ua(UA_NodeId n, UA_LocalizedText dn, UA_QualifiedName qn, node_struct *parent,size_t inputArgumentsSize,const UA_Argument *inputArguments, VALUE blk) { //{{{
   UA_MethodAttributes mnAttr = UA_MethodAttributes_default;
   mnAttr.displayName = dn;
   mnAttr.executable = true;
   mnAttr.userExecutable = true;
+
+  node_struct *me = node_alloc(parent->master,n);
+  me->method = blk;
 
   UA_Server_addMethodNode(parent->master->master,
                          n,
@@ -159,7 +173,7 @@ static UA_NodeId node_add_method_ua(UA_NodeId n, UA_LocalizedText dn, UA_Qualifi
                          inputArguments,
                          0,
                          NULL,
-                         (void *)blk,
+                         (void *)me,
                          NULL);
 
 
@@ -187,9 +201,12 @@ static UA_NodeId node_add_method_ua_simple(char* nstr, node_struct *parent, VALU
     inputArguments[i].dataType = UA_TYPES[NUM2INT(RARRAY_AREF(item, 1))].typeId;
     inputArguments[i].valueRank = UA_VALUERANK_SCALAR;
   }
+  int nodeid = nodecounter++;
+
+  rb_hash_aset(parent->master->methods,INT2NUM(nodeid),blk);
 
   return node_add_method_ua(
-    UA_NODEID_NUMERIC(parent->master->default_ns,nodecounter++),
+    UA_NODEID_NUMERIC(parent->master->default_ns,nodeid),
     UA_LOCALIZEDTEXT("en-US", nstr),
     UA_QUALIFIEDNAME(parent->master->default_ns, nstr),
     parent,
@@ -205,7 +222,7 @@ static VALUE node_add_method(int argc, VALUE* argv, VALUE self) { //{{{
 	VALUE opts;
 	VALUE blk;
 
-  if (argc < 2) {  // there should only be 2 or 3 arguments
+  if (argc < 1) {  // there should be 1 or more arguments
     rb_raise(rb_eArgError, "wrong number of arguments");
   }
 	rb_scan_args(argc, argv, "1:&", &name, &opts, &blk);
@@ -390,7 +407,6 @@ static bool node_get_reference(UA_Server *server, UA_NodeId parent, UA_NodeId *r
   bDes.resultMask = UA_BROWSERESULTMASK_ALL;
   UA_BrowseResult bRes = UA_Server_browse(server, 3, &bDes);
 
-
   if (bRes.referencesSize > 0) {
     UA_ReferenceDescription *ref = &(bRes.references[0]);
 
@@ -473,14 +489,15 @@ static UA_StatusCode node_manifest_iter(UA_NodeId child_id, UA_Boolean is_invers
           }
           if(nc == UA_NODECLASS_METHOD) {
             UA_NodeId ttt;
+            VALUE blk = rb_hash_aref(parent->master->methods,INT2NUM(child_id.identifier.numeric));
             if (node_get_reference(parent->master->master, child_id, &ttt)) {
               UA_Variant arv; UA_Variant_init(&arv);
               UA_Server_readValue(parent->master->master, ttt, &arv);
 
-              node_add_method_ua(UA_NODEID_STRING(parent->master->default_ns,buffer),dn,qn,newnode,arv.arrayLength,(UA_Argument *)arv.data,Qnil);
+              node_add_method_ua(UA_NODEID_STRING(parent->master->default_ns,buffer),dn,qn,newnode,arv.arrayLength,(UA_Argument *)arv.data,blk);
               UA_Variant_clear(&arv);
             } else {
-              node_add_method_ua(UA_NODEID_STRING(parent->master->default_ns,buffer),dn,qn,newnode,0,NULL,Qnil);
+              node_add_method_ua(UA_NODEID_STRING(parent->master->default_ns,buffer),dn,qn,newnode,0,NULL,blk);
             }
           }
         }
@@ -627,6 +644,7 @@ static VALUE server_alloc(VALUE self) { //{{{
   pss->config = UA_Server_getConfig(pss->master);
   pss->default_ns = 1;
   pss->debug = true;
+  pss->methods = rb_hash_new();
 
   UA_ServerConfig_setDefault(pss->config);
 

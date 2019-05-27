@@ -11,9 +11,11 @@ typedef struct server_struct {
   UA_Server *master;
   UA_UInt16 default_ns;
   bool debug;
+  VALUE methods;
 } server_struct;
 
 typedef struct node_struct {
   server_struct *master;
   UA_NodeId id;
+  VALUE method;
 } node_struct;

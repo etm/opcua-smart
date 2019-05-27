@@ -18,7 +18,11 @@ Daemonite.new do
     t.add_variable :ToolNumber
     t.add_variable :DuploNumber
     t.add_variable :testValue1
-    t.add_method :testMethod, test1: OPCUA::TYPES::STRING, test2: OPCUA::TYPES::DATETIME do |node, test1, test2|
+    t.add_method :testMethod, test1: OPCUA::TYPES::STRING, test2: OPCUA::TYPES::DATETIME do |node, test1, test2, test4|
+      p node.to_s
+      p test1
+      p test2
+      p test4
       puts 'me'
       # do something
     end
@@ -46,6 +50,7 @@ Daemonite.new do
   measurments_t1.manifest(:M2,mt)
 
   run do
+    # GC.start
     sleep server.run
     tn.value = Time.now
   end
