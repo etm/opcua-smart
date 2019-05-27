@@ -239,7 +239,7 @@ static VALUE node_add_method(int argc, VALUE* argv, VALUE self) { //{{{
 	VALUE blk;
   rb_gc_register_address(&blk);
 
-  if (argc < 1) {  // there should be 1 or more arguments
+  if (argc < 1) { // there should be 1 or more arguments
     rb_raise(rb_eArgError, "wrong number of arguments");
   }
 	rb_scan_args(argc, argv, "1:&", &name, &opts, &blk);
@@ -296,7 +296,7 @@ static UA_NodeId node_add_variable_ua_simple(UA_Int32 type, char* nstr, node_str
 static VALUE node_add_variable_wrap(int argc, VALUE* argv, VALUE self, UA_Byte accesslevelmask,bool numeric) { //{{{
   node_struct *parent;
 
-  if (argc > 2 || argc == 0) {  // there should only be 1 or 2 arguments
+  if (argc > 2 || argc == 0) { // there should only be 1 or 2 arguments
     rb_raise(rb_eArgError, "wrong number of arguments");
   }
 
@@ -357,12 +357,12 @@ static UA_NodeId node_add_object_ua_simple(UA_Int32 type, char* nstr, node_struc
     datatype,
     ref
   );
-}  //}}}
+} //}}}
 static VALUE node_add_object(int argc, VALUE* argv, VALUE self) { //{{{
   node_struct *parent;
   node_struct *datatype;
 
-  if (argc > 3 || argc < 2) {  // there should only be 2 or 3 arguments
+  if (argc > 3 || argc < 2) { // there should only be 2 or 3 arguments
     rb_raise(rb_eArgError, "wrong number of arguments");
   }
 
