@@ -3,16 +3,16 @@ require_relative '../lib/opcua/server'
 #require 'opcua/server'
 
 Daemonite.new do
-  on startup do
-    @opts['server'] = OPCUA::Server.new
-    @opts['server'].add_namespace "https://centurio.work/kelch"
+  on startup do |opts|
+    opts['server'] = OPCUA::Server.new
+    opts['server'].add_namespace "https://centurio.work/kelch"
 
-    mt = @opts['server'].types.add_object_type(:MeasurementType).tap{ |t|
+    mt = opts['server'].types.add_object_type(:MeasurementType).tap{ |t|
       t.add_variable :SollWertX
       t.add_variable :SollWertY
       t.add_variable :SollWertZ
     }
-    tt = @opts['server'].types.add_object_type(:ToolType).tap{ |t|
+    tt = opts['server'].types.add_object_type(:ToolType).tap{ |t|
       t.add_variable :SollWertX
       t.add_variable :SollWertY
       t.add_variable :SollWertZ
@@ -28,37 +28,36 @@ Daemonite.new do
         puts 'me'
         # do something
       end
-      t.add_object(:Measurements, @opts['server'].types.folder).tap{ |u|
+      t.add_object(:Measurements, opts['server'].types.folder).tap{ |u|
         u.add_object :M, mt, OPCUA::OPTIONAL
       }
     }
-    pt = @opts['server'].types.add_object_type(:PresetterType).tap{ |t|
+    pt = opts['server'].types.add_object_type(:PresetterType).tap{ |t|
       t.add_variable :ManufacturerName
-      t.add_object(:Tools, @opts['server'].types.folder).tap{ |u|
+      t.add_object(:Tools, opts['server'].types.folder).tap{ |u|
         u.add_object :Tool, tt, OPCUA::OPTIONAL
       }
     }
 
-    tools = @opts['server'].objects.manifest(:KalimatC34, pt).find(:Tools)
+    tools = opts['server'].objects.manifest(:KalimatC34, pt).find(:Tools)
 
     t1 = tools.manifest(:Tool1,tt)
     t2 = tools.manifest(:Tool2,tt)
     t3 = tools.manifest(:Tool3,tt)
 
-    @opts[:tn] = t1.find(:ToolNumber)
+    opts[:tn] = t1.find(:ToolNumber)
 
     measurments_t1 = t1.find(:Measurements)
     measurments_t1.manifest(:M1,mt)
     measurments_t1.manifest(:M2,mt)
-
   rescue => e
     puts e.message
   end
 
-  run do
+  run do |opts|
     GC.start
-    sleep @opts['server'].run
-    @opts[:tn].value = Time.now
+    sleep opts['server'].run
+    opts[:tn].value = Time.now
   rescue => e
     puts e.message
   end
