@@ -15,6 +15,7 @@ typedef struct client_struct {
   bool debug;
   VALUE subs;
   bool subs_changed;
+  UA_UInt16 default_ns;
 } client_struct;
 
 typedef struct node_struct {

@@ -4,6 +4,8 @@
 
 VALUE mOPCUA = Qnil;
 VALUE cClient = Qnil;
+VALUE cVarNode = Qnil;
+VALUE cMethodNode = Qnil;
 VALUE cNode = Qnil;
 
 #include "../values.h"
@@ -15,7 +17,7 @@ static void  node_free(node_struct *ns) { //{{{
     free(ns);
   }
 } //}}}
-static VALUE node_alloc(VALUE klass, client_struct *client, UA_NodeId nodeid) { //{{{
+static node_struct * node_alloc(client_struct *client, UA_NodeId nodeid) { //{{{
   node_struct *ns;
   ns = (node_struct *)malloc(sizeof(node_struct));
   if (ns == NULL)
@@ -25,9 +27,13 @@ static VALUE node_alloc(VALUE klass, client_struct *client, UA_NodeId nodeid) { 
   ns->id  = nodeid;
   ns->on_change  = Qnil;
 
-	return Data_Wrap_Struct(klass, NULL, node_free, ns);
+  return ns;
+} //}}}
+static VALUE node_wrap(VALUE klass, node_struct *ns) { //{{{
+  return Data_Wrap_Struct(klass, NULL, node_free, ns);
 } //}}}
 /* ++ */
+
 static VALUE node_value(VALUE self) { //{{{
   node_struct *ns;
   Data_Get_Struct(self, node_struct, ns);
@@ -88,6 +94,7 @@ static VALUE client_alloc(VALUE self) { //{{{
   pss->subs = rb_ary_new();
   pss->subs_changed = false;
   pss->subscription_interval = 500;
+  pss->default_ns = 2;
 
   UA_CreateSubscriptionRequest_init(&pss->subscription_request);
   pss->subscription_request.requestedPublishingInterval = pss->subscription_interval;
@@ -97,10 +104,10 @@ static VALUE client_alloc(VALUE self) { //{{{
   pss->subscription_request.publishingEnabled = true;
   pss->subscription_request.priority = 0;
 
-	return Data_Wrap_Struct(self, NULL, client_free, pss);
+  return Data_Wrap_Struct(self, NULL, client_free, pss);
 } //}}}
+/* ++ */
 
-/* ++ */ //}}}
 static VALUE client_init(VALUE self,VALUE url,VALUE user,VALUE pass) { //{{{
   client_struct *pss;
   UA_StatusCode retval;
@@ -209,23 +216,54 @@ static VALUE client_init(VALUE self,VALUE url,VALUE user,VALUE pass) { //{{{
 
   return self;
 } //}}}
-static VALUE client_get(VALUE self,VALUE ns,VALUE id) { //{{{
+static VALUE client_get(int argc, VALUE* argv, VALUE self) { //{{{
+  if (argc > 2 || argc < 1) { // there should only be 1 or 2 arguments
+    rb_raise(rb_eArgError, "wrong number of arguments");
+  }
+
   client_struct *pss;
   Data_Get_Struct(self, client_struct, pss);
   if (!pss->started) rb_raise(rb_eRuntimeError, "Client disconnected.");
 
+  VALUE ns = UINT2NUM(pss->default_ns);
+  VALUE id;
+
+  if (argc == 1) {
+    id = argv[0];
+  } else {
+    ns = argv[0];
+    id = argv[1];
+  }
+
   if (NIL_P(ns) || TYPE(ns) != T_FIXNUM)
     rb_raise(rb_eTypeError, "ns is not a valid (numeric) namespace id");
+
+  node_struct *res;
   if (TYPE(id) == T_FIXNUM) {
-    return node_alloc(cNode, pss, UA_NODEID_NUMERIC(NUM2INT(ns), NUM2INT(id)));
+    res = node_alloc(pss, UA_NODEID_NUMERIC(NUM2INT(ns), NUM2INT(id)));
   } else {
     VALUE str = rb_obj_as_string(id);
     if (NIL_P(str) || TYPE(str) != T_STRING)
       rb_raise(rb_eTypeError, "cannot convert url to string");
     char *nstr = (char *)StringValuePtr(str);
 
-    return node_alloc(cNode, pss, UA_NODEID_STRING(NUM2INT(ns), nstr));
+    res = node_alloc(pss, UA_NODEID_STRING(NUM2INT(ns), nstr));
   }
+
+  UA_NodeClass nc;UA_NodeClass_init(&nc);
+  UA_Client_readNodeClassAttribute(pss->master, res->id, &nc);
+
+  VALUE node;
+  if (nc == UA_NODECLASS_VARIABLE) {
+    node = node_wrap(cVarNode,res);
+  } else if (nc == UA_NODECLASS_METHOD) {
+    node = node_wrap(cMethodNode,res);
+  } else {
+    node = node_wrap(cNode,res);
+  }
+  UA_NodeClass_clear(&nc);
+
+  return node;
 } //}}}
 static VALUE client_subscription_interval(VALUE self) { //{{{
   client_struct *pss;
@@ -243,6 +281,24 @@ static VALUE client_subscription_interval_set(VALUE self, VALUE val) { //{{{
     rb_raise(rb_eTypeError, "subscription interval is not an integer");
 
   pss->subscription_request.requestedPublishingInterval = NUM2UINT(val);
+  return self;
+} //}}}
+static VALUE client_default_ns(VALUE self) { //{{{
+  client_struct *pss;
+  Data_Get_Struct(self, client_struct, pss);
+  if (!pss->started) rb_raise(rb_eRuntimeError, "Client disconnected.");
+
+  return UINT2NUM(pss->default_ns);
+} //}}}
+static VALUE client_default_ns_set(VALUE self, VALUE val) { //{{{
+  client_struct *pss;
+  Data_Get_Struct(self, client_struct, pss);
+  if (!pss->started) rb_raise(rb_eRuntimeError, "Client disconnected.");
+
+  if (NIL_P(val) || TYPE(val) != T_FIXNUM)
+    rb_raise(rb_eTypeError, "subscription interval is not an integer");
+
+  pss->default_ns = NUM2UINT(val);
   return self;
 } //}}}
 static VALUE client_debug(VALUE self) { //{{{
@@ -266,6 +322,74 @@ static VALUE client_debug_set(VALUE self, VALUE val) { //{{{
   }
   return self;
 } //}}}
+
+static VALUE node_id(VALUE self) { //{{{
+  node_struct *ns;
+
+  Data_Get_Struct(self, node_struct, ns);
+
+  VALUE ret = rb_ary_new();
+
+  rb_ary_push(ret,UINT2NUM(ns->id.namespaceIndex));
+  if (ns->id.identifierType == UA_NODEIDTYPE_NUMERIC) {
+    VALUE id = UINT2NUM((UA_UInt32)(ns->id.identifier.numeric));
+    rb_ary_push(ret,id);
+  } else if (ns->id.identifierType == UA_NODEIDTYPE_STRING) {
+    rb_ary_push(ret,rb_str_new((const char *)ns->id.identifier.string.data,ns->id.identifier.string.length));
+  } else if (ns->id.identifierType == UA_NODEIDTYPE_BYTESTRING) {
+    rb_ary_push(ret,rb_str_new((const char *)ns->id.identifier.byteString.data,ns->id.identifier.byteString.length));
+  }
+  return ret;
+} //}}}
+static VALUE node_to_s(VALUE self) { //{{{
+  node_struct *ns;
+  VALUE ret;
+
+  Data_Get_Struct(self, node_struct, ns);
+
+  if (ns->id.identifierType == UA_NODEIDTYPE_NUMERIC) {
+    ret = rb_sprintf("ns=%d;n=%d", ns->id.namespaceIndex, ns->id.identifier.numeric);
+  } else if(ns->id.identifierType == UA_NODEIDTYPE_STRING) {
+    ret = rb_sprintf("ns=%d;s=%.*s", ns->id.namespaceIndex, (int)ns->id.identifier.string.length, ns->id.identifier.string.data);
+  } else {
+    ret = rb_sprintf("ns=%d;unsupported",ns->id.namespaceIndex);
+  }
+  return ret;
+} //}}}
+
+static VALUE node_call(int argc, VALUE* argv, VALUE self) {
+  node_struct *ns;
+
+  VALUE splat;
+  rb_scan_args(argc, argv, "*", &splat);
+
+  Data_Get_Struct(self, node_struct, ns);
+
+  UA_Variant inputArguments[RARRAY_LEN(splat)];
+  for (long i=0; i<RARRAY_LEN(splat); i++) {
+    value_to_variant(RARRAY_AREF(splat, i),&inputArguments[i]);
+  }
+
+  VALUE path = rb_str_new((const char *)ns->id.identifier.string.data,ns->id.identifier.string.length);
+  VALUE pat  = rb_str_new2("\\/[a-z0-9A-Z]+\\/?$");
+  VALUE obj  = rb_funcall(path,rb_intern("sub"),2,rb_reg_new_str(pat, 0),rb_str_new2(""));
+
+  UA_StatusCode retval = UA_Client_call(
+    ns->master->master,
+    UA_NODEID_STRING(ns->id.namespaceIndex,StringValuePtr(obj)),
+    ns->id,
+    RARRAY_LEN(splat),
+    (UA_Variant *)&inputArguments,
+    0,
+    NULL
+  );
+
+  if(retval == UA_STATUSCODE_GOOD) {
+    return Qtrue;
+  } else {
+    return Qfalse;
+  }
+}
 
 static void  client_run_handler(UA_Client *client, UA_UInt32 subId, void *subContext, UA_UInt32 monId, void *monContext, UA_DataValue *value) { //{{{
   VALUE val = (VALUE)monContext;
@@ -340,21 +464,34 @@ static VALUE client_disconnect(VALUE self) { //{{{
 void Init_client(void) {
   mOPCUA = rb_define_module("OPCUA");
 
-  cClient = rb_define_class_under(mOPCUA, "Client", rb_cObject);
-  cNode   = rb_define_class_under(mOPCUA, "cNode", rb_cObject);
+  cClient     = rb_define_class_under(mOPCUA, "Client", rb_cObject);
+  cNode       = rb_define_class_under(mOPCUA, "cNode", rb_cObject);
+  cMethodNode = rb_define_class_under(mOPCUA, "cMethodNode", rb_cObject);
+  cVarNode    = rb_define_class_under(mOPCUA, "cVarNode", rb_cObject);
 
   Init_types();
 
   rb_define_alloc_func(cClient, client_alloc);
   rb_define_method(cClient, "initialize", client_init, 3);
   rb_define_method(cClient, "disconnect", client_disconnect, 0);
-  rb_define_method(cClient, "get", client_get, 2);
+  rb_define_method(cClient, "get", client_get, -1);
   rb_define_method(cClient, "check_subscription", client_run, 0);
   rb_define_method(cClient, "subscription_interval", client_subscription_interval, 0);
   rb_define_method(cClient, "subscription_interval=", client_subscription_interval_set, 1);
+  rb_define_method(cClient, "default_ns", client_default_ns, 0);
+  rb_define_method(cClient, "default_ns=", client_default_ns_set, 1);
   rb_define_method(cClient, "debug", client_debug, 0);
   rb_define_method(cClient, "debug=", client_debug_set, 1);
 
-  rb_define_method(cNode, "value", node_value, 0);
-  rb_define_method(cNode, "on_change", node_on_change, 0);
+  rb_define_method(cNode, "to_s", node_to_s, 0);
+  rb_define_method(cNode, "id", node_id, 0);
+
+  rb_define_method(cMethodNode, "to_s", node_to_s, 0);
+  rb_define_method(cMethodNode, "id", node_id, 0);
+  rb_define_method(cMethodNode, "call", node_call, -1);
+
+  rb_define_method(cVarNode, "to_s", node_to_s, 0);
+  rb_define_method(cVarNode, "id", node_id, 0);
+  rb_define_method(cVarNode, "value", node_value, 0);
+  rb_define_method(cVarNode, "on_change", node_on_change, 0);
 }

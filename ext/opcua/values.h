@@ -1,6 +1,62 @@
 /* -- */
 VALUE mTYPES = Qnil;
 
+/* -- */
+static bool value_to_variant(VALUE value, UA_Variant *variant) { //{{{
+  bool done = false;
+  if (rb_obj_is_kind_of(value,rb_cTime)) {
+    UA_DateTime tmp = UA_DateTime_fromUnixTime(rb_time_timeval(value).tv_sec);
+    UA_Variant_setScalarCopy(variant, &tmp, &UA_TYPES[UA_TYPES_DATETIME]);
+    done = true;
+  } else {
+    switch (TYPE(value)) {
+      case T_FALSE:
+        {
+          UA_Boolean tmp = false;
+          UA_Variant_setScalarCopy(variant, &tmp, &UA_TYPES[UA_TYPES_BOOLEAN]);
+          done = true;
+          break;
+        }
+      case T_TRUE:
+        {
+          UA_Boolean tmp = true;
+          UA_Variant_setScalarCopy(variant, &tmp, &UA_TYPES[UA_TYPES_BOOLEAN]);
+          done = true;
+          break;
+        }
+      case T_FLOAT:
+      case T_FIXNUM:
+        {
+          UA_Double tmp = NUM2DBL(value);
+          UA_Variant_setScalarCopy(variant, &tmp, &UA_TYPES[UA_TYPES_DOUBLE]);
+          done = true;
+          break;
+        }
+      case T_STRING:
+      case T_SYMBOL:
+        {
+          VALUE str = rb_obj_as_string(value);
+          if (NIL_P(str) || TYPE(str) != T_STRING)
+            rb_raise(rb_eTypeError, "cannot convert obj to string");
+          UA_String tmp = UA_STRING(StringValuePtr(str));
+          UA_Variant_setScalarCopy(variant, &tmp, &UA_TYPES[UA_TYPES_STRING]);
+          done = true;
+          break;
+        }
+      case T_ARRAY:
+        {
+          // UA_UInt32 arrayDims = 0;
+          // attr.valueRank = UA_VALUERANK_ONE_DIMENSION;
+          // attr.arrayDimensions = &arrayDims;
+          // attr.arrayDimensionsSize = 1;
+          // UA_Variant_setArray(&attr.value, UA_Array_new(10, &UA_TYPES[type]), 10, &UA_TYPES[type]);
+        }
+    }
+  }
+  return done;
+} //}}}
+/* ++ */
+
 static void Init_types() {/*{{{*/
   mTYPES = rb_define_module_under(mOPCUA,"TYPES");
   rb_define_const(mTYPES, "DATETIME",            INT2NUM(UA_TYPES_DATETIME           ));

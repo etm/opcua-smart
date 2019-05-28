@@ -5,67 +5,12 @@ VALUE cServer = Qnil;
 VALUE cObjectsNode = Qnil;
 VALUE cTypesTopNode = Qnil;
 VALUE cTypesSubNode = Qnil;
-VALUE cLeafNode = Qnil;
+VALUE cVarNode = Qnil;
 VALUE cMethodNode = Qnil;
 
 #include "../values.h"
 
 int nodecounter = 2000;
-
-/* -- */
-static void set_node_to_value(node_struct *ns, VALUE value) { //{{{
-  UA_Variant variant;
-  if (rb_obj_is_kind_of(value,rb_cTime)) {
-    UA_DateTime tmp = UA_DateTime_fromUnixTime(rb_time_timeval(value).tv_sec);
-    UA_Variant_setScalar(&variant, &tmp, &UA_TYPES[UA_TYPES_DATETIME]);
-    UA_Server_writeValue(ns->master->master, ns->id, variant);
-  } else {
-    switch (TYPE(value)) {
-      case T_FALSE:
-        {
-          UA_Boolean tmp = false;
-          UA_Variant_setScalar(&variant, &tmp, &UA_TYPES[UA_TYPES_BOOLEAN]);
-          UA_Server_writeValue(ns->master->master, ns->id, variant);
-          break;
-        }
-      case T_TRUE:
-        {
-          UA_Boolean tmp = true;
-          UA_Variant_setScalar(&variant, &tmp, &UA_TYPES[UA_TYPES_BOOLEAN]);
-          UA_Server_writeValue(ns->master->master, ns->id, variant);
-          break;
-        }
-      case T_FLOAT:
-      case T_FIXNUM:
-        {
-          UA_Double tmp = NUM2DBL(value);
-          UA_Variant_setScalar(&variant, &tmp, &UA_TYPES[UA_TYPES_DOUBLE]);
-          UA_Server_writeValue(ns->master->master, ns->id, variant);
-          break;
-        }
-      case T_STRING:
-      case T_SYMBOL:
-        {
-          VALUE str = rb_obj_as_string(value);
-          if (NIL_P(str) || TYPE(str) != T_STRING)
-            rb_raise(rb_eTypeError, "cannot convert obj to string");
-          UA_String tmp = UA_STRING(StringValuePtr(str));
-          UA_Variant_setScalar(&variant, &tmp, &UA_TYPES[UA_TYPES_STRING]);
-          UA_Server_writeValue(ns->master->master, ns->id, variant);
-          break;
-        }
-      case T_ARRAY:
-        {
-          // UA_UInt32 arrayDims = 0;
-          // attr.valueRank = UA_VALUERANK_ONE_DIMENSION;
-          // attr.arrayDimensions = &arrayDims;
-          // attr.arrayDimensionsSize = 1;
-          // UA_Variant_setArray(&attr.value, UA_Array_new(10, &UA_TYPES[type]), 10, &UA_TYPES[type]);
-        }
-    }
-  }
-} //}}}
-/* ++ */
 
 /* -- */
 static void  node_free(node_struct *ns) { //{{{
@@ -124,6 +69,24 @@ static VALUE node_add_object_type(VALUE self, VALUE name) { //{{{
   return node_wrap(cTypesSubNode,node_alloc(ns->master,n));
 } //}}}
 
+static VALUE node_id(VALUE self) { //{{{
+  node_struct *ns;
+
+  Data_Get_Struct(self, node_struct, ns);
+
+  VALUE ret = rb_ary_new();
+
+  rb_ary_push(ret,UINT2NUM(ns->id.namespaceIndex));
+  if (ns->id.identifierType == UA_NODEIDTYPE_NUMERIC) {
+    VALUE id = UINT2NUM((UA_UInt32)(ns->id.identifier.numeric));
+    rb_ary_push(ret,id);
+  } else if (ns->id.identifierType == UA_NODEIDTYPE_STRING) {
+    rb_ary_push(ret,rb_str_new((const char *)ns->id.identifier.string.data,ns->id.identifier.string.length));
+  } else if (ns->id.identifierType == UA_NODEIDTYPE_BYTESTRING) {
+    rb_ary_push(ret,rb_str_new((const char *)ns->id.identifier.byteString.data,ns->id.identifier.byteString.length));
+  }
+  return ret;
+} //}}}
 static VALUE node_to_s(VALUE self) { //{{{
   node_struct *ns;
   VALUE ret;
@@ -139,7 +102,8 @@ static VALUE node_to_s(VALUE self) { //{{{
   }
   return ret;
 } //}}}
-static UA_StatusCode node_add_method_callback(
+
+static UA_StatusCode node_add_method_callback( //{{{
   UA_Server *server,
   const UA_NodeId *sessionId, void *sessionContext,
   const UA_NodeId *methodId, void *methodContext,
@@ -166,7 +130,7 @@ static UA_StatusCode node_add_method_callback(
   rb_proc_call(me->method,args);
 
   return UA_STATUSCODE_GOOD;
-}
+} //}}}
 static UA_NodeId node_add_method_ua(UA_NodeId n, UA_LocalizedText dn, UA_QualifiedName qn, node_struct *parent,size_t inputArgumentsSize,const UA_Argument *inputArguments, VALUE blk) { //{{{
   UA_MethodAttributes mnAttr = UA_MethodAttributes_default;
   mnAttr.displayName = dn;
@@ -315,7 +279,7 @@ static VALUE node_add_variable_wrap(int argc, VALUE* argv, VALUE self, UA_Byte a
     rb_raise(rb_eTypeError, "cannot convert obj to string");
   char *nstr = (char *)StringValuePtr(str);
 
-  return node_wrap(cLeafNode,node_alloc(parent->master,node_add_variable_ua_simple(type,nstr,parent,argv[1],accesslevelmask,numeric)));
+  return node_wrap(cVarNode,node_alloc(parent->master,node_add_variable_ua_simple(type,nstr,parent,argv[1],accesslevelmask,numeric)));
 } //}}}
 static VALUE node_add_variable(int argc, VALUE* argv, VALUE self) { //{{{
   return node_add_variable_wrap(argc,argv,self,UA_ACCESSLEVELMASK_READ,true);
@@ -593,7 +557,7 @@ static VALUE node_find(VALUE self, VALUE qname) { //{{{
     VALUE node;
 
     if (nc == UA_NODECLASS_VARIABLE) {
-      node = node_wrap(cLeafNode,node_alloc(ns->master,ret));
+      node = node_wrap(cVarNode,node_alloc(ns->master,ret));
     } else if (nc == UA_NODECLASS_METHOD) {
       node = node_wrap(cMethodNode,node_alloc(ns->master,ret));
     } else {
@@ -608,7 +572,11 @@ static VALUE node_find(VALUE self, VALUE qname) { //{{{
 static VALUE node_value_set(VALUE self, VALUE value) { //{{{
   node_struct *ns;
   Data_Get_Struct(self, node_struct, ns);
-  set_node_to_value(ns,value);
+
+  UA_Variant variant;
+  if (value_to_variant(value,&variant)) {
+    UA_Server_writeValue(ns->master->master, ns->id, variant);
+  }
   return self;
 } //}}}
 static VALUE node_value(VALUE self) { //{{{
@@ -627,24 +595,6 @@ static VALUE node_value(VALUE self) { //{{{
   }
 
   UA_Variant_clear(&value);
-  return ret;
-} //}}}
-static VALUE node_id(VALUE self) { //{{{
-  node_struct *ns;
-
-  Data_Get_Struct(self, node_struct, ns);
-
-  VALUE ret = rb_ary_new();
-
-  rb_ary_push(ret,UINT2NUM(ns->id.namespaceIndex));
-  if (ns->id.identifierType == UA_NODEIDTYPE_NUMERIC) {
-    VALUE id = UINT2NUM((UA_UInt32)(ns->id.identifier.numeric));
-    rb_ary_push(ret,id);
-  } else if (ns->id.identifierType == UA_NODEIDTYPE_STRING) {
-    rb_ary_push(ret,rb_str_new((const char *)ns->id.identifier.string.data,ns->id.identifier.string.length));
-  } else if (ns->id.identifierType == UA_NODEIDTYPE_BYTESTRING) {
-    rb_ary_push(ret,rb_str_new((const char *)ns->id.identifier.byteString.data,ns->id.identifier.byteString.length));
-  }
   return ret;
 } //}}}
 
@@ -750,7 +700,7 @@ void Init_server(void) {
   cObjectsNode  = rb_define_class_under(mOPCUA, "cObjectsNode", rb_cObject);
   cTypesTopNode = rb_define_class_under(mOPCUA, "cTypesTopNode", rb_cObject);
   cTypesSubNode = rb_define_class_under(mOPCUA, "cTypesSubNode", rb_cObject);
-  cLeafNode     = rb_define_class_under(mOPCUA, "cLeafNode", rb_cObject);
+  cVarNode      = rb_define_class_under(mOPCUA, "cVarNode", rb_cObject);
   cMethodNode   = rb_define_class_under(mOPCUA, "cMethodNode", rb_cObject);
 
   rb_define_alloc_func(cServer, server_alloc);
@@ -777,10 +727,10 @@ void Init_server(void) {
   rb_define_method(cObjectsNode, "to_s", node_to_s, 0);
   rb_define_method(cObjectsNode, "id", node_id, 0);
 
-  rb_define_method(cLeafNode, "to_s", node_to_s, 0);
-  rb_define_method(cLeafNode, "id", node_id, 0);
-  rb_define_method(cLeafNode, "value", node_value, 0);
-  rb_define_method(cLeafNode, "value=", node_value_set, 1);
+  rb_define_method(cVarNode, "to_s", node_to_s, 0);
+  rb_define_method(cVarNode, "id", node_id, 0);
+  rb_define_method(cVarNode, "value", node_value, 0);
+  rb_define_method(cVarNode, "value=", node_value_set, 1);
 
   rb_define_method(cMethodNode, "to_s", node_to_s, 0);
   rb_define_method(cMethodNode, "id", node_id, 0);

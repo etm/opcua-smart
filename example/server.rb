@@ -19,14 +19,13 @@ Daemonite.new do
       t.add_variable :ToolNumber
       t.add_variable :DuploNumber
       t.add_variable :testValue1
-      t.add_method :testMethod, test1: OPCUA::TYPES::STRING, test2: OPCUA::TYPES::DATETIME do |node, test1, test2, test4|
+      t.add_method :testMethod, test1: OPCUA::TYPES::STRING, test2: OPCUA::TYPES::DATETIME do |node, test1, test2|
         ns, nid = node.id
+        puts '-' * 10
         p nid
         p test1
         p test2
-        p test4
-        puts 'me'
-        # do something
+        puts '-' * 10
       end
       t.add_object(:Measurements, opts['server'].types.folder).tap{ |u|
         u.add_object :M, mt, OPCUA::OPTIONAL
