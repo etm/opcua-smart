@@ -288,6 +288,32 @@ static VALUE node_add_variable_rw(int argc, VALUE* argv, VALUE self) { //{{{
   return node_add_variable_wrap(argc,argv,self,UA_ACCESSLEVELMASK_READ | UA_ACCESSLEVELMASK_WRITE,true);
 } //}}}
 
+static void node_add_object_ua_rec(UA_NodeId n, UA_LocalizedText dn, UA_QualifiedName qn, node_struct *parent, node_struct *datatype, UA_NodeId cid, UA_NodeIteratorCallback callback, void *handle) { //{{{
+  UA_ObjectAttributes oAttr = UA_ObjectAttributes_default;
+                      oAttr.displayName = dn;
+  UA_Server_addNode_begin(parent->master->master,
+                          UA_NODECLASS_OBJECT,
+                          n,
+                          parent->id,
+                          UA_NODEID_NUMERIC(0, UA_NS0ID_HASCOMPONENT),
+                          qn,
+                          datatype->id,
+                          (const UA_NodeAttributes*)&oAttr,
+                          &UA_TYPES[UA_TYPES_OBJECTATTRIBUTES],
+                          NULL,
+                          NULL);
+
+  // printf("---->\n");
+  UA_Server_forEachChildNodeCall(parent->master->master, cid, callback, handle);
+  // printf("<----\n");
+
+  UA_Server_addNode_finish(parent->master->master,n);
+  UA_Server_addReference(parent->master->master,
+                         n,
+                         UA_NODEID_NUMERIC(0, UA_NS0ID_HASMODELLINGRULE),
+                         UA_EXPANDEDNODEID_NUMERIC(0, UA_NS0ID_MODELLINGRULE_MANDATORY),
+                         true);
+} //}}}
 static UA_NodeId node_add_object_ua(UA_Int32 type, UA_NodeId n, UA_LocalizedText dn, UA_QualifiedName qn, node_struct *parent, node_struct *datatype, VALUE ref) { //{{{
   UA_ObjectAttributes oAttr = UA_ObjectAttributes_default;
                       oAttr.displayName = dn;
@@ -441,14 +467,13 @@ static UA_StatusCode node_manifest_iter(UA_NodeId child_id, UA_Boolean is_invers
             node_get_reference(parent->master->master, child_id, &typeid);
 
             node_struct *thetype = node_alloc(parent->master,typeid);
-            node_struct *downnode = node_alloc(parent->master,node_add_object_ua(UA_NS0ID_MODELLINGRULE_MANDATORY,UA_NODEID_STRING(parent->master->default_ns,buffer),dn,qn,newnode,thetype,Qtrue));
 
+            UA_NodeId n = UA_NODEID_STRING(parent->master->default_ns,buffer);
+            node_struct *downnode = node_alloc(parent->master,n);
             node_struct *newparent = node_alloc(parent->master,child_id);
             node_struct *downhandle[2] = { newparent, downnode };
 
-            // printf("---->\n");
-            UA_Server_forEachChildNodeCall(parent->master->master, child_id, node_manifest_iter, (void *)downhandle);
-            // printf("<----\n");
+            node_add_object_ua_rec(UA_NODEID_STRING(parent->master->default_ns,buffer),dn,qn,newnode,thetype,child_id,node_manifest_iter,(void *)downhandle);
 
             free(thetype);
             free(downnode);
@@ -507,29 +532,12 @@ static VALUE node_manifest(VALUE self, VALUE name, VALUE parent) { //{{{
   nidstr = strnautocat(nidstr,nstr,strlen(nstr));
 
   UA_NodeId n = UA_NODEID_STRING(ns->master->default_ns, nidstr);
-
-  UA_ObjectAttributes oAttr = UA_ObjectAttributes_default;
-                      oAttr.displayName = UA_LOCALIZEDTEXT("en-US", nstr);
-
-  UA_Server_addNode_begin(ns->master->master,
-                          UA_NODECLASS_OBJECT,
-                          n,
-                          ns->id,
-                          UA_NODEID_NUMERIC(0, UA_NS0ID_HASCOMPONENT),
-                          UA_QUALIFIEDNAME(ns->master->default_ns, nstr),
-                          ts->id,
-                          (const UA_NodeAttributes*)&oAttr,
-                          &UA_TYPES[UA_TYPES_OBJECTATTRIBUTES],
-                          NULL,
-                          NULL);
-
   node_struct *ret = node_alloc(ns->master,n);
   node_struct *handle[2] = { ts, ret };
-  UA_Server_forEachChildNodeCall(ns->master->master, ts->id, node_manifest_iter, (void *)handle);
 
-  UA_Server_addNode_finish(ns->master->master,n);
+  node_add_object_ua_rec(n,UA_LOCALIZEDTEXT("en-US", nstr),UA_QUALIFIEDNAME(ns->master->default_ns, nstr),ns,ts,ts->id,node_manifest_iter,(void *)handle);
 
-	return Data_Wrap_Struct(CLASS_OF(self), NULL, node_free, ret);
+  return Data_Wrap_Struct(CLASS_OF(self), NULL, node_free, ret);
 } //}}}
 
 static VALUE node_find(VALUE self, VALUE qname) { //{{{
