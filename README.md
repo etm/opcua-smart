@@ -23,6 +23,14 @@ gem install opcua
 
 ![ccmake Config](config.png)
 
+If the installation works correctly, but examples are still complaining about missing lib62541.so, try this:
+
+```sh
+sudo echo "/usr/local/lib" > /etc/ld.so.conf.d/local.conf # add to libs path
+sudo ldconfig # update libs
+sudo ldconfig -p | grep libopen62541 # check if its there
+```
+
 ## EXAMPLES
 
 TBD. See examples subdirectory.
