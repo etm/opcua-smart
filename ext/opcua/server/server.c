@@ -583,6 +583,14 @@ static VALUE node_value_set(VALUE self, VALUE value) { //{{{
 
   UA_Variant variant;
   if (value_to_variant(value,&variant)) {
+    printf("-----------------------------------------%ld\n",variant.arrayDimensionsSize);
+    if (variant.arrayDimensionsSize > 0) {
+      UA_Server_writeValueRank(ns->master->master, ns->id, variant.arrayDimensionsSize);
+      UA_Variant uaArrayDimensions;
+      UA_Variant_setArray(&uaArrayDimensions, variant.arrayDimensions, variant.arrayDimensionsSize, &UA_TYPES[UA_TYPES_UINT32]);
+      UA_Server_writeArrayDimensions(ns->master->master, ns->id, uaArrayDimensions);
+    }
+
     UA_Server_writeValue(ns->master->master, ns->id, variant);
   }
   return self;

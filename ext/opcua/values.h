@@ -2,6 +2,90 @@
 VALUE mTYPES = Qnil;
 
 /* -- */
+static int value_to_array(VALUE value, UA_Variant *variant) {
+  int done = 0;
+
+  if (rb_obj_is_kind_of(RARRAY_AREF(value,0),rb_cTime)) {
+    UA_DateTime tmp[RARRAY_LEN(value)];
+    for (int i=0; i < RARRAY_LEN(value); i++) {
+      if (TYPE(RARRAY_AREF(value,i)) == T_FALSE) {
+        tmp[i] = UA_DateTime_fromUnixTime(rb_time_timeval(RARRAY_AREF(value,i)).tv_sec);
+      } else {
+        tmp[i] = UA_DateTime_fromUnixTime(0);
+      }
+    }
+    UA_Variant_setArrayCopy(variant, tmp, RARRAY_LEN(value), &UA_TYPES[UA_TYPES_BOOLEAN]);
+    done = 1;
+  } else {
+    switch (TYPE(RARRAY_AREF(value,0))) {
+      case T_TRUE:
+      case T_FALSE:
+        {
+          UA_Boolean tmp[RARRAY_LEN(value)];
+          for (int i=0; i < RARRAY_LEN(value); i++) {
+            if (TYPE(RARRAY_AREF(value,i)) == T_FALSE) {
+              tmp[i] = false;
+            } else {
+              tmp[i] = true;
+            }
+          }
+          UA_Variant_setArrayCopy(variant, tmp, RARRAY_LEN(value), &UA_TYPES[UA_TYPES_BOOLEAN]);
+          done = 1;
+          break;
+        }
+      case T_FLOAT:
+      case T_FIXNUM:
+        {
+          UA_Double tmp[RARRAY_LEN(value)];
+          for (int i=0; i < RARRAY_LEN(value); i++) {
+            if (TYPE(RARRAY_AREF(value,i)) == T_FLOAT || TYPE(RARRAY_AREF(value,i)) == T_FIXNUM) {
+              tmp[i] = NUM2DBL(RARRAY_AREF(value,i));
+            } else {
+              tmp[i] = 0.0;
+            }
+          }
+          UA_Variant_setArrayCopy(variant, tmp, RARRAY_LEN(value), &UA_TYPES[UA_TYPES_DOUBLE]);
+          done = 1;
+          break;
+        }
+      case T_STRING:
+      case T_SYMBOL:
+        {
+          UA_String tmp[RARRAY_LEN(value)];
+          for (int i=0; i < RARRAY_LEN(value); i++) {
+            if (TYPE(RARRAY_AREF(value,i)) == T_STRING || TYPE(RARRAY_AREF(value,i)) == T_SYMBOL) {
+              VALUE str = rb_obj_as_string(RARRAY_AREF(value,i));
+              tmp[i] = UA_STRING(StringValuePtr(str));
+            } else {
+              tmp[i] = UA_STRING("");
+            }
+          }
+          UA_Variant_setArrayCopy(variant, tmp, RARRAY_LEN(value), &UA_TYPES[UA_TYPES_STRING]);
+          done = 1;
+          break;
+        }
+      // case T_ARRAY:
+      //   {
+      //     UA_Variant xxx;
+
+      //     for (int i=0; i < RARRAY_LEN(value); i++) {
+      //       for (int j=0; j < RARRAY_LEN(RARRAY_AREF(value,0)); j++) {
+      //         if (j < RARRAY_LEN(RARRAY_AREF(value,i)) {
+      //         } else {
+
+      //         }
+      //       }
+      //     }
+
+      //     UA_Variant_setArrayCopy(variant, tmp, RARRAY_LEN(value) * RARRAY_LEN(RARRAY_AREF(value,0)), &UA_TYPES[UA_TYPES_STRING]);
+      //     done = 2;
+      //     break;
+      //   }
+
+    }
+  }
+  return done;
+}
 static bool value_to_variant(VALUE value, UA_Variant *variant) { //{{{
   bool done = false;
   if (rb_obj_is_kind_of(value,rb_cTime)) {
@@ -36,8 +120,6 @@ static bool value_to_variant(VALUE value, UA_Variant *variant) { //{{{
       case T_SYMBOL:
         {
           VALUE str = rb_obj_as_string(value);
-          if (NIL_P(str) || TYPE(str) != T_STRING)
-            rb_raise(rb_eTypeError, "cannot convert obj to string");
           UA_String tmp = UA_STRING(StringValuePtr(str));
           UA_Variant_setScalarCopy(variant, &tmp, &UA_TYPES[UA_TYPES_STRING]);
           done = true;
@@ -45,11 +127,13 @@ static bool value_to_variant(VALUE value, UA_Variant *variant) { //{{{
         }
       case T_ARRAY:
         {
-          // UA_UInt32 arrayDims = 0;
-          // attr.valueRank = UA_VALUERANK_ONE_DIMENSION;
-          // attr.arrayDimensions = &arrayDims;
-          // attr.arrayDimensionsSize = 1;
-          // UA_Variant_setArray(&attr.value, UA_Array_new(10, &UA_TYPES[type]), 10, &UA_TYPES[type]);
+          if (value_to_array(value,variant) == 1) {
+            variant->arrayDimensions = (UA_UInt32 *)UA_Array_new(1, &UA_TYPES[UA_TYPES_UINT32]);
+            variant->arrayDimensionsSize = 1;
+            variant->arrayDimensions[0] = RARRAY_LEN(value);
+            done = true;
+          }
+          break;
         }
     }
   }

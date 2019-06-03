@@ -56,7 +56,7 @@ Daemonite.new do
   run do |opts|
     GC.start
     sleep opts['server'].run
-    opts[:tn].value = Time.now
+    opts[:tn].value = ["a",12,:b]
   rescue => e
     puts e.message
   end
