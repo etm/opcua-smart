@@ -11,10 +11,10 @@ module OPCUA
 
     class TypesSubNode
       def add_variables(*item)
-        item.each do { |e| add_variable e }
+        item.each { |e| add_variable e }
       end
       def add_variables_rw(*item)
-        item.each do { |e| add_variable_rw e }
+        item.each { |e| add_variable_rw e }
       end
     end
   end

@@ -401,7 +401,7 @@ static bool node_get_reference(UA_Server *server, UA_NodeId parent, UA_NodeId *r
   UA_BrowseDescription_init(&bDes);
   bDes.nodeId = parent;
   bDes.resultMask = UA_BROWSERESULTMASK_ALL;
-  UA_BrowseResult bRes = UA_Server_browse(server, 1, &bDes);
+  UA_BrowseResult bRes = UA_Server_browse(server, 999, &bDes);
 
   if (bRes.referencesSize > 0) {
     UA_ReferenceDescription *ref = &(bRes.references[0]);
