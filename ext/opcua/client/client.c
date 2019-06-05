@@ -465,9 +465,9 @@ void Init_client(void) {
   mOPCUA = rb_define_module("OPCUA");
 
   cClient     = rb_define_class_under(mOPCUA, "Client", rb_cObject);
-  cNode       = rb_define_class_under(mOPCUA, "cNode", rb_cObject);
-  cMethodNode = rb_define_class_under(mOPCUA, "cMethodNode", rb_cObject);
-  cVarNode    = rb_define_class_under(mOPCUA, "cVarNode", rb_cObject);
+  cNode       = rb_define_class_under(cClient, "cNode", rb_cObject);
+  cMethodNode = rb_define_class_under(cClient, "cMethodNode", rb_cObject);
+  cVarNode    = rb_define_class_under(cClient, "cVarNode", rb_cObject);
 
   Init_types();
 

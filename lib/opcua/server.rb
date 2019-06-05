@@ -7,7 +7,20 @@ require 'daemonite'
 
 module OPCUA
   class Server
-    alias_method :initialize_base, :initialize
+
+    class ObjectsNode
+      alias_method :find_one, :find
+
+      def find(*what)
+        if what.length == 0
+          nil
+        elsif what.length == 1
+          find_one what[0]
+        else
+          what.map{|e| find_one e}
+        end
+      end
+    end
 
     class TypesSubNode
       def add_variables(*item)
