@@ -123,6 +123,24 @@ static void stopHandler(int sign) {
     running = false;
 }
 
+static bool node_get_reference(UA_Server *server, UA_NodeId parent, UA_NodeId *result) {
+  UA_BrowseDescription bDes;
+  UA_BrowseDescription_init(&bDes);
+  bDes.nodeId = parent;
+  bDes.resultMask = UA_BROWSERESULTMASK_ALL;
+  UA_BrowseResult bRes = UA_Server_browse(server, 1, &bDes);
+
+  if (bRes.referencesSize > 0) {
+    UA_ReferenceDescription *ref = &(bRes.references[0]);
+
+    *result = ref->nodeId.nodeId;
+    UA_BrowseResult_deleteMembers(&bRes);
+    UA_BrowseResult_clear(&bRes);
+    return true;
+  }
+  return false;
+}
+
 int main(void) {
     signal(SIGINT, stopHandler);
     signal(SIGTERM, stopHandler);
@@ -134,6 +152,15 @@ int main(void) {
     writeVariable(server);
     writeWrongVariable(server);
     addVariableType2DPoint(server);
+
+    // UA_QualifiedName mqn;UA_QualifiedName_init(&mqn);
+    // UA_Server_readBrowseName(parent->master->master, UA_NODEID_NUMERIC(0, UA_NS0ID_MODELLINGRULE_MANDATORY), &mqn);
+    // UA_BrowsePathResult mandatory = node_browse_path(server, child_id, UA_NODEID_NUMERIC(0, UA_NS0ID_HASMODELLINGRULE), mqn);
+    // UA_BrowsePathResult_clear(&mandatory);
+    // UA_QualifiedName_clear(&mqn);
+
+
+
 
     UA_StatusCode retval = UA_Server_run(server, &running);
 
