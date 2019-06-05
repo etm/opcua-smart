@@ -26,6 +26,7 @@ static node_struct * node_alloc(client_struct *client, UA_NodeId nodeid) { //{{{
   ns->master = client;
   ns->id  = nodeid;
   ns->on_change  = Qnil;
+  ns->waiting = 0;
 
   return ns;
 } //}}}
@@ -67,6 +68,79 @@ static VALUE node_on_change(VALUE self) { //{{{
 
   return self;
 } //}}}
+static void node_on_value_change_handler(UA_Client *client, UA_UInt32 subId, void *subContext, UA_UInt32 monId, void *monContext, UA_DataValue *value) {
+  VALUE ins = (VALUE)monContext;
+  VALUE blk = RARRAY_AREF(ins,1);
+
+  node_struct *ns;
+  Data_Get_Struct(RARRAY_AREF(ins,0), node_struct, ns);
+  ns->waiting = ns->waiting + 1;
+
+  if (ns->waiting == 2 && (NIL_P(blk) || TYPE(blk) != T_NIL)) {
+    VALUE args = rb_ary_new2(3);
+    VALUE ret = extract_value(value->value);
+    rb_ary_store(args,0,rb_ary_entry(ret,0));
+    if (value->hasSourceTimestamp) {
+      rb_ary_store(args,1,rb_time_new(UA_DateTime_toUnixTime(value->sourceTimestamp),0));
+    } else {
+      if (value->hasServerTimestamp) {
+        rb_ary_store(args,1,rb_time_new(UA_DateTime_toUnixTime(value->serverTimestamp),0));
+      } else {
+        rb_ary_store(args,1,Qnil);
+      }
+    }
+    rb_ary_store(args,2,rb_ary_entry(ret,1));
+    rb_proc_call(blk,args);
+  }
+}
+static VALUE node_on_value_change(VALUE self) {
+  node_struct *ns;
+  Data_Get_Struct(self, node_struct, ns);
+  if (!ns->master->started) rb_raise(rb_eRuntimeError, "Client disconnected.");
+
+  if (!rb_block_given_p())
+    rb_raise(rb_eArgError, "you need to supply a block with #on_change");
+
+  UA_CreateSubscriptionRequest sreq; UA_CreateSubscriptionRequest_init(&sreq);
+  sreq.requestedPublishingInterval = 100;
+  sreq.requestedLifetimeCount = 10000;
+  sreq.requestedMaxKeepAliveCount = 10;
+  sreq.maxNotificationsPerPublish = 0;
+  sreq.publishingEnabled = true;
+  sreq.priority = 0;
+
+  UA_CreateSubscriptionResponse sres = UA_Client_Subscriptions_create(ns->master->master, sreq, NULL, NULL, NULL);
+  if (sres.responseHeader.serviceResult != UA_STATUSCODE_GOOD)
+    rb_raise(rb_eRuntimeError, "Subscription could not be created.");
+
+  VALUE ins = rb_ary_new2(2);
+  rb_ary_store(ins,0,self);
+  rb_ary_store(ins,1,rb_block_proc());
+  ns->waiting = 0;
+
+  UA_MonitoredItemCreateRequest monRequest = UA_MonitoredItemCreateRequest_default(ns->id);
+  UA_MonitoredItemCreateResult monResponse =
+  UA_Client_MonitoredItems_createDataChange(ns->master->master, sres.subscriptionId,
+                                            UA_TIMESTAMPSTORETURN_BOTH,
+                                            monRequest, (void *)ins, node_on_value_change_handler, NULL);
+
+  if(monResponse.statusCode != UA_STATUSCODE_GOOD) {
+    rb_raise(rb_eRuntimeError, "Monitoring item failed: %s\n", UA_StatusCode_name(monResponse.statusCode));
+  }
+
+  while (ns->waiting < 2) {
+    UA_Client_run_iterate(ns->master->master, 100);
+  }
+
+  UA_MonitoredItemCreateResult_clear(&monResponse);
+  UA_MonitoredItemCreateRequest_clear(&monRequest);
+
+  UA_Client_Subscriptions_deleteSingle(ns->master->master, sres.subscriptionId);
+  UA_CreateSubscriptionResponse_clear(&sres);
+  UA_CreateSubscriptionRequest_clear(&sreq);
+
+  return self;
+}
 
 /* -- */
 static void  client_free(client_struct *pss) { //{{{
@@ -357,7 +431,7 @@ static VALUE node_to_s(VALUE self) { //{{{
   return ret;
 } //}}}
 
-static VALUE node_call(int argc, VALUE* argv, VALUE self) {
+static VALUE node_call(int argc, VALUE* argv, VALUE self) { //{{{
   node_struct *ns;
 
   VALUE splat;
@@ -389,7 +463,7 @@ static VALUE node_call(int argc, VALUE* argv, VALUE self) {
   } else {
     return Qfalse;
   }
-}
+} //}}}
 
 static void  client_run_handler(UA_Client *client, UA_UInt32 subId, void *subContext, UA_UInt32 monId, void *monContext, UA_DataValue *value) { //{{{
   VALUE val = (VALUE)monContext;
@@ -466,8 +540,8 @@ void Init_client(void) {
 
   cClient     = rb_define_class_under(mOPCUA, "Client", rb_cObject);
   cNode       = rb_define_class_under(cClient, "cNode", rb_cObject);
-  cMethodNode = rb_define_class_under(cClient, "cMethodNode", rb_cObject);
-  cVarNode    = rb_define_class_under(cClient, "cVarNode", rb_cObject);
+  cMethodNode = rb_define_class_under(cClient, "cMethodNode", cNode);
+  cVarNode    = rb_define_class_under(cClient, "cVarNode", cNode);
 
   Init_types();
 
@@ -486,12 +560,9 @@ void Init_client(void) {
   rb_define_method(cNode, "to_s", node_to_s, 0);
   rb_define_method(cNode, "id", node_id, 0);
 
-  rb_define_method(cMethodNode, "to_s", node_to_s, 0);
-  rb_define_method(cMethodNode, "id", node_id, 0);
   rb_define_method(cMethodNode, "call", node_call, -1);
 
-  rb_define_method(cVarNode, "to_s", node_to_s, 0);
-  rb_define_method(cVarNode, "id", node_id, 0);
   rb_define_method(cVarNode, "value", node_value, 0);
   rb_define_method(cVarNode, "on_change", node_on_change, 0);
+  rb_define_method(cVarNode, "on_value_change", node_on_value_change, 0);
 }

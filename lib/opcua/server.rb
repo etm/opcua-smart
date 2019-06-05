@@ -8,7 +8,7 @@ require 'daemonite'
 module OPCUA
   class Server
 
-    class ObjectsNode
+    class ObjectNode
       alias_method :find_one, :find
 
       def find(*what)
@@ -22,7 +22,7 @@ module OPCUA
       end
     end
 
-    class TypesSubNode
+    class TypeSubNode
       def add_variables(*item)
         item.each { |e| add_variable e }
       end

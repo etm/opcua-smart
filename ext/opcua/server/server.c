@@ -2,9 +2,10 @@
 
 VALUE mOPCUA = Qnil;
 VALUE cServer = Qnil;
-VALUE cObjectsNode = Qnil;
-VALUE cTypesTopNode = Qnil;
-VALUE cTypesSubNode = Qnil;
+VALUE cNode = Qnil;
+VALUE cObjectNode = Qnil;
+VALUE cTypeTopNode = Qnil;
+VALUE cTypeSubNode = Qnil;
 VALUE cVarNode = Qnil;
 VALUE cMethodNode = Qnil;
 
@@ -41,7 +42,7 @@ static VALUE node_wrap(VALUE klass, node_struct *ns) { //{{{
 static VALUE node_type_folder(VALUE self) { //{{{
   node_struct *ns;
   Data_Get_Struct(self, node_struct, ns);
-  return node_wrap(cTypesTopNode, node_alloc(ns->master, UA_NODEID_NUMERIC(0, UA_NS0ID_FOLDERTYPE)));
+  return node_wrap(cTypeTopNode, node_alloc(ns->master, UA_NODEID_NUMERIC(0, UA_NS0ID_FOLDERTYPE)));
 } //}}}
 static VALUE node_add_object_type(VALUE self, VALUE name) { //{{{
   node_struct *ns;
@@ -66,7 +67,7 @@ static VALUE node_add_object_type(VALUE self, VALUE name) { //{{{
                               NULL,
                               NULL);
 
-  return node_wrap(cTypesSubNode,node_alloc(ns->master,n));
+  return node_wrap(cTypeSubNode,node_alloc(ns->master,n));
 } //}}}
 
 static VALUE node_id(VALUE self) { //{{{
@@ -121,7 +122,7 @@ static UA_StatusCode node_add_method_callback( //{{{
   // );
 
   VALUE args = rb_ary_new();
-  rb_ary_push(args, Data_Wrap_Struct(cObjectsNode,NULL,NULL,me));
+  rb_ary_push(args, Data_Wrap_Struct(cObjectNode,NULL,NULL,me));
   for (int i = 0; i < inputSize; i++) {
     VALUE ret = extract_value(input[i]);
     rb_ary_push(args,rb_ary_entry(ret,0));
@@ -364,7 +365,7 @@ static VALUE node_add_object(int argc, VALUE* argv, VALUE self) { //{{{
     type = UA_NS0ID_MODELLINGRULE_MANDATORY;
   }
 
-  if (!(rb_obj_is_kind_of(argv[1],cTypesTopNode) || rb_obj_is_kind_of(argv[1],cTypesSubNode))) {
+  if (!(rb_obj_is_kind_of(argv[1],cTypeTopNode) || rb_obj_is_kind_of(argv[1],cTypeSubNode))) {
     rb_raise(rb_eArgError, "argument 2 has to be a type.");
   }
 
@@ -524,7 +525,7 @@ static VALUE node_manifest(VALUE self, VALUE name, VALUE parent) { //{{{
   node_struct *ns;
   node_struct *ts;
 
-  if (!(rb_obj_is_kind_of(parent,cTypesTopNode) || rb_obj_is_kind_of(parent,cTypesSubNode))) {
+  if (!(rb_obj_is_kind_of(parent,cTypeTopNode) || rb_obj_is_kind_of(parent,cTypeSubNode))) {
     rb_raise(rb_eArgError, "argument 2 has to be a type.");
   }
 
@@ -581,7 +582,7 @@ static VALUE node_find(VALUE self, VALUE qname) { //{{{
     } else if (nc == UA_NODECLASS_METHOD) {
       node = node_wrap(cMethodNode,node_alloc(ns->master,ret));
     } else {
-      node = node_wrap(cObjectsNode,node_alloc(ns->master,ret));
+      node = node_wrap(cObjectNode,node_alloc(ns->master,ret));
     }
     UA_NodeClass_clear(&nc);
 
@@ -595,7 +596,7 @@ static VALUE node_value_set(VALUE self, VALUE value) { //{{{
 
   UA_Variant variant;
   if (value_to_variant(value,&variant)) {
-    printf("-----------------------------------------%ld\n",variant.arrayDimensionsSize);
+    // printf("-----------------------------------------%ld\n",variant.arrayDimensionsSize);
     if (variant.arrayDimensionsSize > 0) {
       UA_Server_writeValueRank(ns->master->master, ns->id, variant.arrayDimensionsSize);
       UA_Variant uaArrayDimensions;
@@ -688,12 +689,12 @@ static VALUE server_add_namespace(VALUE self, VALUE name) { //{{{
 static VALUE server_types(VALUE self) { //{{{
   server_struct *pss;
   Data_Get_Struct(self, server_struct, pss);
-  return node_wrap(cTypesTopNode, node_alloc(pss, UA_NODEID_NUMERIC(0, UA_NS0ID_BASEOBJECTTYPE)));
+  return node_wrap(cTypeTopNode, node_alloc(pss, UA_NODEID_NUMERIC(0, UA_NS0ID_BASEOBJECTTYPE)));
 } //}}}
 static VALUE server_objects(VALUE self) { //{{{
   server_struct *pss;
   Data_Get_Struct(self, server_struct, pss);
-  return node_wrap(cObjectsNode, node_alloc(pss, UA_NODEID_NUMERIC(0, UA_NS0ID_OBJECTSFOLDER)));
+  return node_wrap(cObjectNode, node_alloc(pss, UA_NODEID_NUMERIC(0, UA_NS0ID_OBJECTSFOLDER)));
 } //}}}
 static VALUE server_debug(VALUE self) { //{{{
   server_struct *pss;
@@ -725,11 +726,12 @@ void Init_server(void) {
   Init_types();
 
   cServer       = rb_define_class_under(mOPCUA, "Server", rb_cObject);
-  cObjectsNode  = rb_define_class_under(cServer, "ObjectsNode", rb_cObject);
-  cTypesTopNode = rb_define_class_under(cServer, "TypesTopNode", rb_cObject);
-  cTypesSubNode = rb_define_class_under(cServer, "TypesSubNode", rb_cObject);
-  cVarNode      = rb_define_class_under(cServer, "ObjectsVarNode", rb_cObject);
-  cMethodNode   = rb_define_class_under(cServer, "ObjectsMethodNode", rb_cObject);
+  cNode         = rb_define_class_under(cServer, "Node", rb_cObject);
+  cObjectNode   = rb_define_class_under(cServer, "ObjectNode", cNode);
+  cTypeTopNode  = rb_define_class_under(cServer, "TypeTopNode", cNode);
+  cTypeSubNode  = rb_define_class_under(cServer, "TypeSubNode", cNode);
+  cVarNode      = rb_define_class_under(cServer, "ObjectVarNode", cNode);
+  cMethodNode   = rb_define_class_under(cServer, "ObjectMethodNode", cNode);
 
   rb_define_alloc_func(cServer, server_alloc);
   rb_define_method(cServer, "initialize", server_init, 0);
@@ -740,26 +742,20 @@ void Init_server(void) {
   rb_define_method(cServer, "debug", server_debug, 0);
   rb_define_method(cServer, "debug=", server_debug_set, 1);
 
-  rb_define_method(cTypesTopNode, "add_object_type", node_add_object_type, 1);
-  rb_define_method(cTypesTopNode, "folder", node_type_folder, 0);
-  rb_define_method(cTypesSubNode, "add_object_type", node_add_object_type, 1);
-  rb_define_method(cTypesSubNode, "add_variable", node_add_variable, -1);
-  rb_define_method(cTypesSubNode, "add_variable_rw", node_add_variable_rw, -1);
-  rb_define_method(cTypesSubNode, "add_object", node_add_object, -1);
-  rb_define_method(cTypesSubNode, "add_method", node_add_method, -1);
-  rb_define_method(cTypesSubNode, "to_s", node_to_s, 0);
-  rb_define_method(cTypesSubNode, "id", node_id, 0);
+  rb_define_method(cNode, "to_s", node_to_s, 0);
+  rb_define_method(cNode, "id", node_id, 0);
 
-  rb_define_method(cObjectsNode, "manifest", node_manifest, 2);
-  rb_define_method(cObjectsNode, "find", node_find, 1);
-  rb_define_method(cObjectsNode, "to_s", node_to_s, 0);
-  rb_define_method(cObjectsNode, "id", node_id, 0);
+  rb_define_method(cTypeTopNode, "add_object_type", node_add_object_type, 1);
+  rb_define_method(cTypeTopNode, "folder", node_type_folder, 0);
+  rb_define_method(cTypeSubNode, "add_object_type", node_add_object_type, 1);
+  rb_define_method(cTypeSubNode, "add_variable", node_add_variable, -1);
+  rb_define_method(cTypeSubNode, "add_variable_rw", node_add_variable_rw, -1);
+  rb_define_method(cTypeSubNode, "add_object", node_add_object, -1);
+  rb_define_method(cTypeSubNode, "add_method", node_add_method, -1);
 
-  rb_define_method(cVarNode, "to_s", node_to_s, 0);
-  rb_define_method(cVarNode, "id", node_id, 0);
+  rb_define_method(cObjectNode, "manifest", node_manifest, 2);
+  rb_define_method(cObjectNode, "find", node_find, 1);
+
   rb_define_method(cVarNode, "value", node_value, 0);
   rb_define_method(cVarNode, "value=", node_value_set, 1);
-
-  rb_define_method(cMethodNode, "to_s", node_to_s, 0);
-  rb_define_method(cMethodNode, "id", node_id, 0);
 }

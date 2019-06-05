@@ -53,10 +53,15 @@ Daemonite.new do
     puts e.message
   end
 
+  counter = 0
   run do |opts|
     GC.start
     sleep opts['server'].run
-    opts[:tn].value = ["a",12,:b]
+    if counter % 100 == 0
+      opts[:tn].value = counter
+      p 'changed'
+    end
+    counter += 1
   rescue => e
     puts e.message
   end

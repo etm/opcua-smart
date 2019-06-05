@@ -22,4 +22,5 @@ typedef struct node_struct {
   client_struct *master;
   VALUE on_change;
   UA_NodeId id;
+  int waiting;
 } node_struct;
