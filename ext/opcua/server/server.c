@@ -406,7 +406,18 @@ static bool node_get_reference(UA_Server *server, UA_NodeId parent, UA_NodeId *r
   if (bRes.referencesSize > 0) {
     UA_ReferenceDescription *ref = &(bRes.references[0]);
 
-    *result = ref->nodeId.nodeId;
+    UA_NodeId_copy(&ref->nodeId.nodeId,result);
+
+		UA_QualifiedName qn;  UA_QualifiedName_init(&qn);
+		UA_Server_readBrowseName(server, ref->nodeId.nodeId, &qn);
+
+		// printf("NS: %d ---> NodeId %u; %-16.*s\n",
+		// 			 ref->nodeId.nodeId.namespaceIndex,
+		// 			 ref->nodeId.nodeId.identifier.numeric,
+		// 			 (int)qn.name.length,
+		// 			 qn.name.data
+		// );
+
     UA_BrowseResult_deleteMembers(&bRes);
     UA_BrowseResult_clear(&bRes);
     return true;
