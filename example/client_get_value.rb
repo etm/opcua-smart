@@ -8,5 +8,9 @@ require_relative '../lib/opcua/client'
 client = OPCUA::Client.new("opc.tcp://localhost:4840")
 client.subscription_interval = 100 # default 500
 
-node = client.get 2, '/KalimatC34/Tools/Tool1/ToolNumber'  # get node from nodeid
-p node.value
+if (node = client.get 2, '/alimatC34/Tools/Tool1/ToolNumber')  # get node from nodeid
+  p node
+  p node.value
+else
+  p 'invalid nodeid'
+end

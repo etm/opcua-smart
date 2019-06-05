@@ -321,28 +321,31 @@ static VALUE client_get(int argc, VALUE* argv, VALUE self) { //{{{
   if (NIL_P(ns) || TYPE(ns) != T_FIXNUM)
     rb_raise(rb_eTypeError, "ns is not a valid (numeric) namespace id");
 
-  node_struct *res;
+  UA_NodeId it;
+
   if (TYPE(id) == T_FIXNUM) {
-    res = node_alloc(pss, UA_NODEID_NUMERIC(NUM2INT(ns), NUM2INT(id)));
+    it = UA_NODEID_NUMERIC(NUM2INT(ns), NUM2INT(id));
   } else {
     VALUE str = rb_obj_as_string(id);
     if (NIL_P(str) || TYPE(str) != T_STRING)
       rb_raise(rb_eTypeError, "cannot convert url to string");
     char *nstr = (char *)StringValuePtr(str);
 
-    res = node_alloc(pss, UA_NODEID_STRING(NUM2INT(ns), nstr));
+    it = UA_NODEID_STRING(NUM2INT(ns), nstr);
   }
 
   UA_NodeClass nc;UA_NodeClass_init(&nc);
-  UA_Client_readNodeClassAttribute(pss->master, res->id, &nc);
+  UA_Client_readNodeClassAttribute(pss->master, it, &nc);
 
   VALUE node;
   if (nc == UA_NODECLASS_VARIABLE) {
-    node = node_wrap(cVarNode,res);
+    node = node_wrap(cVarNode,node_alloc(pss, it));
   } else if (nc == UA_NODECLASS_METHOD) {
-    node = node_wrap(cMethodNode,res);
+    node = node_wrap(cMethodNode,node_alloc(pss, it));
+  } else if (nc == UA_NODECLASS_UNSPECIFIED) {
+    node = Qnil;
   } else {
-    node = node_wrap(cNode,res);
+    node = node_wrap(cNode,node_alloc(pss, it));
   }
   UA_NodeClass_clear(&nc);
 
