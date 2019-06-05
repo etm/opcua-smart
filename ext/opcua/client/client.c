@@ -2,6 +2,7 @@
 #include "../../../cert/cert.h"
 #include "../../../cert/cert_key.h"
 
+
 VALUE mOPCUA = Qnil;
 VALUE cClient = Qnil;
 VALUE cVarNode = Qnil;
@@ -9,6 +10,11 @@ VALUE cMethodNode = Qnil;
 VALUE cNode = Qnil;
 
 #include "../values.h"
+
+#include <signal.h>
+
+static volatile bool keepRunning = true;
+void intHandler(int dummy) { keepRunning = false; }
 
 /* -- */
 static void  node_free(node_struct *ns) { //{{{
@@ -128,9 +134,12 @@ static VALUE node_on_value_change(VALUE self) {
     rb_raise(rb_eRuntimeError, "Monitoring item failed: %s\n", UA_StatusCode_name(monResponse.statusCode));
   }
 
-  while (ns->waiting < 2) {
+  keepRunning = true;
+  signal(SIGINT, intHandler);
+  while (ns->waiting < 2 && keepRunning) {
     UA_Client_run_iterate(ns->master->master, 100);
   }
+  signal(SIGINT, SIG_DFL);  // reset the disposition for SIGINT to the default
 
   UA_MonitoredItemCreateResult_clear(&monResponse);
   UA_MonitoredItemCreateRequest_clear(&monRequest);
