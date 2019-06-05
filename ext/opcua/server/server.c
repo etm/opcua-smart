@@ -713,11 +713,11 @@ void Init_server(void) {
   Init_types();
 
   cServer       = rb_define_class_under(mOPCUA, "Server", rb_cObject);
-  cObjectsNode  = rb_define_class_under(mOPCUA, "cObjectsNode", rb_cObject);
-  cTypesTopNode = rb_define_class_under(mOPCUA, "cTypesTopNode", rb_cObject);
-  cTypesSubNode = rb_define_class_under(mOPCUA, "cTypesSubNode", rb_cObject);
-  cVarNode      = rb_define_class_under(mOPCUA, "cVarNode", rb_cObject);
-  cMethodNode   = rb_define_class_under(mOPCUA, "cMethodNode", rb_cObject);
+  cObjectsNode  = rb_define_class_under(mOPCUA, "ObjectsNode", rb_cObject);
+  cTypesTopNode = rb_define_class_under(mOPCUA, "TypesTopNode", rb_cObject);
+  cTypesSubNode = rb_define_class_under(mOPCUA, "TypesSubNode", rb_cObject);
+  cVarNode      = rb_define_class_under(mOPCUA, "ObjectsVarNode", rb_cObject);
+  cMethodNode   = rb_define_class_under(mOPCUA, "ObjectsMethodNode", rb_cObject);
 
   rb_define_alloc_func(cServer, server_alloc);
   rb_define_method(cServer, "initialize", server_init, 0);
