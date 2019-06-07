@@ -3,9 +3,9 @@
 
 ## Table of Contents
 
-1. [Installation](#Installation)
-2. [Examples](#Examples)
-3. [Server](#Server)
+* [Installation](#Installation)
+* [Examples](#Examples)
+* [Server](#Server)
 
 ## COPYING
 
@@ -42,9 +42,31 @@ sudo ldconfig -p | grep libopen62541 # check if its there
 
 ### Server
 
+The server has following steps:
+* Create the server and add_namespace
+* Create ObjectTypes
+* Manifest ObjectTypes
+* Loop for getting real life data
+
+#### Create server and namespace
 
 ```ruby
-
+server = OPCUA::Server.new
+server.add_namespace "https://yourdomain/testserver"
 ```
+#### Create ObjectTypes
+
+```ruby
+mt = server.types.add_object_type(:MeasurementType).tap{ |t|
+  t.add_variable :TestVariable
+  t.add_object(:TestObject, server.types.folder).tap{ |u|
+    u.add_object :M, mt, OPCUA::OPTIONAL
+  }
+  t.add_method :TestMethod, inputarg1: OPCUA::TYPES::STRING, inputarg2: OPCUA::TYPES::DATETIME do |node, inputarg1, inputarg2|
+    #do some stuff here
+  end
+}
+```
+
 
 TBD. See examples subdirectory.
