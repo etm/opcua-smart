@@ -1,11 +1,17 @@
 # OPC-UA Ruby Bindings (open62541)
 
+The development of OPC UA applications takes currently a lot of effort. This is caused by the large possibilities of the OPC UA specification. With this implemtation we want to define some conventions, which shoud make the technology more useable.
 
 ## Table of Contents
 
 1. [Installation](#Installation)
 2. [Examples](#Examples)
-  1. [Server](#Server)
+    1. [Server](#Server)
+    2. [Client](#Client)
+
+## Modelling Style
+
+TBD
 
 ## COPYING
 
@@ -54,10 +60,14 @@ The server has following steps:
 server = OPCUA::Server.new
 server.add_namespace "https://yourdomain/testserver"
 ```
-#### Create ObjectTypes
+
+
+#### Create ObjectTypes -- Defining an information model
+
+We decided, that it 
 
 ```ruby
-mt = server.types.add_object_type(:MeasurementType).tap{ |t|
+to = server.types.add_object_type(:TestObjectType).tap{ |t|
   t.add_variable :TestVariable
   t.add_object(:TestObject, server.types.folder).tap{ |u|
     u.add_object :M, mt, OPCUA::OPTIONAL
@@ -67,6 +77,8 @@ mt = server.types.add_object_type(:MeasurementType).tap{ |t|
   end
 }
 ```
+In this example the _TestObjectType_ is defined. It consits of _TestVariable_ of the _BaseVariableType_ an _TestObject_ of the _FolderType_ and a _TestMethod_. The ``` .add_variable :TestVariable ``` command adds a variable.
 
 
+### Client
 TBD. See examples subdirectory.
