@@ -1,5 +1,14 @@
 # OPC-UA Ruby Bindings (open62541)
 
+
+# Table of Contents
+
+1. [Installation](#Installation)
+2. [My second title](#my-second-title)
+## My first title
+Some text.
+## My second title
+
 ## COPYING
 
 Copyright (C) 2019-* Jürgen "eTM" Mangler <juergen.mangler@gmail.com>. opcua-smart is freely distributable according to the terms of the GNU Lesser General Public License 3.0 (see the file 'COPYING'). This code is distributed without any warranty. See the file 'COPYING' for details.
@@ -32,5 +41,12 @@ sudo ldconfig -p | grep libopen62541 # check if its there
 ```
 
 ## EXAMPLES
+
+###Server
+
+
+```ruby
+
+```
 
 TBD. See examples subdirectory.
