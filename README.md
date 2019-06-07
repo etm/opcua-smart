@@ -3,9 +3,9 @@
 
 ## Table of Contents
 
-* [Installation](#Installation)
-* [Examples](#Examples)
-* [Server](#Server)
+1. [Installation](#Installation)
+2. [Examples](#Examples)
+  1. [Server](#Server)
 
 ## COPYING
 
