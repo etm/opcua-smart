@@ -5,7 +5,7 @@
 
 1. [Installation](#Installation)
 2. [Examples](#Examples)
-3. [Server](##Server)
+3. [Server](#Server)
 
 ## COPYING
 
