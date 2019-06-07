@@ -224,7 +224,6 @@ static VALUE node_add_method(int argc, VALUE* argv, VALUE self) { //{{{
 static UA_NodeId node_add_variable_ua(UA_Int32 type, UA_NodeId n, UA_LocalizedText dn, UA_QualifiedName qn, node_struct *parent, VALUE ref, UA_Byte accesslevelmask) { //{{{
   UA_VariableAttributes vAttr = UA_VariableAttributes_default;
   vAttr.displayName = dn;
-
   vAttr.accessLevel = accesslevelmask;
 
   UA_Server_addVariableNode(parent->master->master,
@@ -246,7 +245,6 @@ static UA_NodeId node_add_variable_ua(UA_Int32 type, UA_NodeId n, UA_LocalizedTe
   }
 
   return n;
-
 } //}}}
 static UA_NodeId node_add_variable_ua_simple(UA_Int32 type, char* nstr, node_struct *parent, VALUE ref, UA_Byte accesslevelmask,bool numeric) { //{{{
   return node_add_variable_ua(

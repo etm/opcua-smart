@@ -58,7 +58,7 @@ Daemonite.new do
     GC.start
     sleep opts['server'].run
     if counter % 100 == 0
-      opts[:tn].value = counter
+      opts[:tn].value = [counter, counter]
       p 'changed'
     end
     counter += 1
