@@ -44,18 +44,10 @@ module OPCUA
 =end
 
     class NodeId
-      def ns
-        @ns
-      end
-
-      def id
-        @id
-      end
-
-      def type
-        @type
-      end
-
+      def ns() @ns end
+      def id() @id end
+      def type() @type end
+      def to_s() "ns=#{ns};#{type}=#{id}" end
       def initialize(namespaceindex, identifier, identifiertype='s') 
         if !namespaceindex.is_a?(Integer) || namespaceindex < 0
           raise "Bad namespaceindex #{namespaceindex}" 
@@ -64,12 +56,10 @@ module OPCUA
           identifier = identifier.to_i
           identifiertype = 'i'
         end
-
         @ns = namespaceindex
         @id = identifier
         @type = identifiertype
       end
-
       ##
       # Creates a +NodeId+ from a string
       #
@@ -86,30 +76,19 @@ module OPCUA
         end
         NodeId.new(ns, id, type)
       end
-
-      def to_s
-        "ns=#{ns};#{type}=#{id}"
-      end
     end
 
     class QualifiedName
-      def ns
-        @ns
-      end
-
-      def name
-        @name
-      end
-
+      def ns() @ns end
+      def name() @name end
+      def to_s() "#{ns}:#{name}" end
       def initialize(namespaceindex, name) 
         if !namespaceindex.is_a?(Integer) || namespaceindex < 0
           raise "Bad namespaceindex #{namespaceindex}" 
         end
-
         @ns = namespaceindex
         @name = name
       end
-
       ##
       # Creates a +QualifiedName+ from a string
       #
@@ -119,21 +98,18 @@ module OPCUA
         name = qualifiedname.match(/:(.*)/)[1]
         QualifiedName.new(ns, name)
       end
-
-      def to_s
-        "#{ns}:#{name}"
-      end
     end
 
     class LocalizedText
-      def locale
-        @locale
+      def locale() @locale end
+      def text() @text end
+      def to_s()
+        if locale == ""
+          return text
+        else
+          return "#{locale}:#{text}"
+        end
       end
-
-      def text
-        @text
-      end
-
       def initialize(text, locale="") 
         if !text.is_a?(String) && !text.is_a?(Symbol) || !locale.is_a?(String)
           raise "Bad LocalizedText #{text} - #{locale}" 
@@ -141,11 +117,9 @@ module OPCUA
         if text == ""
           return nil
         end
-
         @locale = locale
         @text = text
       end
-
       ##
       # Creates a +LocalizedText+ from a string
       #
@@ -155,8 +129,6 @@ module OPCUA
         text = localizedtext.match(/:(.*)/)[1]
         LocalizedText.new(text, locale)
       end
-
-
       ##
       # Parses a +LocalizedText+ from an xml element
       #
@@ -169,14 +141,6 @@ module OPCUA
         locale = xml_element.find("@Locale").first.to_s || ""
         LocalizedText.new(name, locale)
       end
-
-      def to_s
-        if locale == ""
-          return text
-        else
-          return "#{locale}:#{text}"
-        end
-      end
     end
 
     ##
@@ -188,6 +152,80 @@ module OPCUA
       NodeId.new(namespaces[0].index(local_nss[nodeid.ns]), nodeid.id, nodeid.type) # CHECK: also caching the server_nss could be faster and not always calling "namespaces" method
     end
 
+    ##
+    # NodeClasses see https://documentation.unified-automation.com/uasdkhp/1.0.0/html/_l2_ua_node_classes.html
+    class NodeClass
+      Unspecified = 0
+      Object = 1
+      Variable = 2
+      Method = 4
+      ObjectType = 8
+      VariableType = 16
+      ReferenceType = 32
+      DataType = 64
+      View = 128
+    end
+
+    ##
+    # Create a class in a module dynamically.
+    # 
+    # +name+:: String BrowseName without namespaceindex.
+    # +nodeid+:: +NodeId+ of the type node.
+    # +mod+:: Optional string of the parent module
+    def create_class(name, nodeid, mod = "")
+      if mod != ""
+        if(!Object.const_defined?(mod))
+          Object.const_set(mod, Module.new)
+        end
+        basenode = Class.new(BaseNode)
+        Object.const_set(name, basenode)
+        m = Object.const_get(mod)
+        # basenode.include(m)
+        m.const_set(name, basenode)
+      else
+        basenode = Class.new
+        Object.const_set(name, basenode)
+      end
+      basenode.define_singleton_method(:nodeid, -> { return nodeid })
+      basenode
+    end
+
+    class BaseNode
+      def self.nodeid() @@nodeid end
+      def self.browsename() @@browsename end
+      def self.displayname() @@displayname end
+      def self.description() @@description end
+      def self.nodeclass() @@nodeclass end
+      def type_nodeid() self.class.nodeid end
+      def type_browsename() self.class.browsename end
+      def type_displayname() self.class.displayname end
+      def type_description() self.class.description end
+      def type_nodeclass() self.class.nodeclass end
+      def nodeid() @nodeid end
+      def nodeclass() @nodeclass end
+      def browsename
+        # TODO: if nil take from self.class.browsename and remove 'Type'
+        @browsename
+      end
+      def displayname
+        # TODO: if nil take from self.class.displayname and remove 'Type'
+        @displayname
+      end
+      def description
+        if(@description == "")
+          return self.class.description
+        end
+        @description
+      end
+      def initialize(name, description = "")
+        # TODO: create QualifiedName from name in the current namespace, not sure whats the best strategy right now
+        # @browsename = QualifiedName.new(2, name)
+        @displayname = LocalizedText.new(name) # no Locale seems better than 'en' right now
+        @description = description
+        # TODO: create nodeid within the server.objects.add(BaseNode) function (same problem as with QualifiedName)
+        # TODO: add HasTypeDefinition to typeid -> can be done with server.add
+      end
+    end
 
     ##
     # Parse a nodeset, load it to the server and create classes dynamically.
@@ -196,17 +234,10 @@ module OPCUA
     # +nodeset+:: String containing the nodeset.
     def add_nodeset(namespace, nodeset)
       doc = XML::Smart.string(nodeset)
-
       namespace_module = Object.const_set(namespace, Module.new)
-
-      # REMOVE:
-      # objecttypes_module = Object.const_set("ObjectTypes", Module.new).include namespace_module
-      # referencetypes_module = Object.const_set("ReferenceTypes", Module.new).include namespace_module
-      # variabletypes_module = Object.const_set("VariableTypes", Module.new).include namespace_module
 
       # get all used namespaces from nodeset nss[0] is always UA nss[1] is mostly the the own ns and nss[2 + n] is all the required other nss
       local_nss = ["http://opcfoundation.org/UA/"]
-
       for i in doc.find("//*[name()='NamespaceUris']/*[name()='Uri']") do
         ns = i.find("text()").first.to_s
         local_nss.push(ns)
@@ -227,7 +258,6 @@ module OPCUA
         symmetric = x.find("@Symmetric").first || false
         displayname = LocalizedText.parse x.find("*[name()='DisplayName']").first
         description = LocalizedText.parse x.find("*[name()='Description']").first
-
         # TODO: Create ReferenceTypes on the Server
         # EXAMPLE: 
         # node = add_node(nodeid, browsename.text, NodeClass::ReferenceType)
@@ -241,7 +271,6 @@ module OPCUA
         browsename = QualifiedName.from_string(x.find("@BrowseName").first.to_s)
         displayname = LocalizedText.parse x.find("*[name()='DisplayName']").first
         description = LocalizedText.parse x.find("*[name()='Description']").first
-
         # TODO: Find Structures and add to server
       end
 
@@ -255,25 +284,14 @@ module OPCUA
         browsename = QualifiedName.from_string(x.find("@BrowseName").first.to_s)
         displayname = LocalizedText.parse(x.find("*[name()='DisplayName']").first)
         description = LocalizedText.parse(x.find("*[name()='Description']").first)
-
         c = create_class(browsename.name, nodeid, namespace)
-        # c = create_class(browsename.name, nodeid, "#{namespace}::ObjectTypes") #creating longer modules
       end
-      
-
-
-
-
-
-
-
-
-
 
       # TODO: create all References of ReferenceTypes
       # TODO: create all References of DataTypes
       # TODO: create all References of VariableTypes
       # TODO: create all References of Objects
+
       # TODO: create all References of ObjectTypes
       doc.find("//*[name()='UAObjectType']").each do |x|
         browsename = QualifiedName.from_string(x.find("@BrowseName").first.to_s)
@@ -283,128 +301,6 @@ module OPCUA
           is_forward = r.find("@IsForward").first
           reference_nodeid = NodeId.from_string(r.find("text()").first.to_s)
         end
-      end
-    end
-
-
-    ##
-    # NodeClasses see https://documentation.unified-automation.com/uasdkhp/1.0.0/html/_l2_ua_node_classes.html
-    class NodeClass
-      Unspecified = 0
-      Object = 1
-      Variable = 2
-      Method = 4
-      ObjectType = 8
-      VariableType = 16
-      ReferenceType = 32
-      DataType = 64
-      View = 128
-    end
-
-
-    ##
-    # Create a class in a module dynamically.
-    # 
-    # +name+:: String BrowseName without namespaceindex.
-    # +nodeid+:: +NodeId+ of the type node.
-    # +mod+:: Optional string of the parent modules, e.g.: 'UA::ObjectTypes'
-    def create_class(name, nodeid, mod = "")
-      if mod != ""
-        modules = mod.to_s.split '::'
-        modules.each do |m|
-          if(!Object.const_defined?(m))
-            Object.const_set(m, Module.new)
-          end
-        end
-        basenode = Class.new(BaseNode)
-        Object.const_set(name, basenode)
-        if modules.length > 1
-          for i in 0..modules.length - 2
-            root = Object.const_get(modules[i]).const_set(modules[i + 1],  Object.const_get(modules[i + 1]))
-
-            # TODO: check if already defined/initialized? but not working yet:
-=begin
-            puts root.const_get(modules[i + 1])
-            if(!root.const_defined?(modules[i + 1])) # this doesn't check if defined
-              # bottom = Object.const_get(modules[i + 1]).include(root) #necessary?
-              root.const_set(modules[i + 1], bottom)
-              puts "const added #{modules[i + 1]}"
-            end
-=end
-          end
-        end
-        m = Object.const_get(modules[modules.length - 1])
-        basenode.include(m)
-        m.const_set(name, basenode)
-      else
-        basenode = Class.new
-        Object.const_set(name, basenode)
-      end
-      basenode.define_singleton_method(:nodeid, -> { return nodeid })
-      basenode
-    end
-
-    class BaseNode
-      def self.nodeid
-        @@nodeid
-      end
-      def self.browsename
-        @@browsename
-      end
-      def self.displayname
-        @@displayname
-      end
-      def self.description
-        @@description
-      end
-      def self.nodeclass
-        @@nodeclass
-      end
-
-      def type_nodeid
-        self.class.nodeid
-      end
-      def type_browsename
-        self.class.browsename
-      end
-      def type_displayname
-        self.class.displayname
-      end
-      def type_description
-        self.class.description
-      end
-      def type_nodeclass
-        self.class.nodeclass
-      end
-      def nodeid
-        @nodeid
-      end
-      def browsename
-        # TODO: if nil take from self.class.browsename and remove 'Type'
-        @browsename
-      end
-      def displayname
-        # TODO: if nil take from self.class.displayname and remove 'Type'
-        @displayname
-      end
-      def description
-        if(@description == "")
-          return self.class.description
-        end
-        @description
-      end
-      def nodeclass
-        @nodeclass
-      end
-
-      def initialize(name, description = "")
-        # TODO: create QualifiedName from name in the current namespace, not sure whats the best strategy right now
-        # @browsename = QualifiedName.new(2, name)
-        @displayname = LocalizedText.new(name) # no Locale seems better than 'en' right now
-        @description = description
-
-        # TODO: create nodeid within the server.objects.add(BaseNode) function (same problem as with QualifiedName)
-        # TODO: add HasTypeDefinition to typeid -> can be done with server.add
       end
     end
   end
