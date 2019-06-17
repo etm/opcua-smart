@@ -22,7 +22,17 @@ Copyright (C) 2019-* Jürgen "eTM" Mangler <juergen.mangler@gmail.com>. opcua-sm
 
 ## Installation
 
-Dependency: https://github.com/open62541/open62541 > 0.4 (master branch as of 2019-04-26)
+
+### Development dependencies
+
+On Fedora:
+```sh
+dnf install ruby ruby-devel cmake mbedtls
+yum install python-sphinx
+```
+
+### open62541 dependency
+Build open62541 and install on the system: https://github.com/open62541/open62541 > 0.4 (master branch as of 2019-04-26)
 
 ```sh
 git clone https://github.com/open62541/open62541.git
@@ -45,6 +55,27 @@ If the installation works correctly, but examples are still complaining about mi
 sudo echo "/usr/local/lib" > /etc/ld.so.conf.d/local.conf # add to libs path
 sudo ldconfig # update libs
 sudo ldconfig -p | grep libopen62541 # check if its there
+```
+
+## Development
+
+Use rake to build c bindings:
+
+```sh
+rake
+```
+
+Run server with verbose:
+
+```sh
+ruby example/server_import_nodeset.rb -v restart
+```
+
+Use relative paths to ruby libraries:
+
+```rb
+#require 'opcua/server'
+require_relative '../lib/opcua/server'
 ```
 
 ## EXAMPLES
