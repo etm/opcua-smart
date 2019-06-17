@@ -1,2 +1,4 @@
 tmp
 pkg
+cert/cert*
+lib/*.so
