@@ -622,7 +622,7 @@ static VALUE node_value(VALUE self) { //{{{
   }
 
   UA_Variant_clear(&value);
-  return ret;
+  return rb_ary_entry(ret,0);
 } //}}}
 
 /* -- */
