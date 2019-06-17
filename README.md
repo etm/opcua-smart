@@ -14,7 +14,7 @@ The development of OPC UA applications takes currently a lot of effort. This is 
 
 The idea of the opcua-smart library is to simplify the OPC UA application generation. Since OPC UA has more than 1500 pages of basic specifications, and the number is still growing, we decided to make some simplification.
 
-This is done by some constraints regarding the modeling functionality of OPC UA. This library deliberately does not offer all functions of OPC UA to simplify the creation of applications. 
+This is done by some constraints regarding the modeling functionality of OPC UA. This library deliberately does not offer all functions of OPC UA to simplify the creation of applications.
 
 ## COPYING
 
@@ -80,8 +80,13 @@ to = server.types.add_object_type(:TestObjectType).tap{ |t|
   end
 }
 ```
-In this example the _TestObjectType_ is defined. It consits of _TestVariable_ of the _BaseVariableType_ an _TestObject_ of the _FolderType_ and a _TestMethod_. The ``` .add_variable :TestVariable ``` command adds a variable with the name _TestVariable_.
+In this example the _TestObjectType_ is defined. It consits of _TestVariable_ of the _BaseVariableType_ an _TestObject_ of the _FolderType_ and a _TestMethod_.
 
+The ``` .add_variable :TestVariable ``` command adds a variable with the name _TestVariable_.
+
+With ```.add_object(:TestObject)``` a new object named _TestObject_ is added. The second parameter is optional and definies of which type the new object is. Default the object is from _BaseObjectType_. In this example the created object is from _FolderType_. All child nodes of the object can be definded in the ```tap{}``` area.
+
+Methods are added with the ```.add_method(:TestMethod)``` function. If defining 
 
 ### Client
 TBD. See examples subdirectory.
