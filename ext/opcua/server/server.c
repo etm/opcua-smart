@@ -622,7 +622,7 @@ static VALUE node_value(VALUE self) { //{{{
   }
 
   UA_Variant_clear(&value);
-  return rb_ary_entry(ret,0);
+  return ret;
 } //}}}
 
 /* -- */
@@ -713,6 +713,22 @@ static VALUE server_debug_set(VALUE self, VALUE val) { //{{{
   }
   return self;
 } //}}}
+static VALUE server_namespaces(VALUE self) { //{{{
+  server_struct *pss;
+  Data_Get_Struct(self, server_struct, pss);
+
+  UA_Variant value;
+  UA_Variant_init(&value);
+  UA_StatusCode retval = UA_Server_readValue(pss->master, UA_NODEID_NUMERIC(0, UA_NS0ID_SERVER_NAMESPACEARRAY), &value);
+
+  VALUE ret = Qnil;
+  if (retval == UA_STATUSCODE_GOOD) {
+    ret = extract_value(value);
+  }
+  
+  UA_Variant_clear(&value);
+  return ret;
+} //}}}
 
 void Init_server(void) {
   mOPCUA = rb_define_module("OPCUA");
@@ -739,6 +755,7 @@ void Init_server(void) {
   rb_define_method(cServer, "objects", server_objects, 0);
   rb_define_method(cServer, "debug", server_debug, 0);
   rb_define_method(cServer, "debug=", server_debug_set, 1);
+  rb_define_method(cServer, "namespaces", server_namespaces, 0);
 
   rb_define_method(cNode, "to_s", node_to_s, 0);
   rb_define_method(cNode, "id", node_id, 0);

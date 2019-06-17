@@ -218,13 +218,6 @@ static VALUE extract_value(UA_Variant value) { //{{{
     for (int i=0; i < value.arrayDimensions[0]; i++) {
       rb_ary_push(res,UA_TYPES_BOOLEAN_to_value(((UA_Boolean *)value.data)[i]));
     }
-  } else if (UA_Variant_hasArrayType(&value, &UA_TYPES[UA_TYPES_DOUBLE]) && value.arrayDimensionsSize == 1) {
-    VALUE res = rb_ary_new();
-    rb_ary_store(ret,0,res);
-    rb_ary_store(ret,1,ID2SYM(rb_intern("VariantType.Double")));
-    for (int i=0; i < value.arrayDimensions[0]; i++) {
-      rb_ary_push(res,UA_TYPES_DOUBLE_to_value(((UA_Double *)value.data)[i]));
-    }
   } else if (UA_Variant_hasScalarType(&value, &UA_TYPES[UA_TYPES_INT32])) {
     VALUE res = rb_ary_new();
     rb_ary_store(ret,0,res);
@@ -259,6 +252,23 @@ static VALUE extract_value(UA_Variant value) { //{{{
     rb_ary_store(ret,1,ID2SYM(rb_intern("VariantType.String")));
     for (int i=0; i < value.arrayDimensions[0]; i++) {
       rb_ary_push(res,UA_TYPES_STRING_to_value(((UA_String *)value.data)[i]));
+    }
+  } else if (UA_Variant_hasArrayType(&value, &UA_TYPES[UA_TYPES_STRING]) && value.arrayDimensionsSize == 0) {
+    VALUE res = rb_ary_new();
+    rb_ary_store(ret,0,res);
+    rb_ary_store(ret,1,ID2SYM(rb_intern("VariantType.String")));
+    // REMOVE: arrayDimensionsSize 0 seems to be 1 dimensional array (vector)
+    // REMOVE: use arrayLength to iterate the vector
+    for(size_t i = 0; i < value.arrayLength; ++i){
+      rb_ary_push(res,UA_TYPES_STRING_to_value(((UA_String *)value.data)[i]));
+    }
+  } else if (UA_Variant_hasArrayType(&value, &UA_TYPES[UA_TYPES_DOUBLE]) && value.arrayDimensionsSize == 1) {
+    // TODO: still an error, see part above about String Array
+    VALUE res = rb_ary_new();
+    rb_ary_store(ret,0,res);
+    rb_ary_store(ret,1,ID2SYM(rb_intern("VariantType.Double")));
+    for (int i=0; i < value.arrayDimensions[0]; i++) {
+      rb_ary_push(res,UA_TYPES_DOUBLE_to_value(((UA_Double *)value.data)[i]));
     }
   }
   return ret;
