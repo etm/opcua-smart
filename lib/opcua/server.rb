@@ -169,7 +169,7 @@ module OPCUA
     ##
     # Create a class in a module dynamically.
     # 
-    # +name+:: String BrowseName without namespaceindex.
+    # +name+:: BrowseName.
     # +nodeid+:: +NodeId+ of the type node.
     # +mod+:: Optional string of the parent module
     def create_class(name, nodeid, mod = "")
@@ -225,6 +225,19 @@ module OPCUA
         # TODO: create nodeid within the server.objects.add(BaseNode) function (same problem as with QualifiedName)
         # TODO: add HasTypeDefinition to typeid -> can be done with server.add
       end
+      def self.from_xml(server, xml, namespace, local_namespaces)
+        local_nodeid = NodeId.from_string(xml.find("@NodeId").first.to_s)
+        nodeid = NodeId.new(server.namespaces[0].index(local_namespaces[local_nodeid.ns]), local_nodeid.id, local_nodeid.type)
+        local_browsename = QualifiedName.from_string(xml.find("@BrowseName").first.to_s)
+        browsename = QualifiedName.new(server.namespaces[0].index(local_namespaces[local_browsename.ns]), local_browsename.name)
+        displayname = LocalizedText.parse xml.find("*[name()='DisplayName']").first
+        description = LocalizedText.parse xml.find("*[name()='Description']").first
+
+        # TODO: check NodeClass
+        # TODO: read NodeClass-specific properties
+        # TODO: provide NodeClass-specific methods next to create_class
+        server.create_class(browsename.name, nodeid, namespace)
+      end
     end
 
     ##
@@ -236,7 +249,7 @@ module OPCUA
       doc = XML::Smart.string(nodeset)
       namespace_module = Object.const_set(namespace, Module.new)
 
-      # get all used namespaces from nodeset nss[0] is always UA nss[1] is mostly the the own ns and nss[2 + n] is all the required other nss
+      # get all used namespaces from nodeset nss[0] is always UA, nss[1] is mostly the the own ns and nss[2 + n] is all the required other nss
       local_nss = ["http://opcfoundation.org/UA/"]
       for i in doc.find("//*[name()='NamespaceUris']/*[name()='Uri']") do
         ns = i.find("text()").first.to_s
@@ -253,11 +266,8 @@ module OPCUA
       end
 
       doc.find("//*[name()='UAReferenceType']").each do |x|
-        nodeid = get_server_nodeid(NodeId.from_string(x.find("@NodeId").first.to_s), local_nss)
-        browsename = QualifiedName.from_string(x.find("@BrowseName").first.to_s)
+        # c = BaseNode.from_xml(self, x, namespace, local_nss)
         symmetric = x.find("@Symmetric").first || false
-        displayname = LocalizedText.parse x.find("*[name()='DisplayName']").first
-        description = LocalizedText.parse x.find("*[name()='Description']").first
         # TODO: Create ReferenceTypes on the Server
         # EXAMPLE: 
         # node = add_node(nodeid, browsename.text, NodeClass::ReferenceType)
@@ -267,10 +277,7 @@ module OPCUA
       end
 
       doc.find("//*[name()='UADataType']").each do |x|
-        nodeid = get_server_nodeid(NodeId.from_string(x.find("@NodeId").first.to_s), local_nss)
-        browsename = QualifiedName.from_string(x.find("@BrowseName").first.to_s)
-        displayname = LocalizedText.parse x.find("*[name()='DisplayName']").first
-        description = LocalizedText.parse x.find("*[name()='Description']").first
+        # c = BaseNode.from_xml(self, x, namespace, local_nss)
         # TODO: Find Structures and add to server
       end
 
@@ -280,11 +287,7 @@ module OPCUA
 
       # Find all ObjectTypes and create them on the Server
       doc.find("//*[name()='UAObjectType']").each do |x|
-        nodeid = get_server_nodeid(NodeId.from_string(x.find("@NodeId").first.to_s), local_nss)
-        browsename = QualifiedName.from_string(x.find("@BrowseName").first.to_s)
-        displayname = LocalizedText.parse(x.find("*[name()='DisplayName']").first)
-        description = LocalizedText.parse(x.find("*[name()='Description']").first)
-        c = create_class(browsename.name, nodeid, namespace)
+        c = BaseNode.from_xml(self, x, namespace, local_nss)
       end
 
       # TODO: create all References of ReferenceTypes
@@ -294,8 +297,6 @@ module OPCUA
 
       # TODO: create all References of ObjectTypes
       doc.find("//*[name()='UAObjectType']").each do |x|
-        browsename = QualifiedName.from_string(x.find("@BrowseName").first.to_s)
-        nodeid = get_server_nodeid(NodeId.from_string(x.find("@NodeId").first.to_s), local_nss)
         x.find("*[name()='References']/*[name()='Reference']").each do |r|
           reference_type = r.find("@ReferenceType").first
           is_forward = r.find("@IsForward").first
