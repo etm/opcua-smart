@@ -53,16 +53,16 @@ Daemonite.new do
   run do |opts|
     GC.start
     sleep opts['server'].run
-    if counter % 100 == 0
-      #p 'changed'
+    if counter > 20
+      raise "exit"
     end
     counter += 1
   rescue => e
-    puts e.message
-  end
-
-  on exit do
-    # we could disconnect here, but OPCUA::Server does not have an explicit disconnect
-    puts 'bye.'
+    if e.message == "exit"
+      puts "exit"
+      break
+    end
   end
 end.loop!
+
+exit
