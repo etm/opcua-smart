@@ -12,6 +12,8 @@ Daemonite.new do
     opts['server'].add_nodeset :Robotics, File.read('Opc.Ua.Robotics.1.0.NodeSet2.xml')           # https://opcfoundation.org/UA/schemas/Robotics/1.0/Opc.Ua.Robotics.NodeSet2.xml
     opts['server'].add_nodeset :Testing, File.read('Example.Reference.1.0.NodeSet2.xml')          # Really weird local testing nodeset
     
+    # a problem could be if there were multiple namespaces defined in one nodeset, but this certainly isn't best practice
+
     # TODO: currently add your current namespace as the last or it will be overridden
     opts['server'].add_namespace 'http://example.org/'
 
@@ -33,6 +35,8 @@ Daemonite.new do
     # class method get nodeid of type node:
     puts "A type node #{DI::DeviceType} of type #{DI::DeviceType.nodeid}"
     puts "A type node #{Robotics::AxisType} of type #{Robotics::AxisType.nodeid}"
+
+    puts "An instances type_nodeid #{Robotics::AxisType.new(:Axis2).type_nodeid} equals its types nodeid #{Robotics::AxisType.nodeid}"
 
 
 
