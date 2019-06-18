@@ -11,9 +11,9 @@ The development of OPC UA applications takes currently a lot of effort. This is 
         1. [Create Server and Namespace](#Create-Server-and-Namespace)
         2. [Create ObjectTypes](#Create-ObjectTypes)
         3. [Manifest Objects](#Manifest-Objects)
-        4. [Find Nodes in the Addressspace](Find-Nodes-in-the-Addressspace)
+        4. [Find Nodes in the Addressspace](#Find-Nodes-in-the-Addressspace)
+        5. [Loop for getting Real Life Data](#Loop-for-getting-Real-Life-Data)
     2. [Client](#Client)
-
 
 ## Modelling Style
 
@@ -110,6 +110,26 @@ ObjectTypes can be instiantiated with the ```.manifest``` method.
 ```
 
 #### Find Nodes in the Addressspace
+
+To get a specific node u should use th ```.find``` method. 
+```ruby
+tv = to.find(:TestVariable)
+```
+_tv_ is now the _TestVariable_ node.
+
+#### Loop for getting Real Life Data
+The server loop looks like follows:
+```ruby
+ run do 
+    sleep server.run
+    to.value = 'Testvariable1'
+    p to.value
+ rescue => e
+    puts e.message
+ end
+```
+
+The loop starts with ```sleep server.run```. This is recommended by the open62541 developer. With the ```.value``` function you can write or get the value of a node. 
 
 ### Client
 TBD. See examples subdirectory.
