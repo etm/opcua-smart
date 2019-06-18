@@ -86,7 +86,18 @@ The ``` .add_variable :TestVariable ``` command adds a variable with the name _T
 
 With ```.add_object(:TestObject)``` a new object named _TestObject_ is added. The second parameter is optional and definies of which type the new object is. Default the object is from _BaseObjectType_. In this example the created object is from _FolderType_. All child nodes of the object can be definded in the ```tap{}``` area.
 
-Methods are added with the ```.add_method(:TestMethod)``` function. If defining 
+Methods are added with the ```.add_method(:TestMethod)``` function. Per default the method has no input and output arguments. By adding additional arguments you can define input arguments. The code for defining a method with input arguments looks like 
+```ruby
+ t.add_method :TestMethod, inputarg1: OPCUA::TYPES::STRING, inputarg2: OPCUA::TYPES::DATETIME do |node, inputarg1, inputarg2|
+    #do some stuff here
+   end
+```
+Input arguments can have a name and a type.
+in the ```do...end```section you write the code which should be executed by calling the method.
+
+#### Manifest Objects
+
+
 
 ### Client
 TBD. See examples subdirectory.
