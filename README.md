@@ -4,13 +4,12 @@ The development of OPC UA applications takes currently a lot of effort. This is 
 
 ## Table of Contents
 
-1. [Modelling Style](#Modelling%20Style)
+1. [Modelling Style](#Modelling-Style)
 2. [Installation](#Installation)
 3. [Examples](#Examples)
     1. [Server](#Server)
     2. [Client](#Client)
 
-4. [test object](#test%20object)
 
 ## Modelling Style
 
@@ -98,8 +97,6 @@ Input arguments can have a name and a type.
 in the ```do...end```section you write the code which should be executed by calling the method.
 
 #### Manifest Objects
-
-# test object
 
 ### Client
 TBD. See examples subdirectory.
