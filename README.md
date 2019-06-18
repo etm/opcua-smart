@@ -8,6 +8,10 @@ The development of OPC UA applications takes currently a lot of effort. This is 
 2. [Installation](#Installation)
 3. [Examples](#Examples)
     1. [Server](#Server)
+        1. [Create Server and Namespace](#Create-Server-and-Namespace)
+        2. [Create ObjectTypes](#Create-ObjectTypes)
+        3. [Manifest Objects](#Manifest-Objects)
+        4. [Find Nodes in the Addressspace](Find-Nodes-in-the-Addressspace)
     2. [Client](#Client)
 
 
@@ -56,9 +60,10 @@ The server has following steps:
 * Create the server and add_namespace
 * Create ObjectTypes
 * Manifest ObjectTypes
+* Find nodes in the adress space
 * Loop for getting real life data
 
-#### Create server and namespace
+#### Create Server and Namespace
 
 ```ruby
 server = OPCUA::Server.new
@@ -66,7 +71,7 @@ server.add_namespace "https://yourdomain/testserver"
 ```
 
 
-#### Create ObjectTypes -- Defining an information model
+#### Create ObjectTypes 
 
 Basically all new created types are subtypes of the _BaseObjectType_. With ```server.types.add_object_type(:TestObjectType)``` a new type is defined in the information model. All nodes of the new created type are defined in the ```tap{}``` region.
 
@@ -97,6 +102,14 @@ Input arguments can have a name and a type.
 in the ```do...end```section you write the code which should be executed by calling the method.
 
 #### Manifest Objects
+
+ObjectTypes can be instiantiated with the ```.manifest``` method. 
+
+```ruby
+    testobject =server.objects.manifest(:TestObjectType, to)
+```
+
+#### Find Nodes in the Addressspace
 
 ### Client
 TBD. See examples subdirectory.
