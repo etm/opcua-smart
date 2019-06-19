@@ -765,6 +765,7 @@ static VALUE server_namespaces(VALUE self) { //{{{
   }
 
   UA_Variant_clear(&value);
+  RB_OBJ_FREEZE(ret);
   return rb_ary_entry(ret,0);
 } //}}}
 
