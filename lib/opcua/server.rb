@@ -22,7 +22,21 @@ module OPCUA
       end
     end
 
+    TypeSubNode
+
     class TypeSubNode
+      def add_property(name)
+        add_variable name, OPCUA::PROPERTYTYPE
+      end
+      def add_property_rw
+        add_variable_rw name, OPCUA::PROPERTYTYPE
+      end
+      def add_properties(*item)
+        item.each { |e| add_property e }
+      end
+      def add_property_rw(*item)
+        item.each { |e| add_property_rw e }
+      end
       def add_variables(*item)
         item.each { |e| add_variable e }
       end

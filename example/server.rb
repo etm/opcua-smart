@@ -18,7 +18,7 @@ Daemonite.new do
       t.add_variable :SollWertZ
       t.add_variable :ToolNumber
       t.add_variable :DuploNumber
-      t.add_variable :testValue1
+      t.add_property :testValue1
       t.add_method :testMethod, test1: OPCUA::TYPES::STRING, test2: OPCUA::TYPES::DATETIME do |node, test1, test2|
         ns, nid = node.id
         puts '-' * 10
@@ -49,9 +49,12 @@ Daemonite.new do
     measurments_t1 = t1.find(:Measurements)
     measurments_t1.manifest(:M1,mt)
     measurments_t1.manifest(:M2,mt)
+
+    p opts['server'].namespaces
   rescue => e
     puts e.message
   end
+
 
   counter = 0
   run do |opts|
@@ -59,7 +62,8 @@ Daemonite.new do
     sleep opts['server'].run
     if counter % 100 == 0
       opts[:tn].value = [counter, counter]
-      p 'changed'
+      # opts[:tn].value = 1
+      p opts[:tn].value
     end
     counter += 1
   rescue => e
