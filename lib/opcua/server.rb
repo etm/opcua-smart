@@ -8,8 +8,6 @@ require 'xml/smart'
 
 module OPCUA
   class Server
-    #private :get_server_nodeid
-
     class ObjectNode
       alias_method :find_one, :find
 
@@ -42,7 +40,7 @@ module OPCUA
       for i in doc.find("//*[name()='NamespaceUris']/*[name()='Uri']") do
         ns = i.find("text()").first.to_s
         local_nss.push(ns)
-        if !namespaces[0].include? ns
+        unless namespaces[0].include? ns
           add_namespace ns
         end
       end
@@ -53,24 +51,30 @@ module OPCUA
       end
 
       doc.find("//*[name()='UAReferenceType']").each do |x|
-        # c = BaseNode.from_xml(self, x, namespace_indices, local_nss)
-        symmetric = x.find("@Symmetric").first || false
-        # TODO: Create ReferenceTypes on the Server
+        c = BaseNode.from_xml(self, x, namespace_indices, local_nss)
       end
 
       doc.find("//*[name()='UADataType']").each do |x|
-        # c = BaseNode.from_xml(self, x, namespace_indices, local_nss)
-        # TODO: Find Structures and add to server
+        c = BaseNode.from_xml(self, x, namespace_indices, local_nss)
       end
 
-      # TODO: Find all VariableTypes and create them on the Server
-      # TODO: Find all Objects and create them on the Server
+      doc.find("//*[name()='UAVariableType']").each do |x|
+        c = BaseNode.from_xml(self, x, namespace_indices, local_nss)
+      end
 
-      # Find all ObjectTypes and create them on the Server
       doc.find("//*[name()='UAObjectType']").each do |x|
         c = BaseNode.from_xml(self, x, namespace_indices, local_nss)
       end
 
+      doc.find("//*[name()='UAMethod']").each do |x|
+      end
+
+      doc.find("//*[name()='UAVariable']").each do |x|
+      end
+
+      doc.find("//*[name()='UAObject']").each do |x|
+      end
+      
       # TODO: create all References of ReferenceTypes
       # TODO: create all References of DataTypes
       # TODO: create all References of VariableTypes
@@ -97,41 +101,52 @@ module OPCUA
       browsename = QualifiedName.new(server.namespaces[0].index(local_namespaces[local_browsename.ns]), local_browsename.name)
       displayname = LocalizedText.parse xml.find("*[name()='DisplayName']").first
       description = LocalizedText.parse xml.find("*[name()='Description']").first
+      nodeclass = NodeClass.const_get(xml.find("name()")[2..-1])
 
-      # TODO: check NodeClass
-      nodeclass = NodeClass::ObjectType
+      if xml.find("@SymbolicName").first
+        constant_name = xml.find("@SymbolicName").first.to_s
+      elsif
+        constant_name = browsename.name
+      end
 
       if namespace_index != ""
-        if(!Object.const_defined?(namespace_index))
+        unless Object.const_defined?(namespace_index)
           Object.const_set(namespace_index, Module.new)
         end
         basenode = Class.new(BaseNode)
-        Object.const_set(browsename.name, basenode)
+        Object.const_set(constant_name, basenode)
         m = Object.const_get(namespace_index)
         # basenode.include(m)
-        m.const_set(browsename.name, basenode)
+        m.const_set(constant_name, basenode)
       else
-        basenode = Class.new
-        Object.const_set(browsename.name, basenode)
+        basenode = Class.new(BaseNode)
+        Object.const_set(constant_name, basenode)
       end
-      basenode.define_singleton_method(:nodeid, -> { return nodeid })
-      basenode.define_singleton_method(:browsename, -> { return browsename })
-      basenode.define_singleton_method(:displayname, -> { return displayname })
-      basenode.define_singleton_method(:description, -> { return description })
-      basenode.define_singleton_method(:nodeclass, -> { return nodeclass })
-      basenode.define_singleton_method(:namespace, -> { return namespace })
+      basenode.define_singleton_method(:NodeId, -> { return nodeid })
+      basenode.define_singleton_method(:BrowseName, -> { return browsename })
+      basenode.define_singleton_method(:DisplayName, -> { return displayname })
+      basenode.define_singleton_method(:Description, -> { return description })
+      basenode.define_singleton_method(:NodeClass, -> { return nodeclass })
+      basenode.define_singleton_method(:Namespace, -> { return namespace })
 
-      # TODO: provide NodeClass-specific methods next to create_class
-      # TODO: read NodeClass-specific properties
+      xml.find("@*").each do |a|
+        if(a.qname.equal?("NodeId") || a.qname.equal?("BrowseName"))
+          # already done
+        elsif a.qname.equal? "ParentNodeId"
+          parent_local_nodeid = NodeId.from_string(a)
+          parent_nodeid = NodeId.new(server.namespaces[0].index(local_namespaces[parent_local_nodeid.ns]), parent_local_nodeid.id, parent_local_nodeid.type)
+          basenode.define_singleton_method(a.qname.to_sym, -> { return parent_nodeid })
+        elsif a.equal? "true"
+          basenode.define_singleton_method(a.qname.to_sym, -> { return true })
+        elsif a.equal? "false"
+          basenode.define_singleton_method(a.qname.to_sym, -> { return false })
+        else
+          basenode.define_singleton_method(a.qname.to_sym, -> { return a })
+        end
+      end
 
       basenode
     end
-    def self.nodeid() @@nodeid end
-    def self.browsename() @@browsename end
-    def self.displayname() @@displayname end
-    def self.description() @@description end
-    def self.nodeclass() @@nodeclass end
-    def self.namespace() @@namespace end
   end
 
   class NodeId
@@ -140,10 +155,10 @@ module OPCUA
     def type() @type end
     def to_s() "ns=#{ns};#{type}=#{id}" end
     def initialize(namespaceindex, identifier, identifiertype='s') 
-      if !namespaceindex.is_a?(Integer) || namespaceindex < 0
+      unless namespaceindex.is_a?(Integer) || namespaceindex < 0
         raise "Bad namespaceindex #{namespaceindex}" 
       end
-      if !!(identifier =~ /\A[-+]?[0-9]+\z/) && identifier.to_i > 0
+      if (identifier =~ /\A[-+]?[0-9]+\z/) && identifier.to_i > 0
         identifier = identifier.to_i
         identifiertype = 'i'
       end
@@ -177,8 +192,13 @@ module OPCUA
       @name = name
     end
     def self.from_string(qualifiedname)
-      ns = qualifiedname.match(/^([^:]+):/)[1].to_i
-      name = qualifiedname.match(/:(.*)/)[1]
+      if qualifiedname.include? ":"
+        ns = qualifiedname.match(/^([^:]+):/)[1].to_i
+        name = qualifiedname.match(/:(.*)/)[1]
+      else
+        ns = 0
+        name = qualifiedname
+      end
       QualifiedName.new(ns, name)
     end
   end

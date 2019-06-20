@@ -15,20 +15,21 @@ Daemonite.new do
     # TODO: currently add your current namespace as the last or it will be overridden
     opts['server'].add_namespace 'http://example.org/'
 
+    puts "========================"
     nss = opts['server'].namespaces[0]
     for i in 0..nss.length - 1
       puts "ns#{i}=#{nss[i]}"
     end
 
-    t = DI::DeviceType
-    t = AutoId::AutoIdDeviceType
-    puts  "#{t}\n"\
-      "  BrowseName:\t#{t.browsename}\n"\
-      "  NodeClass:\t#{t.nodeclass}\n"\
-      "  DisplayName:\t#{t.displayname}\n"\
-      "  Description:\t#{t.description}\n"\
-      "  Namespace:\t#{t.namespace}\n"\
-      "  NodeId:\t#{t.nodeid}"
+    puts "\n\n=====================AutoIdDeviceType====================="
+    puts AutoId::AutoIdDeviceType.methods(false).map{ |name| "#{name}:   \t#{AutoId::AutoIdDeviceType.send(name)}" }
+    puts "\n\n========================DeviceType========================"
+    puts DI::DeviceType.methods(false).map{ |name| "#{name}:   \t#{DI::DeviceType.send(name)}" }
+    puts "\n\n========================ConnectsTo========================"
+    puts DI::ConnectsTo.methods(false).map{ |name| "#{name}:   \t#{DI::ConnectsTo.send(name)}" }
+    puts "\n\n=====================TestVariableType====================="
+    puts Testing::TestVariableType.methods(false).map{ |name| "#{name}:   \t#{Testing::TestVariableType.send(name)}" }
+    
 
 
 
@@ -54,7 +55,7 @@ Daemonite.new do
     counter += 1
   rescue => e
     if e.message == "exit"
-      puts "exit"
+      puts "\n\n\-->exit"
       break
     end
   end
