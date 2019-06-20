@@ -33,145 +33,10 @@ module OPCUA
       end
     end
 
-    # REMOVE:
-=begin
-    class NodeIdType
-      NUMERIC='i'
-      STRING='s'
-      GUID='g'
-      BYTESTRING='b'
-    end
-=end
-
-    class NodeId
-      def ns() @ns end
-      def id() @id end
-      def type() @type end
-      def to_s() "ns=#{ns};#{type}=#{id}" end
-      def initialize(namespaceindex, identifier, identifiertype='s') 
-        if !namespaceindex.is_a?(Integer) || namespaceindex < 0
-          raise "Bad namespaceindex #{namespaceindex}" 
-        end
-        if !!(identifier =~ /\A[-+]?[0-9]+\z/) && identifier.to_i > 0
-          identifier = identifier.to_i
-          identifiertype = 'i'
-        end
-        @ns = namespaceindex
-        @id = identifier
-        @type = identifiertype
-      end
-      ##
-      # Creates a +NodeId+ from a string
-      #
-      # +nodeid+:: String containing the NodeId
-      def self.from_string(nodeid)
-        if nodeid.match /ns=(.*?);/
-          ns = nodeid.match(/ns=(.*?);/)[1].to_i
-          type = nodeid.match(/;(.)=/)[1]
-          id = nodeid.match(/;.=(.*)/)[1]
-        else
-          ns = 0
-          type = nodeid.match(/(.)=/)[1]
-          id = nodeid.match(/.=(.*)/)[1]
-        end
-        NodeId.new(ns, id, type)
-      end
-    end
-
-    class QualifiedName
-      def ns() @ns end
-      def name() @name end
-      def to_s() "#{ns}:#{name}" end
-      def initialize(namespaceindex, name) 
-        if !namespaceindex.is_a?(Integer) || namespaceindex < 0
-          raise "Bad namespaceindex #{namespaceindex}" 
-        end
-        @ns = namespaceindex
-        @name = name
-      end
-      ##
-      # Creates a +QualifiedName+ from a string
-      #
-      # +qualifiedname+:: String containing the QualifiedName
-      def self.from_string(qualifiedname)
-        ns = qualifiedname.match(/^([^:]+):/)[1].to_i
-        name = qualifiedname.match(/:(.*)/)[1]
-        QualifiedName.new(ns, name)
-      end
-    end
-
-    class LocalizedText
-      def locale() @locale end
-      def text() @text end
-      def to_s()
-        if locale == ""
-          return text
-        else
-          return "#{locale}:#{text}"
-        end
-      end
-      def initialize(text, locale="") 
-        if !text.is_a?(String) && !text.is_a?(Symbol) || !locale.is_a?(String)
-          raise "Bad LocalizedText #{text} - #{locale}" 
-        end
-        if text == ""
-          return nil
-        end
-        @locale = locale
-        @text = text
-      end
-      ##
-      # Creates a +LocalizedText+ from a string
-      #
-      # +localizedtext+:: String containing the +LocalizedText+
-      def self.from_string(localizedtext)
-        locale = localizedtext.match(/^([^:]+):/)[1]
-        text = localizedtext.match(/:(.*)/)[1]
-        LocalizedText.new(text, locale)
-      end
-      ##
-      # Parses a +LocalizedText+ from an xml element
-      #
-      # +xml_element+:: Xml element containing the +LocalizedText+
-      def self.parse(xml_element)
-        if(xml_element.nil?)
-          return nil
-        end
-        name = xml_element.to_s || ""
-        locale = xml_element.find("@Locale").first.to_s || ""
-        LocalizedText.new(name, locale)
-      end
-    end
-
-    ##
-    # Transform  a local +NodeId+ from  a nodeset to a +NodeId+ on the server.
-    # 
-    # +nodeid+:: Local +NodeId+ in the nodeset
-    # +local_nss+:: String array of the nodesets local namespaces.
     def get_server_nodeid(nodeid, local_nss) 
-      NodeId.new(namespaces[0].index(local_nss[nodeid.ns]), nodeid.id, nodeid.type) # CHECK: also caching the server_nss could be faster and not always calling "namespaces" method
+      NodeId.new(namespaces[0].index(local_nss[nodeid.ns]), nodeid.id, nodeid.type)
     end
 
-    ##
-    # NodeClasses see https://documentation.unified-automation.com/uasdkhp/1.0.0/html/_l2_ua_node_classes.html
-    class NodeClass
-      Unspecified = 0
-      Object = 1
-      Variable = 2
-      Method = 4
-      ObjectType = 8
-      VariableType = 16
-      ReferenceType = 32
-      DataType = 64
-      View = 128
-    end
-
-    ##
-    # Create a class in a module dynamically.
-    # 
-    # +name+:: BrowseName.
-    # +nodeid+:: +NodeId+ of the type node.
-    # +mod+:: Optional string of the parent module
     def create_class(name, nodeid, mod = "")
       if mod != ""
         if(!Object.const_defined?(mod))
@@ -196,35 +61,6 @@ module OPCUA
       def self.displayname() @@displayname end
       def self.description() @@description end
       def self.nodeclass() @@nodeclass end
-      def type_nodeid() self.class.nodeid end
-      def type_browsename() self.class.browsename end
-      def type_displayname() self.class.displayname end
-      def type_description() self.class.description end
-      def type_nodeclass() self.class.nodeclass end
-      def nodeid() @nodeid end
-      def nodeclass() @nodeclass end
-      def browsename
-        # TODO: if nil take from self.class.browsename and remove 'Type'
-        @browsename
-      end
-      def displayname
-        # TODO: if nil take from self.class.displayname and remove 'Type'
-        @displayname
-      end
-      def description
-        if(@description == "")
-          return self.class.description
-        end
-        @description
-      end
-      def initialize(name, description = "")
-        # TODO: create QualifiedName from name in the current namespace, not sure whats the best strategy right now
-        # @browsename = QualifiedName.new(2, name)
-        @displayname = LocalizedText.new(name) # no Locale seems better than 'en' right now
-        @description = description
-        # TODO: create nodeid within the server.objects.add(BaseNode) function (same problem as with QualifiedName)
-        # TODO: add HasTypeDefinition to typeid -> can be done with server.add
-      end
       def self.from_xml(server, xml, namespace, local_namespaces)
         local_nodeid = NodeId.from_string(xml.find("@NodeId").first.to_s)
         nodeid = NodeId.new(server.namespaces[0].index(local_namespaces[local_nodeid.ns]), local_nodeid.id, local_nodeid.type)
@@ -240,11 +76,6 @@ module OPCUA
       end
     end
 
-    ##
-    # Parse a nodeset, load it to the server and create classes dynamically.
-    # 
-    # +namespace+:: Symbol containing the module name for the nodeset classes.
-    # +nodeset+:: String containing the nodeset.
     def add_nodeset(namespace, nodeset)
       doc = XML::Smart.string(nodeset)
       namespace_module = Object.const_set(namespace, Module.new)
@@ -304,5 +135,112 @@ module OPCUA
         end
       end
     end
+  end
+
+
+
+
+
+
+
+
+
+
+  class NodeId
+    def ns() @ns end
+    def id() @id end
+    def type() @type end
+    def to_s() "ns=#{ns};#{type}=#{id}" end
+    def initialize(namespaceindex, identifier, identifiertype='s') 
+      if !namespaceindex.is_a?(Integer) || namespaceindex < 0
+        raise "Bad namespaceindex #{namespaceindex}" 
+      end
+      if !!(identifier =~ /\A[-+]?[0-9]+\z/) && identifier.to_i > 0
+        identifier = identifier.to_i
+        identifiertype = 'i'
+      end
+      @ns = namespaceindex
+      @id = identifier
+      @type = identifiertype
+    end
+    def self.from_string(nodeid)
+      if nodeid.match /ns=(.*?);/
+        ns = nodeid.match(/ns=(.*?);/)[1].to_i
+        type = nodeid.match(/;(.)=/)[1]
+        id = nodeid.match(/;.=(.*)/)[1]
+      else
+        ns = 0
+        type = nodeid.match(/(.)=/)[1]
+        id = nodeid.match(/.=(.*)/)[1]
+      end
+      NodeId.new(ns, id, type)
+    end
+  end
+
+  class QualifiedName
+    def ns() @ns end
+    def name() @name end
+    def to_s() "#{ns}:#{name}" end
+    def initialize(namespaceindex, name) 
+      if !namespaceindex.is_a?(Integer) || namespaceindex < 0
+        raise "Bad namespaceindex #{namespaceindex}" 
+      end
+      @ns = namespaceindex
+      @name = name
+    end
+    def self.from_string(qualifiedname)
+      ns = qualifiedname.match(/^([^:]+):/)[1].to_i
+      name = qualifiedname.match(/:(.*)/)[1]
+      QualifiedName.new(ns, name)
+    end
+  end
+
+  class LocalizedText
+    def locale() @locale end
+    def text() @text end
+    def to_s()
+      if locale == ""
+        return text
+      else
+        return "#{locale}:#{text}"
+      end
+    end
+    def initialize(text, locale="") 
+      if !text.is_a?(String) && !text.is_a?(Symbol) || !locale.is_a?(String)
+        raise "Bad LocalizedText #{text} - #{locale}" 
+      end
+      if text == ""
+        return nil
+      end
+      @locale = locale
+      @text = text
+    end
+    def self.from_string(localizedtext)
+      locale = localizedtext.match(/^([^:]+):/)[1]
+      text = localizedtext.match(/:(.*)/)[1]
+      LocalizedText.new(text, locale)
+    end
+    def self.parse(xml_element)
+      if(xml_element.nil?)
+        return nil
+      end
+      name = xml_element.to_s || ""
+      locale = xml_element.find("@Locale").first.to_s || ""
+      LocalizedText.new(name, locale)
+    end
+  end
+
+  ##
+  # NodeClasses see https://documentation.unified-automation.com/uasdkhp/1.0.0/html/_l2_ua_node_classes.html
+  class NodeClass
+    Unspecified = 0
+    Object = 1
+    Variable = 2
+    Method = 4
+    ObjectType = 8
+    VariableType = 16
+    ReferenceType = 32
+    DataType = 64
+    View = 128
   end
 end

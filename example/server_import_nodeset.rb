@@ -8,9 +8,9 @@ Daemonite.new do
 
     # read nodesets from xml and load into server
     # also create classes for objects, types, variables and put nodeid in class variables
-    opts['server'].add_nodeset :DI, File.read('Opc.Ua.Di.1.2.NodeSet2.xml')                       # https://opcfoundation.org/UA/schemas/DI/1.2/Opc.Ua.Di.NodeSet2.xml
-    opts['server'].add_nodeset :Robotics, File.read('Opc.Ua.Robotics.1.0.NodeSet2.xml')           # https://opcfoundation.org/UA/schemas/Robotics/1.0/Opc.Ua.Robotics.NodeSet2.xml
-    opts['server'].add_nodeset :Testing, File.read('Example.Reference.1.0.NodeSet2.xml')          # Really weird local testing nodeset
+    opts['server'].add_nodeset File.read('Opc.Ua.Di.1.2.NodeSet2.xml'), :DI                       # https://opcfoundation.org/UA/schemas/DI/1.2/Opc.Ua.Di.NodeSet2.xml
+    opts['server'].add_nodeset File.read('Opc.Ua.AutoID.1.0.NodeSet2.xml'), :AutoID               # https://opcfoundation.org/UA/schemas/Robotics/1.0/Opc.Ua.Robotics.NodeSet2.xml
+    opts['server'].add_nodeset File.read('Example.Reference.1.0.NodeSet2.xml'), :Testing          # Really weird local testing nodeset
     
     # a problem could be if there were multiple namespaces defined in one nodeset, but this certainly isn't best practice
 
@@ -26,18 +26,9 @@ Daemonite.new do
     # TEST:
     # puts DI::ObjectTypes::DeviceType.new
 
-    # SAMPLE:
-    axis1 = Robotics::AxisType.new(:Axis1)
-    puts "An instance #{axis1} of type #{axis1.type_nodeid}"
-    puts "An instance #{Testing::TestComponent.new(:Component1)}"
-    puts "An instance #{DI::DeviceType.new(:Device1)}"
-
     # class method get nodeid of type node:
     puts "A type node #{DI::DeviceType} of type #{DI::DeviceType.nodeid}"
     puts "A type node #{Robotics::AxisType} of type #{Robotics::AxisType.nodeid}"
-
-    puts "An instances type_nodeid #{Robotics::AxisType.new(:Axis2).type_nodeid} equals its types nodeid #{Robotics::AxisType.nodeid}"
-
 
 
 
