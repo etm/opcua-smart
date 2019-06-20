@@ -8,6 +8,10 @@ require 'xml/smart'
 
 module OPCUA
   class Server
+    def initialize
+      add_nodeset File.read(File.join(File.dirname(__FILE__), "Opc.Ua.1.04.NodeSet2.xml"))
+    end
+
     class ObjectNode
       alias_method :find_one, :find
 
@@ -21,8 +25,6 @@ module OPCUA
         end
       end
     end
-
-    TypeSubNode
 
     class TypeSubNode
       def add_property(name)
@@ -49,12 +51,12 @@ module OPCUA
       doc = XML::Smart.string(nodeset)
 
       # get all used namespaces from nodeset nss[0] is always UA, nss[1] is mostly the the own ns and nss[2 + n] is all the required other nss
-      namespace_indices.unshift("http://opcfoundation.org/UA/")
+      namespace_indices.unshift(:UA)
       local_nss = ["http://opcfoundation.org/UA/"]
       for i in doc.find("//*[name()='NamespaceUris']/*[name()='Uri']") do
         ns = i.find("text()").first.to_s
         local_nss.push(ns)
-        unless namespaces[0].include? ns
+        unless namespaces.include? ns
           add_namespace ns
         end
       end
@@ -80,12 +82,15 @@ module OPCUA
         c = BaseNode.from_xml(self, x, namespace_indices, local_nss)
       end
 
+      # TODO: just add without BaseNode
       doc.find("//*[name()='UAMethod']").each do |x|
       end
 
+      # TODO: just add without BaseNode
       doc.find("//*[name()='UAVariable']").each do |x|
       end
 
+      # TODO: just add without BaseNode
       doc.find("//*[name()='UAObject']").each do |x|
       end
       
@@ -110,9 +115,9 @@ module OPCUA
       local_nodeid = NodeId.from_string(xml.find("@NodeId").first.to_s)
       namespace_index = namespace_indices[local_nodeid.ns]
       namespace = local_namespaces[local_nodeid.ns]
-      nodeid = NodeId.new(server.namespaces[0].index(local_namespaces[local_nodeid.ns]), local_nodeid.id, local_nodeid.type)
+      nodeid = NodeId.new(server.namespaces.index(local_namespaces[local_nodeid.ns]), local_nodeid.id, local_nodeid.type)
       local_browsename = QualifiedName.from_string(xml.find("@BrowseName").first.to_s)
-      browsename = QualifiedName.new(server.namespaces[0].index(local_namespaces[local_browsename.ns]), local_browsename.name)
+      browsename = QualifiedName.new(server.namespaces.index(local_namespaces[local_browsename.ns]), local_browsename.name)
       displayname = LocalizedText.parse xml.find("*[name()='DisplayName']").first
       description = LocalizedText.parse xml.find("*[name()='Description']").first
       nodeclass = NodeClass.const_get(xml.find("name()")[2..-1])
@@ -123,19 +128,14 @@ module OPCUA
         constant_name = browsename.name
       end
 
-      if namespace_index != ""
+      unless namespace_index.to_s.equal? ""
         unless Object.const_defined?(namespace_index)
           Object.const_set(namespace_index, Module.new)
         end
         basenode = Class.new(BaseNode)
-        Object.const_set(constant_name, basenode)
-        m = Object.const_get(namespace_index)
-        # basenode.include(m)
-        m.const_set(constant_name, basenode)
-      else
-        basenode = Class.new(BaseNode)
-        Object.const_set(constant_name, basenode)
+        Object.const_get(namespace_index).const_set(constant_name, basenode)
       end
+
       basenode.define_singleton_method(:NodeId, -> { return nodeid })
       basenode.define_singleton_method(:BrowseName, -> { return browsename })
       basenode.define_singleton_method(:DisplayName, -> { return displayname })
@@ -159,6 +159,11 @@ module OPCUA
         end
       end
 
+      if nodeclass.equal? NodeClass::ReferenceType
+        inversename = xml.find("*[name()='InverseName']/text()").first.to_s || nil
+        basenode.define_singleton_method(:InverseName, -> { return inversename })
+      end
+
       basenode
     end
   end
@@ -169,7 +174,7 @@ module OPCUA
     def type() @type end
     def to_s() "ns=#{ns};#{type}=#{id}" end
     def initialize(namespaceindex, identifier, identifiertype='s') 
-      unless namespaceindex.is_a?(Integer) || namespaceindex < 0
+      unless(namespaceindex.is_a?(Integer) || namespaceindex >= 0)
         raise "Bad namespaceindex #{namespaceindex}" 
       end
       if (identifier =~ /\A[-+]?[0-9]+\z/) && identifier.to_i > 0
@@ -199,7 +204,7 @@ module OPCUA
     def name() @name end
     def to_s() "#{ns}:#{name}" end
     def initialize(namespaceindex, name) 
-      if !namespaceindex.is_a?(Integer) || namespaceindex < 0
+      unless(namespaceindex.is_a?(Integer) || namespaceindex >= 0)
         raise "Bad namespaceindex #{namespaceindex}" 
       end
       @ns = namespaceindex
@@ -227,10 +232,7 @@ module OPCUA
         return "#{locale}:#{text}"
       end
     end
-    def initialize(text, locale="") 
-      if !text.is_a?(String) && !text.is_a?(Symbol) || !locale.is_a?(String)
-        raise "Bad LocalizedText #{text} - #{locale}" 
-      end
+    def initialize(text, locale="")
       if text == ""
         return nil
       end
@@ -246,9 +248,9 @@ module OPCUA
       if(xml_element.nil?)
         return nil
       end
-      name = xml_element.to_s || ""
+      text = xml_element.to_s || ""
       locale = xml_element.find("@Locale").first.to_s || ""
-      LocalizedText.new(name, locale)
+      LocalizedText.new(text, locale)
     end
   end
 

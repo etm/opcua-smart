@@ -16,11 +16,15 @@ Daemonite.new do
     opts['server'].add_namespace 'http://example.org/'
 
     puts "========================"
-    nss = opts['server'].namespaces[0]
+    nss = opts['server'].namespaces
     for i in 0..nss.length - 1
       puts "ns#{i}=#{nss[i]}"
     end
 
+    puts "\n\n==========================String=========================="
+    puts UA::HasProperty.methods(false).map{ |name| "#{name}:   \t#{UA::HasProperty.send(name)}" }
+    puts "\n\n=======================HasProperty======================="
+    puts UA::HasProperty.methods(false).map{ |name| "#{name}:   \t#{UA::HasProperty.send(name)}" }
     puts "\n\n=====================AutoIdDeviceType====================="
     puts AutoId::AutoIdDeviceType.methods(false).map{ |name| "#{name}:   \t#{AutoId::AutoIdDeviceType.send(name)}" }
     puts "\n\n========================DeviceType========================"
