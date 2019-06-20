@@ -33,54 +33,11 @@ module OPCUA
       end
     end
 
-    def get_server_nodeid(nodeid, local_nss) 
-      NodeId.new(namespaces[0].index(local_nss[nodeid.ns]), nodeid.id, nodeid.type)
-    end
-
-    def create_class(name, nodeid, mod = "")
-      if mod != ""
-        if(!Object.const_defined?(mod))
-          Object.const_set(mod, Module.new)
-        end
-        basenode = Class.new(BaseNode)
-        Object.const_set(name, basenode)
-        m = Object.const_get(mod)
-        # basenode.include(m)
-        m.const_set(name, basenode)
-      else
-        basenode = Class.new
-        Object.const_set(name, basenode)
-      end
-      basenode.define_singleton_method(:nodeid, -> { return nodeid })
-      basenode
-    end
-
-    class BaseNode
-      def self.nodeid() @@nodeid end
-      def self.browsename() @@browsename end
-      def self.displayname() @@displayname end
-      def self.description() @@description end
-      def self.nodeclass() @@nodeclass end
-      def self.from_xml(server, xml, namespace, local_namespaces)
-        local_nodeid = NodeId.from_string(xml.find("@NodeId").first.to_s)
-        nodeid = NodeId.new(server.namespaces[0].index(local_namespaces[local_nodeid.ns]), local_nodeid.id, local_nodeid.type)
-        local_browsename = QualifiedName.from_string(xml.find("@BrowseName").first.to_s)
-        browsename = QualifiedName.new(server.namespaces[0].index(local_namespaces[local_browsename.ns]), local_browsename.name)
-        displayname = LocalizedText.parse xml.find("*[name()='DisplayName']").first
-        description = LocalizedText.parse xml.find("*[name()='Description']").first
-
-        # TODO: check NodeClass
-        # TODO: read NodeClass-specific properties
-        # TODO: provide NodeClass-specific methods next to create_class
-        server.create_class(browsename.name, nodeid, namespace)
-      end
-    end
-
-    def add_nodeset(namespace, nodeset)
+    def add_nodeset(nodeset, *namespace_indices)
       doc = XML::Smart.string(nodeset)
-      namespace_module = Object.const_set(namespace, Module.new)
 
       # get all used namespaces from nodeset nss[0] is always UA, nss[1] is mostly the the own ns and nss[2 + n] is all the required other nss
+      namespace_indices.unshift("http://opcfoundation.org/UA/")
       local_nss = ["http://opcfoundation.org/UA/"]
       for i in doc.find("//*[name()='NamespaceUris']/*[name()='Uri']") do
         ns = i.find("text()").first.to_s
@@ -89,36 +46,29 @@ module OPCUA
           add_namespace ns
         end
       end
-
-      # get Aliases from Nodeset and use like: aliases['HasSubtype'] ... = i=45
-      aliases = Hash.new
+      
+      aliases = Hash.new # get Aliases from Nodeset and use like: aliases['HasSubtype'] ... = i=45
       doc.find("//*[name()='Aliases']/*[name()='Alias']").each do |x|
         aliases[x.find("@Alias").first.to_s] = x.find("text()").first.to_s
       end
 
       doc.find("//*[name()='UAReferenceType']").each do |x|
-        # c = BaseNode.from_xml(self, x, namespace, local_nss)
+        # c = BaseNode.from_xml(self, x, namespace_indices, local_nss)
         symmetric = x.find("@Symmetric").first || false
         # TODO: Create ReferenceTypes on the Server
-        # EXAMPLE: 
-        # node = add_node(nodeid, browsename.text, NodeClass::ReferenceType)
-        # node.add_attribute(displayname, Attributes::DisplayName)
-        # node.add_attribute(description, Attributes::Description)
-        # ...
       end
 
       doc.find("//*[name()='UADataType']").each do |x|
-        # c = BaseNode.from_xml(self, x, namespace, local_nss)
+        # c = BaseNode.from_xml(self, x, namespace_indices, local_nss)
         # TODO: Find Structures and add to server
       end
 
-      # TODO: Find all DataTypes and create them on the Server
       # TODO: Find all VariableTypes and create them on the Server
       # TODO: Find all Objects and create them on the Server
 
       # Find all ObjectTypes and create them on the Server
       doc.find("//*[name()='UAObjectType']").each do |x|
-        c = BaseNode.from_xml(self, x, namespace, local_nss)
+        c = BaseNode.from_xml(self, x, namespace_indices, local_nss)
       end
 
       # TODO: create all References of ReferenceTypes
@@ -137,14 +87,49 @@ module OPCUA
     end
   end
 
+  class BaseNode
+    def self.from_xml(server, xml, namespace_indices, local_namespaces)
+      local_nodeid = NodeId.from_string(xml.find("@NodeId").first.to_s)
+      namespace_index = namespace_indices[local_nodeid.ns]
+      namespace = local_namespaces[local_nodeid.ns]
+      nodeid = NodeId.new(server.namespaces[0].index(local_namespaces[local_nodeid.ns]), local_nodeid.id, local_nodeid.type)
+      local_browsename = QualifiedName.from_string(xml.find("@BrowseName").first.to_s)
+      browsename = QualifiedName.new(server.namespaces[0].index(local_namespaces[local_browsename.ns]), local_browsename.name)
+      displayname = LocalizedText.parse xml.find("*[name()='DisplayName']").first
+      description = LocalizedText.parse xml.find("*[name()='Description']").first
 
+      # TODO: check NodeClass
+      # TODO: read NodeClass-specific properties
+      # TODO: provide NodeClass-specific methods next to create_class
 
-
-
-
-
-
-
+      if namespace_index != ""
+        if(!Object.const_defined?(namespace_index))
+          Object.const_set(namespace_index, Module.new)
+        end
+        basenode = Class.new(BaseNode)
+        Object.const_set(browsename.name, basenode)
+        m = Object.const_get(namespace_index)
+        # basenode.include(m)
+        m.const_set(browsename.name, basenode)
+      else
+        basenode = Class.new
+        Object.const_set(browsename.name, basenode)
+      end
+      basenode.define_singleton_method(:nodeid, -> { return nodeid })
+      basenode.define_singleton_method(:browsename, -> { return browsename })
+      basenode.define_singleton_method(:displayname, -> { return displayname })
+      basenode.define_singleton_method(:description, -> { return description })
+      basenode.define_singleton_method(:nodeclass, -> { return nodeclass })
+      basenode.define_singleton_method(:namespace, -> { return namespace })
+      basenode
+    end
+    def self.nodeid() @@nodeid end
+    def self.browsename() @@browsename end
+    def self.displayname() @@displayname end
+    def self.description() @@description end
+    def self.nodeclass() @@nodeclass end
+    def self.namespace() @@namespace end
+  end
 
   class NodeId
     def ns() @ns end
