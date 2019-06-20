@@ -130,7 +130,7 @@ module OPCUA
       basenode.define_singleton_method(:Namespace, -> { return namespace })
 
       xml.find("@*").each do |a|
-        if(a.qname.equal?("NodeId") || a.qname.equal?("BrowseName"))
+        if(a.qname == "NodeId" || a.qname == "BrowseName")
           # already done
         elsif a.qname.equal? "ParentNodeId"
           parent_local_nodeid = NodeId.from_string(a)
