@@ -99,8 +99,7 @@ module OPCUA
       description = LocalizedText.parse xml.find("*[name()='Description']").first
 
       # TODO: check NodeClass
-      # TODO: read NodeClass-specific properties
-      # TODO: provide NodeClass-specific methods next to create_class
+      nodeclass = NodeClass::ObjectType
 
       if namespace_index != ""
         if(!Object.const_defined?(namespace_index))
@@ -121,6 +120,10 @@ module OPCUA
       basenode.define_singleton_method(:description, -> { return description })
       basenode.define_singleton_method(:nodeclass, -> { return nodeclass })
       basenode.define_singleton_method(:namespace, -> { return namespace })
+
+      # TODO: provide NodeClass-specific methods next to create_class
+      # TODO: read NodeClass-specific properties
+
       basenode
     end
     def self.nodeid() @@nodeid end
