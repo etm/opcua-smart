@@ -1,0 +1,1 @@
+client.o: client.h ../values.h ../strnautocat.h

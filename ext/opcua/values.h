@@ -180,78 +180,91 @@ static VALUE extract_value(UA_Variant value) { //{{{
   rb_ary_store(ret,0,Qnil);
   rb_ary_store(ret,1,Qnil);
   //printf("type: %s\n",value.type->typeName);
-  if (UA_Variant_hasScalarType(&value, &UA_TYPES[UA_TYPES_DATETIME])) {
-    rb_ary_store(ret,0,UA_TYPES_DATETIME_to_value(*(UA_DateTime *)value.data));
-    rb_ary_store(ret,1,ID2SYM(rb_intern("VariantType.DateTime")));
-  } else if (UA_Variant_hasScalarType(&value, &UA_TYPES[UA_TYPES_BOOLEAN])) {
-    rb_ary_store(ret,0,UA_TYPES_BOOLEAN_to_value(*(UA_Boolean *)value.data));
-    rb_ary_store(ret,1,ID2SYM(rb_intern("VariantType.Boolean")));
-  } else if (UA_Variant_hasScalarType(&value, &UA_TYPES[UA_TYPES_DOUBLE])) {
-    rb_ary_store(ret,0,UA_TYPES_DOUBLE_to_value(*(UA_Double *)value.data));
-    rb_ary_store(ret,1,ID2SYM(rb_intern("VariantType.Double")));
-  } else if (UA_Variant_hasScalarType(&value, &UA_TYPES[UA_TYPES_INT32])) {
-    rb_ary_store(ret,0,UA_TYPES_INT32_to_value(*(UA_Int32 *)value.data));
-    rb_ary_store(ret,1,ID2SYM(rb_intern("VariantType.Int32")));
-  } else if (UA_Variant_hasScalarType(&value, &UA_TYPES[UA_TYPES_INT16])) {
-    rb_ary_store(ret,0,UA_TYPES_INT16_to_value(*(UA_Int16 *)value.data));
-    rb_ary_store(ret,1,ID2SYM(rb_intern("VariantType.Int16")));
-  } else if (UA_Variant_hasScalarType(&value, &UA_TYPES[UA_TYPES_UINT32])) {
-    rb_ary_store(ret,0,UA_TYPES_UINT32_to_value(*(UA_UInt32 *)value.data));
-    rb_ary_store(ret,1,ID2SYM(rb_intern("VariantType.UInt32")));
-  } else if (UA_Variant_hasScalarType(&value, &UA_TYPES[UA_TYPES_UINT16])) {
-    rb_ary_store(ret,0,UA_TYPES_UINT16_to_value(*(UA_UInt16 *)value.data));
-    rb_ary_store(ret,1,ID2SYM(rb_intern("VariantType.UInt16")));
-  } else if (UA_Variant_hasScalarType(&value, &UA_TYPES[UA_TYPES_STRING])) {
-    rb_ary_store(ret,0,UA_TYPES_STRING_to_value(*(UA_String *)value.data));
-    rb_ary_store(ret,1,ID2SYM(rb_intern("VariantType.String")));
-  } else if (UA_Variant_hasScalarType(&value, &UA_TYPES[UA_TYPES_DATETIME]) && value.arrayDimensionsSize == 1) {
-    VALUE res = rb_ary_new();
-    rb_ary_store(ret,0,res);
-    rb_ary_store(ret,1,ID2SYM(rb_intern("VariantType.DateTime")));
-    for (int i=0; i < value.arrayDimensions[0]; i++) {
-      rb_ary_push(res,UA_TYPES_DATETIME_to_value(((UA_DateTime *)value.data)[i]));
+  //printf("dim: %ld\n",value.arrayDimensionsSize);
+  //printf("alen: %ld\n",value.arrayLength);
+  if (value.arrayDimensionsSize == 0 && value.arrayLength == 0) {
+    if (UA_Variant_hasScalarType(&value, &UA_TYPES[UA_TYPES_DATETIME])) {
+      rb_ary_store(ret,0,UA_TYPES_DATETIME_to_value(*(UA_DateTime *)value.data));
+      rb_ary_store(ret,1,ID2SYM(rb_intern("VariantType.DateTime")));
+    } else if (UA_Variant_hasScalarType(&value, &UA_TYPES[UA_TYPES_BOOLEAN])) {
+      rb_ary_store(ret,0,UA_TYPES_BOOLEAN_to_value(*(UA_Boolean *)value.data));
+      rb_ary_store(ret,1,ID2SYM(rb_intern("VariantType.Boolean")));
+    } else if (UA_Variant_hasScalarType(&value, &UA_TYPES[UA_TYPES_DOUBLE])) {
+      rb_ary_store(ret,0,UA_TYPES_DOUBLE_to_value(*(UA_Double *)value.data));
+      rb_ary_store(ret,1,ID2SYM(rb_intern("VariantType.Double")));
+    } else if (UA_Variant_hasScalarType(&value, &UA_TYPES[UA_TYPES_INT32])) {
+      rb_ary_store(ret,0,UA_TYPES_INT32_to_value(*(UA_Int32 *)value.data));
+      rb_ary_store(ret,1,ID2SYM(rb_intern("VariantType.Int32")));
+    } else if (UA_Variant_hasScalarType(&value, &UA_TYPES[UA_TYPES_INT16])) {
+      rb_ary_store(ret,0,UA_TYPES_INT16_to_value(*(UA_Int16 *)value.data));
+      rb_ary_store(ret,1,ID2SYM(rb_intern("VariantType.Int16")));
+    } else if (UA_Variant_hasScalarType(&value, &UA_TYPES[UA_TYPES_UINT32])) {
+      rb_ary_store(ret,0,UA_TYPES_UINT32_to_value(*(UA_UInt32 *)value.data));
+      rb_ary_store(ret,1,ID2SYM(rb_intern("VariantType.UInt32")));
+    } else if (UA_Variant_hasScalarType(&value, &UA_TYPES[UA_TYPES_UINT16])) {
+      rb_ary_store(ret,0,UA_TYPES_UINT16_to_value(*(UA_UInt16 *)value.data));
+      rb_ary_store(ret,1,ID2SYM(rb_intern("VariantType.UInt16")));
+    } else if (UA_Variant_hasScalarType(&value, &UA_TYPES[UA_TYPES_STRING])) {
+      rb_ary_store(ret,0,UA_TYPES_STRING_to_value(*(UA_String *)value.data));
+      rb_ary_store(ret,1,ID2SYM(rb_intern("VariantType.String")));
     }
-  } else if (UA_Variant_hasScalarType(&value, &UA_TYPES[UA_TYPES_BOOLEAN]) && value.arrayDimensionsSize == 1) {
-    VALUE res = rb_ary_new();
-    rb_ary_store(ret,0,res);
-    rb_ary_store(ret,1,ID2SYM(rb_intern("VariantType.Boolean")));
-    for (int i=0; i < value.arrayDimensions[0]; i++) {
-      rb_ary_push(res,UA_TYPES_BOOLEAN_to_value(((UA_Boolean *)value.data)[i]));
-    }
-  } else if (UA_Variant_hasScalarType(&value, &UA_TYPES[UA_TYPES_INT32])) {
-    VALUE res = rb_ary_new();
-    rb_ary_store(ret,0,res);
-    rb_ary_store(ret,1,ID2SYM(rb_intern("VariantType.Int32")));
-    for (int i=0; i < value.arrayDimensions[0]; i++) {
-      rb_ary_push(res,UA_TYPES_INT32_to_value(((UA_Int32 *)value.data)[i]));
-    }
-  } else if (UA_Variant_hasScalarType(&value, &UA_TYPES[UA_TYPES_INT16])) {
-    VALUE res = rb_ary_new();
-    rb_ary_store(ret,0,res);
-    rb_ary_store(ret,1,ID2SYM(rb_intern("VariantType.Int16")));
-    for (int i=0; i < value.arrayDimensions[0]; i++) {
-      rb_ary_push(res,UA_TYPES_INT16_to_value(((UA_Int16 *)value.data)[i]));
-    }
-  } else if (UA_Variant_hasScalarType(&value, &UA_TYPES[UA_TYPES_UINT32])) {
-    VALUE res = rb_ary_new();
-    rb_ary_store(ret,0,res);
-    rb_ary_store(ret,1,ID2SYM(rb_intern("VariantType.UInt32")));
-    for (int i=0; i < value.arrayDimensions[0]; i++) {
-      rb_ary_push(res,UA_TYPES_UINT32_to_value(((UA_UInt32 *)value.data)[i]));
-    }
-  } else if (UA_Variant_hasScalarType(&value, &UA_TYPES[UA_TYPES_UINT16])) {
-    VALUE res = rb_ary_new();
-    rb_ary_store(ret,0,res);
-    rb_ary_store(ret,1,ID2SYM(rb_intern("VariantType.UInt16")));
-    for (int i=0; i < value.arrayDimensions[0]; i++) {
-      rb_ary_push(res,UA_TYPES_UINT16_to_value(((UA_UInt16 *)value.data)[i]));
-    }
-  } else if (UA_Variant_hasScalarType(&value, &UA_TYPES[UA_TYPES_STRING])) {
-    VALUE res = rb_ary_new();
-    rb_ary_store(ret,0,res);
-    rb_ary_store(ret,1,ID2SYM(rb_intern("VariantType.String")));
-    for (int i=0; i < value.arrayDimensions[0]; i++) {
-      rb_ary_push(res,UA_TYPES_STRING_to_value(((UA_String *)value.data)[i]));
+  } else if (value.arrayDimensionsSize == 1 || (value.arrayDimensionsSize == 0 && value.arrayLength > 0)) {
+    if (UA_Variant_hasArrayType(&value, &UA_TYPES[UA_TYPES_DATETIME])) {
+      VALUE res = rb_ary_new();
+      rb_ary_store(ret,0,res);
+      rb_ary_store(ret,1,ID2SYM(rb_intern("VariantType.DateTime")));
+      for (int i=0; i < value.arrayLength; i++) {
+        rb_ary_push(res,UA_TYPES_DATETIME_to_value(((UA_DateTime *)value.data)[i]));
+      }
+    } else if (UA_Variant_hasArrayType(&value, &UA_TYPES[UA_TYPES_BOOLEAN])) {
+      VALUE res = rb_ary_new();
+      rb_ary_store(ret,0,res);
+      rb_ary_store(ret,1,ID2SYM(rb_intern("VariantType.Boolean")));
+      for (int i=0; i < value.arrayLength; i++) {
+        rb_ary_push(res,UA_TYPES_BOOLEAN_to_value(((UA_Boolean *)value.data)[i]));
+      }
+    } else if (UA_Variant_hasArrayType(&value, &UA_TYPES[UA_TYPES_DOUBLE])) {
+      VALUE res = rb_ary_new();
+      rb_ary_store(ret,0,res);
+      rb_ary_store(ret,1,ID2SYM(rb_intern("VariantType.Double")));
+      for (int i=0; i < value.arrayLength; i++) {
+        rb_ary_push(res,UA_TYPES_DOUBLE_to_value(((UA_Double *)value.data)[i]));
+      }
+    } else if (UA_Variant_hasArrayType(&value, &UA_TYPES[UA_TYPES_INT32])) {
+      VALUE res = rb_ary_new();
+      rb_ary_store(ret,0,res);
+      rb_ary_store(ret,1,ID2SYM(rb_intern("VariantType.Int32")));
+      for (int i=0; i < value.arrayLength; i++) {
+        rb_ary_push(res,UA_TYPES_INT32_to_value(((UA_Int32 *)value.data)[i]));
+      }
+    } else if (UA_Variant_hasArrayType(&value, &UA_TYPES[UA_TYPES_INT16])) {
+      VALUE res = rb_ary_new();
+      rb_ary_store(ret,0,res);
+      rb_ary_store(ret,1,ID2SYM(rb_intern("VariantType.Int16")));
+      for (int i=0; i < value.arrayLength; i++) {
+        rb_ary_push(res,UA_TYPES_INT16_to_value(((UA_Int16 *)value.data)[i]));
+      }
+    } else if (UA_Variant_hasArrayType(&value, &UA_TYPES[UA_TYPES_UINT32])) {
+      VALUE res = rb_ary_new();
+      rb_ary_store(ret,0,res);
+      rb_ary_store(ret,1,ID2SYM(rb_intern("VariantType.UInt32")));
+      for (int i=0; i < value.arrayLength; i++) {
+        rb_ary_push(res,UA_TYPES_UINT32_to_value(((UA_UInt32 *)value.data)[i]));
+      }
+    } else if (UA_Variant_hasArrayType(&value, &UA_TYPES[UA_TYPES_UINT16])) {
+      VALUE res = rb_ary_new();
+      rb_ary_store(ret,0,res);
+      rb_ary_store(ret,1,ID2SYM(rb_intern("VariantType.UInt16")));
+      for (int i=0; i < value.arrayLength; i++) {
+        rb_ary_push(res,UA_TYPES_UINT16_to_value(((UA_UInt16 *)value.data)[i]));
+      }
+    } else if (UA_Variant_hasArrayType(&value, &UA_TYPES[UA_TYPES_STRING])) {
+      VALUE res = rb_ary_new();
+      rb_ary_store(ret,0,res);
+      rb_ary_store(ret,1,ID2SYM(rb_intern("VariantType.String")));
+      for (int i=0; i < value.arrayLength; i++) {
+        rb_ary_push(res,UA_TYPES_STRING_to_value(((UA_String *)value.data)[i]));
+      }
     }
   } else if (UA_Variant_hasArrayType(&value, &UA_TYPES[UA_TYPES_STRING]) && value.arrayDimensionsSize == 0) {
     VALUE res = rb_ary_new();

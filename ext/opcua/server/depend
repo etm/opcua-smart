@@ -1,0 +1,1 @@
+server.o: server.h ../values.h ../strnautocat.h
