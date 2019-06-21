@@ -8,6 +8,7 @@ VALUE cTypeTopNode = Qnil;
 VALUE cTypeSubNode = Qnil;
 VALUE cVarNode = Qnil;
 VALUE cMethodNode = Qnil;
+VALUE cReferenceTypeNode = Qnil;
 
 #include "../values.h"
 
@@ -110,7 +111,7 @@ static VALUE node_to_s(VALUE self)
 
   if (ns->id.identifierType == UA_NODEIDTYPE_NUMERIC)
   {
-    ret = rb_sprintf("ns=%d;n=%d", ns->id.namespaceIndex, ns->id.identifier.numeric);
+    ret = rb_sprintf("ns=%d;i=%d", ns->id.namespaceIndex, ns->id.identifier.numeric);
   }
   else if (ns->id.identifierType == UA_NODEIDTYPE_STRING)
   {
@@ -882,12 +883,60 @@ static VALUE server_find(VALUE self, VALUE ns, VALUE id, VALUE type)
   int nodeid_ns = FIX2INT(ns);
   int nodeid_type = FIX2INT(type);
 
+  UA_NodeId nodeid;
+
   if (nodeid_type == UA_NODEIDTYPE_NUMERIC)
   {
-    return node_wrap(cNode, node_alloc(pss, UA_NODEID_NUMERIC(nodeid_ns, FIX2INT(id))));
+    nodeid = UA_NODEID_NUMERIC(nodeid_ns, FIX2INT(id));
+  }
+  else if (nodeid_type == UA_NODEIDTYPE_STRING)
+  {
+    VALUE str;
+    str = rb_obj_as_string(id);
+    if (NIL_P(str) || TYPE(str) != T_STRING)
+      rb_raise(rb_eTypeError, "cannot convert obj to string");
+    char *nstr = (char *)StringValuePtr(str);
+    nodeid = UA_NODEID_STRING(nodeid_ns, nstr);
+  }
+  else
+  {
+    return Qnil;
   }
 
-  return node_wrap(cNode, node_alloc(pss, UA_NODEID_NUMERIC(0, UA_NS0ID_OBJECTSFOLDER)));
+  UA_NodeClass nc;
+  UA_NodeClass_init(&nc);
+  UA_Server_readNodeClass(pss->master, nodeid, &nc);
+
+  VALUE node;
+
+  if (nc == UA_NODECLASS_VARIABLE)
+  {
+    node = node_wrap(cVarNode, node_alloc(pss, nodeid));
+  }
+  else if (nc == UA_NODECLASS_METHOD)
+  {
+    node = node_wrap(cMethodNode, node_alloc(pss, nodeid));
+  }
+  else if (nc == UA_NODECLASS_OBJECTTYPE)
+  {
+    node = node_wrap(cTypeTopNode, node_alloc(pss, nodeid));
+  }
+  else if (nc == UA_NODECLASS_OBJECT)
+  {
+    node = node_wrap(cObjectNode, node_alloc(pss, nodeid));
+  }
+  else if (nc == UA_NODECLASS_REFERENCETYPE)
+  {
+    node = node_wrap(cReferenceTypeNode, node_alloc(pss, nodeid));
+  }
+  else
+  {
+    UA_NodeClass_clear(&nc);
+    return Qnil;
+  }
+  UA_NodeClass_clear(&nc);
+
+  return node;
 } //}}}
 
 void Init_server(void)
@@ -909,6 +958,7 @@ void Init_server(void)
   cTypeSubNode = rb_define_class_under(cServer, "TypeSubNode", cNode);
   cVarNode = rb_define_class_under(cServer, "ObjectVarNode", cNode);
   cMethodNode = rb_define_class_under(cServer, "ObjectMethodNode", cNode);
+  cReferenceTypeNode = rb_define_class_under(cServer, "ReferenceTypeNode", cNode);
 
   rb_define_alloc_func(cServer, server_alloc);
   rb_define_method(cServer, "initialize", server_init, 0);

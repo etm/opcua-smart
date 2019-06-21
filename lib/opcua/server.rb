@@ -13,7 +13,7 @@ module OPCUA
     end
 
     def find_node(node)
-      find(node.NodeId.ns, node.NodeId.id, 0)
+      find(node.NodeId.ns, node.NodeId.id, node.NodeId.type)
     end
 
     class ObjectNode
@@ -176,14 +176,21 @@ module OPCUA
     def ns() @ns end
     def id() @id end
     def type() @type end
-    def to_s() "ns=#{ns};#{type}=#{id}" end
-    def initialize(namespaceindex, identifier, identifiertype='s') 
+    def to_s() 
+      if id.equal? 0
+        nodeid_type = "i"
+      elsif id.equal? 3
+        nodeid_type = "s"
+      end
+      "ns=#{ns};#{type}=#{nodeid_type}"
+    end
+    def initialize(namespaceindex, identifier, identifiertype=NodeIdType::String) 
       unless(namespaceindex.is_a?(Integer) || namespaceindex >= 0)
         raise "Bad namespaceindex #{namespaceindex}" 
       end
       if (identifier =~ /\A[-+]?[0-9]+\z/) && identifier.to_i > 0
         identifier = identifier.to_i
-        identifiertype = 'i'
+        identifiertype = NodeIdType::Numeric
       end
       @ns = namespaceindex
       @id = identifier
@@ -199,7 +206,12 @@ module OPCUA
         type = nodeid.match(/(.)=/)[1]
         id = nodeid.match(/.=(.*)/)[1]
       end
-      NodeId.new(ns, id, type)
+      if type.equal? "i"
+        nodeid_type = NodeIdType::Numeric
+      elsif type.equal? "s"
+        nodeid_type = NodeIdType::String
+      end
+      NodeId.new(ns, id, nodeid_type)
     end
   end
 
@@ -270,5 +282,10 @@ module OPCUA
     ReferenceType = 32
     DataType = 64
     View = 128
+  end
+
+  class NodeIdType
+    Numeric = 0
+    String = 3
   end
 end
