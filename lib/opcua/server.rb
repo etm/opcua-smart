@@ -12,6 +12,10 @@ module OPCUA
       add_nodeset File.read(File.join(File.dirname(__FILE__), "Opc.Ua.1.04.NodeSet2.xml"))
     end
 
+    def find_node(node)
+      find(node.NodeId.ns, node.NodeId.id, 0)
+    end
+
     class ObjectNode
       alias_method :find_one, :find
 

@@ -874,6 +874,22 @@ static VALUE server_namespaces(VALUE self)
   return rb_ary_entry(ret, 0);
 } //}}}
 
+static VALUE server_find(VALUE self, VALUE ns, VALUE id, VALUE type)
+{ //{{{
+  server_struct *pss;
+  Data_Get_Struct(self, server_struct, pss);
+
+  int nodeid_ns = FIX2INT(ns);
+  int nodeid_type = FIX2INT(type);
+
+  if (nodeid_type == UA_NODEIDTYPE_NUMERIC)
+  {
+    return node_wrap(cNode, node_alloc(pss, UA_NODEID_NUMERIC(nodeid_ns, FIX2INT(id))));
+  }
+
+  return node_wrap(cNode, node_alloc(pss, UA_NODEID_NUMERIC(0, UA_NS0ID_OBJECTSFOLDER)));
+} //}}}
+
 void Init_server(void)
 {
   mOPCUA = rb_define_module("OPCUA");
@@ -903,6 +919,7 @@ void Init_server(void)
   rb_define_method(cServer, "debug", server_debug, 0);
   rb_define_method(cServer, "debug=", server_debug_set, 1);
   rb_define_method(cServer, "namespaces", server_namespaces, 0);
+  rb_define_method(cServer, "find", server_find, 3);
 
   rb_define_method(cNode, "to_s", node_to_s, 0);
   rb_define_method(cNode, "id", node_id, 0);
