@@ -4,7 +4,7 @@ require_relative '../lib/opcua/server'
 
 Daemonite.new do
   on startup do |opts|
-    opts['server'] = OPCUA::Server.new
+    opts['server'] = OPCUA::Server.new(true)
 
     srv = opts['server']
     # read nodesets from xml and load into server
@@ -20,7 +20,7 @@ Daemonite.new do
     puts UA::HasProperty.methods(false).map{ |name| "#{name}:   \t#{UA::HasProperty.send(name)}" }
     
     puts "\n======================="
-    puts srv.find(0, 13, OPCUA::NodeIdType::Numeric)
+    puts srv.find(0, 13, NodeIdType::Numeric)
     puts srv.find_node(UA::HasProperty)
 
     tt = opts['server'].types.add_object_type(:TestType).tap{ |t|
