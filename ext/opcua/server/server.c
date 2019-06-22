@@ -1,4 +1,6 @@
 #include "server.h"
+#include <string.h>
+#include <stdlib.h>
 
 VALUE mOPCUA = Qnil;
 VALUE cServer = Qnil;
@@ -76,6 +78,80 @@ static VALUE node_add_object_type(VALUE self, VALUE name)
                               NULL);
 
   return node_wrap(cTypeSubNode, node_alloc(ns->master, n));
+} //}}}
+static UA_NodeId nodeid_from_str(VALUE nodeid)
+{ //{{{
+  VALUE str = rb_obj_as_string(nodeid);
+  if (NIL_P(str) || TYPE(str) != T_STRING)
+    rb_raise(rb_eTypeError, "cannot convert obj to string");
+  char *nstr = (char *)StringValuePtr(str);
+  int nid_index = 0, index = 2;
+  char nid_type, *nid_id, *with_ns;
+  with_ns = strchr(nstr, ';');
+  if (with_ns == NULL)
+  {
+    nid_id = (char *)malloc(strlen(nstr) - 2);
+    strncpy(nid_id, nstr + 2, strlen(nstr) - 2);
+    nid_id[strlen(nstr) - 2] = '\0';
+    nid_type = nstr[0];
+  }
+  else
+  {
+    index = (int)(with_ns - nstr);
+    char *nsi = (char *)malloc(index - 3);
+    strncpy(nsi, nstr + 3, index - 3);
+    nid_index = atoi(nsi);
+    free(nsi);
+    nid_type = nstr[index + 1];
+    nid_id = (char *)malloc(strlen(nstr) - index - 3);
+    strncpy(nid_id, nstr + index + 3, strlen(nstr) - index - 3);
+  }
+  if (nid_type == 'i')
+  {
+    UA_NodeId id = UA_NODEID_NUMERIC(nid_index, atoi(nid_id));
+    free(nid_id);
+    return id;
+  }
+  else if (nid_type == 's')
+  {
+    UA_NodeId id = UA_NODEID_STRING(nid_index, nid_id);
+    free(nid_id);
+    return id;
+  }
+  else
+  {
+    // TODO: add GUID
+    UA_NodeId id = UA_NODEID_STRING(nid_index, nid_id);
+    free(nid_id);
+    return id;
+  }
+} //}}}
+static VALUE server_add_type(VALUE self, VALUE name, VALUE nodeid, VALUE parent_nodeid, VALUE type)
+{ //{{{
+  server_struct *pss;
+
+  Data_Get_Struct(self, server_struct, pss);
+
+  VALUE str = rb_obj_as_string(name);
+  if (NIL_P(str) || TYPE(str) != T_STRING)
+    rb_raise(rb_eTypeError, "cannot convert obj to string");
+  char *nstr = (char *)StringValuePtr(str);
+
+  UA_NodeId nid = nodeid_from_str(nodeid);
+  UA_NodeId parent_nid = nodeid_from_str(parent_nodeid);
+
+  UA_ObjectTypeAttributes dtAttr = UA_ObjectTypeAttributes_default;
+  dtAttr.displayName = UA_LOCALIZEDTEXT("en-US", nstr);
+  UA_Server_addObjectTypeNode(pss->master,
+                              nid,
+                              parent_nid,
+                              UA_NODEID_NUMERIC(0, UA_NS0ID_HASSUBTYPE),
+                              UA_QUALIFIEDNAME(pss->default_ns, nstr),
+                              dtAttr,
+                              NULL,
+                              NULL);
+
+  return node_wrap(cTypeSubNode, node_alloc(pss, nid));
 } //}}}
 
 static VALUE node_id(VALUE self)
@@ -970,6 +1046,7 @@ void Init_server(void)
   rb_define_method(cServer, "debug=", server_debug_set, 1);
   rb_define_method(cServer, "namespaces", server_namespaces, 0);
   rb_define_method(cServer, "find", server_find, 3);
+  rb_define_method(cServer, "add_type", server_add_type, 4);
 
   rb_define_method(cNode, "to_s", node_to_s, 0);
   rb_define_method(cNode, "id", node_id, 0);

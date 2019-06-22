@@ -19,6 +19,11 @@ module OPCUA
       find(node.NodeId.ns, node.NodeId.id, node.NodeId.type)
     end
 
+    def find_nodeid_str(nodeid_str)
+      nodeid = NodeId.from_string(nodeid_str)
+      find(nodeid.ns, nodeid.id, nodeid.type)
+    end
+
     class ObjectNode
       alias_method :find_one, :find
 
@@ -74,7 +79,7 @@ module OPCUA
       end
 
       doc.find("//*[name()='UAReferenceType']").each do |x|
-        c = BaseNode.from_xml(self, x, namespace_indices, local_nss)
+        create_with_parents(self, x, namespace_indices, local_nss)
       end
 
       doc.find("//*[name()='UADataType']").each do |x|
@@ -114,6 +119,19 @@ module OPCUA
           reference_nodeid = NodeId.from_string(r.find("text()").first.to_s)
         end
       end
+    end
+
+    def create_with_parents(server, xml, namespace_indices, local_namespaces)
+      c = BaseNode.from_xml(self, xml, namespace_indices, local_namespaces)
+      if find_node(c).nil?
+        parent_nodeid = xml.find("*[name()='References']/*[name()='Reference' and @ReferenceType='HasSubtype' and @IsForward='false']/text()").first
+        parent_xml = xml.find("/*[@NodeId='ns=1;i=6031']").first
+        if parent_xml
+          parent = create_with_parents(server, parent_xml, namespace_indices, local_namespaces)
+        end
+        # create by type...
+      end
+      return c
     end
   end
 end

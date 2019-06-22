@@ -16,27 +16,9 @@ Daemonite.new do
     # TODO: currently add your current namespace as the last or it will be overridden
     srv.add_namespace 'http://example.org/'
 
-    puts "\n======================="
-    puts UA::HasProperty.methods(false).map{ |name| "#{name}:   \t#{UA::HasProperty.send(name)}" }
-    
-    puts "\n======================="
-    puts srv.find(0, 13, NodeIdType::Numeric)
-    puts srv.find_node(UA::HasProperty)
-
-    tt = opts['server'].types.add_object_type(:TestType).tap{ |t|
-      t.add_variable :TestValue
-    }
-    puts srv.find(0, 2253, 0).manifest :TestObject, tt
-
-    find = [2253, 27, 15, 7777, 34, 355, 654, 42, 12, 324, 44, 67]
-    for i in find
-      if srv.find(0, i, 0).nil?
-        puts "#{i} is nil"
-      end
-      if srv.find(0, i, 0)
-        puts "#{i} exists"
-      end
-    end
+    puts srv.find(2, 1001, 0).nil?;
+    srv.add_type("TopologyElementType","ns=2;i=1001", "i=58", "ObjectType");
+    puts srv.find(2, 1001, 0).nil?;
     
 
 

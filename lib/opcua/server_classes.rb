@@ -61,12 +61,11 @@ class NodeId
   def id() @id end
   def type() @type end
   def to_s() 
-    if id.equal? 0
-      nodeid_type = "i"
-    elsif id.equal? 3
+    nodeid_type = "i"
+    if id.equal? 3
       nodeid_type = "s"
     end
-    "ns=#{ns};#{type}=#{nodeid_type}"
+    "ns=#{ns};#{nodeid_type}=#{id}"
   end
   def initialize(namespaceindex, identifier, identifiertype=NodeIdType::String) 
     unless(namespaceindex.is_a?(Integer) || namespaceindex >= 0)
