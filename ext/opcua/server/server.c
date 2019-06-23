@@ -88,16 +88,15 @@ static UA_NodeId nodeid_from_str(VALUE nodeid)
   char *nstr = (char *)StringValuePtr(str);
   int nid_index = 0, index = 2;
   char nid_type, *nid_id, *with_ns;
-  with_ns = strchr(nstr, ';');
-  if (with_ns == NULL)
+  with_ns = strchr(nstr, ';'); //get offset of ';'
+  if (with_ns == NULL)         // nodeid looks like 'i=45' (equals 'ns=0;i=45')
   {
     nid_id = (char *)malloc(strlen(nstr) - 2);
     strncpy(nid_id, nstr + 2, strlen(nstr) - 2);
     nid_id[strlen(nstr) - 2] = '\0';
     nid_type = nstr[0];
-    // TODO: Error in here, e.g. i=45 becomes i=457
   }
-  else
+  else // nodeid looks like 'ns=0;i=45'
   {
     index = (int)(with_ns - nstr);
     char *nsi = (char *)malloc(index - 3);
@@ -108,6 +107,12 @@ static UA_NodeId nodeid_from_str(VALUE nodeid)
     nid_id = (char *)malloc(strlen(nstr) - index - 3);
     strncpy(nid_id, nstr + index + 3, strlen(nstr) - index - 3);
   }
+
+  // TEST
+  // just checking with int nodeids
+  printf("'%s' to refnid '%s' to int '%i'\n", nstr, nid_id, atoi(nid_id));
+  // TESTEND
+
   if (nid_type == 'i')
   {
     UA_NodeId id = UA_NODEID_NUMERIC(nid_index, atoi(nid_id));
@@ -1049,6 +1054,8 @@ static VALUE server_find_nodeid(VALUE self, VALUE nodeid)
   {
     UA_NodeClass_clear(&nc);
     return Qnil;
+    //VALUE ret = rb_sprintf("ns=%d;i=%d", nid.namespaceIndex, nid.identifier.numeric);
+    //return ret;
   }
   UA_NodeClass_clear(&nc);
 
@@ -1090,7 +1097,7 @@ void Init_server(void)
 
   rb_define_method(cNode, "to_s", node_to_s, 0);
   rb_define_method(cNode, "id", node_id, 0);
-  rb_define_method(cNode, "description", node_description, 1);
+  rb_define_method(cNode, "description", node_description, 0);
   rb_define_method(cNode, "description=", node_description_set, 1);
 
   rb_define_method(cTypeTopNode, "add_object_type", node_add_object_type, 1);

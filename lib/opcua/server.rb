@@ -127,7 +127,7 @@ module OPCUA
           unless server.find_nodeid(parent_nodeid).nil? # only create if parent already exists
             server.add_type(c.BrowseName.name, c, parent_nodeid, UA::HasSubtype, c.NodeClass, "")
           else
-            puts "not found: #{parent_nodeid}"
+            # puts "not found: #{parent_nodeid}"
              # TODO: we assume the parent already exists if it is not defined within this nodeset
              # all non-existant parents will getinto this loop
           end
