@@ -122,7 +122,7 @@ static UA_NodeId nodeid_from_str(VALUE nodeid)
   }
   else
   {
-    // TODO: add GUID
+    // TODO: add GUID,...
     UA_NodeId id = UA_NODEID_STRING(nid_index, nid_id);
     free(nid_id);
     return id;

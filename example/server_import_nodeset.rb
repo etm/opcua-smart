@@ -1,15 +1,21 @@
 #!/usr/bin/ruby
 # require 'opcua/server'
 require_relative '../lib/opcua/server'
-require 'xml/smart' # TEST
 
 Daemonite.new do
   on startup do |opts|
-    srv = opts['server'] = OPCUA::Server.new
+    opts['server'] = OPCUA::Server.new
+
+    srv = opts['server']
 
     # read nodesets from xml and load into server
     # also create classes for objects, types, variables and put nodeid in class variables
     srv.import_ua # imports standard OPC UA Namespace under UA module -> but takes some ms time to parse
+    # this is equal to:
+    # add_nodeset File.read("../lib/opcua/Opc.Ua.1.04.NodeSet2.xml")
+    # in this way you could also load a newer version of the opc ua standard nodeset
+
+
     puts "UA::HasSubtype NodeId: #{UA::HasSubtype}"
     puts "Found UA::HasSubtype = #{!srv.find_nodeid(UA::HasSubtype).nil?}";
 
@@ -23,6 +29,7 @@ Daemonite.new do
     ex = 6
 
     puts "TestType.nil? = #{srv.find_nodeid("ns=#{ex};i=77777").nil?}";
+    # just needed when adding nodeset
     srv.add_type("TestType","ns=#{ex};i=77777", UA::BaseObjectType, UA::HasSubtype, NodeClass::ObjectType, "");
     puts "TestType.nil? = #{srv.find_nodeid("ns=#{ex};i=77777").nil?}";
 
