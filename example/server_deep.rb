@@ -1,5 +1,6 @@
 #!/usr/bin/ruby
 require_relative '../lib/opcua/server'
+# require 'opcua/server'
 
 Daemonite.new do
   server = OPCUA::Server.new

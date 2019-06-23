@@ -9,19 +9,8 @@ require 'xml/smart'
 
 module OPCUA
   class Server
-    def initialize(load_ua=false)
-      if load_ua
-        add_nodeset File.read(File.join(File.dirname(__FILE__), "Opc.Ua.1.04.NodeSet2.xml"))
-      end
-    end
-
-    def find_node(node)
-      find(node.NodeId.ns, node.NodeId.id, node.NodeId.type)
-    end
-
-    def find_nodeid_str(nodeid_str)
-      nodeid = NodeId.from_string(nodeid_str)
-      find(nodeid.ns, nodeid.id, nodeid.type)
+    def import_ua
+      add_nodeset File.read(File.join(File.dirname(__FILE__), "Opc.Ua.1.04.NodeSet2.xml"))
     end
 
     class ObjectNode
@@ -123,7 +112,7 @@ module OPCUA
 
     def create_with_parents(server, xml, namespace_indices, local_namespaces)
       c = BaseNode.from_xml(self, xml, namespace_indices, local_namespaces)
-      if find_node(c).nil?
+      if find_nodeid(c.NodeId).nil?
         parent_nodeid = xml.find("*[name()='References']/*[name()='Reference' and @ReferenceType='HasSubtype' and @IsForward='false']/text()").first
         parent_xml = xml.find("/*[@NodeId='ns=1;i=6031']").first
         if parent_xml

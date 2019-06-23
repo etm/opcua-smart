@@ -1,4 +1,5 @@
 class BaseNode
+  def self.to_s() return self.NodeId.to_s end
   def self.from_xml(server, xml, namespace_indices, local_namespaces)
     local_nodeid = NodeId.from_string(xml.find("@NodeId").first.to_s)
     namespace_index = namespace_indices[local_nodeid.ns]
