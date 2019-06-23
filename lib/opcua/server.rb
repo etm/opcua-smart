@@ -115,7 +115,7 @@ module OPCUA
 
     def create_with_parents(server, xml, namespace_indices, local_namespaces)
       c = BaseNode.from_xml(self, xml, namespace_indices, local_namespaces)
-      if(!c.nil? && server.find_nodeid(c.NodeId).nil? && c.NodeId.ns != 0) # only create if it not already exists and not in ns=0
+      if(!c.nil? && server.find_nodeid(c.NodeId).nil?&& c.NodeId.ns != 0)  # TODO: also add ns=0 because of some missing types in V1.00 --> V1.04
         parent_nodeid_str = xml.find("*[name()='References']/*[name()='Reference' and @ReferenceType='HasSubtype' and @IsForward='false']/text()").first.to_s
         parent_xml = xml.find("/*[@NodeId='#{parent_nodeid_str}']").first
         if parent_xml # create parents before
@@ -127,6 +127,7 @@ module OPCUA
           unless server.find_nodeid(parent_nodeid).nil? # only create if parent already exists
             server.add_type(c.BrowseName.name, c, parent_nodeid, UA::HasSubtype, c.NodeClass, "")
           else
+            puts "not found: #{parent_nodeid}"
              # TODO: we assume the parent already exists if it is not defined within this nodeset
              # all non-existant parents will getinto this loop
           end

@@ -95,6 +95,7 @@ static UA_NodeId nodeid_from_str(VALUE nodeid)
     strncpy(nid_id, nstr + 2, strlen(nstr) - 2);
     nid_id[strlen(nstr) - 2] = '\0';
     nid_type = nstr[0];
+    // TODO: Error in here, e.g. i=45 becomes i=457
   }
   else
   {
