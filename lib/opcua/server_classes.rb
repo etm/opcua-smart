@@ -2,6 +2,9 @@ class BaseNode
   def self.to_s() return self.NodeId.to_s end
   def self.from_xml(server, xml, namespace_indices, local_namespaces)
     local_nodeid = NodeId.from_string(xml.find("@NodeId").first.to_s)
+    if local_nodeid.nil?
+      return nil
+    end
     namespace_index = namespace_indices[local_nodeid.ns]
     namespace = local_namespaces[local_nodeid.ns]
     nodeid = NodeId.new(server.namespaces.index(local_namespaces[local_nodeid.ns]), local_nodeid.id, local_nodeid.type)
@@ -81,6 +84,9 @@ class NodeId
     @type = identifiertype
   end
   def self.from_string(nodeid)
+    if nodeid.nil?
+      return nil
+    end
     if nodeid.match /ns=(.*?);/
       ns = nodeid.match(/ns=(.*?);/)[1].to_i
       type = nodeid.match(/;(.)=/)[1]
@@ -90,10 +96,12 @@ class NodeId
       type = nodeid.match(/(.)=/)[1]
       id = nodeid.match(/.=(.*)/)[1]
     end
-    if type.equal? "i"
+    if type.eql? "i"
       nodeid_type = NodeIdType::Numeric
-    elsif type.equal? "s"
+    elsif type.eql? "s"
       nodeid_type = NodeIdType::String
+    else
+      return nil
     end
     NodeId.new(ns, id, nodeid_type)
   end

@@ -4,9 +4,7 @@ require_relative '../lib/opcua/server'
 
 Daemonite.new do
   on startup do |opts|
-    opts['server'] = OPCUA::Server.new
-
-    srv = opts['server']
+    srv = opts['server'] = OPCUA::Server.new
 
     # read nodesets from xml and load into server
     # also create classes for objects, types, variables and put nodeid in class variables
@@ -14,7 +12,6 @@ Daemonite.new do
     # this is equal to:
     # add_nodeset File.read("../lib/opcua/Opc.Ua.1.04.NodeSet2.xml")
     # in this way you could also load a newer version of the opc ua standard nodeset
-
 
     puts "UA::HasSubtype NodeId: #{UA::HasSubtype}"
     puts "Found UA::HasSubtype = #{!srv.find_nodeid(UA::HasSubtype).nil?}";
@@ -43,7 +40,10 @@ Daemonite.new do
 
     
   rescue => e
+    puts "=====================ERROR====================="
     puts e.message
+    puts e.backtrace
+    puts "======================END======================"
   end
 
   counter = 0

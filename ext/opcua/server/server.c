@@ -11,6 +11,8 @@ VALUE cTypeSubNode = Qnil;
 VALUE cVarNode = Qnil;
 VALUE cMethodNode = Qnil;
 VALUE cReferenceTypeNode = Qnil;
+VALUE cVariableTypeNode = Qnil;
+VALUE cDataTypeNode = Qnil;
 
 #include "../values.h"
 
@@ -174,7 +176,7 @@ static VALUE server_add_type(VALUE self, VALUE name, VALUE nodeid, VALUE parent_
                                    NULL,
                                    NULL);
 
-    return node_wrap(cTypeSubNode, node_alloc(pss, nid));
+    return node_wrap(cReferenceTypeNode, node_alloc(pss, nid));
   }
   else if (nc == UA_NODECLASS_VARIABLETYPE)
   {
@@ -192,7 +194,7 @@ static VALUE server_add_type(VALUE self, VALUE name, VALUE nodeid, VALUE parent_
                                   NULL,
                                   NULL);
 
-    return node_wrap(cTypeSubNode, node_alloc(pss, nid));
+    return node_wrap(cVariableTypeNode, node_alloc(pss, nid));
   }
   else if (nc == UA_NODECLASS_DATATYPE)
   {
@@ -207,7 +209,7 @@ static VALUE server_add_type(VALUE self, VALUE name, VALUE nodeid, VALUE parent_
                               NULL,
                               NULL);
 
-    return node_wrap(cTypeSubNode, node_alloc(pss, nid));
+    return node_wrap(cDataTypeNode, node_alloc(pss, nid));
   }
   else
   {
@@ -1045,6 +1047,14 @@ static VALUE server_find_nodeid(VALUE self, VALUE nodeid)
   {
     node = node_wrap(cReferenceTypeNode, node_alloc(pss, nid));
   }
+  else if (nc == UA_NODECLASS_DATATYPE)
+  {
+    node = node_wrap(cDataTypeNode, node_alloc(pss, nid));
+  }
+  else if (nc == UA_NODECLASS_VARIABLETYPE)
+  {
+    node = node_wrap(cVariableTypeNode, node_alloc(pss, nid));
+  }
   else
   {
     UA_NodeClass_clear(&nc);
@@ -1077,6 +1087,8 @@ void Init_server(void)
   cVarNode = rb_define_class_under(cServer, "ObjectVarNode", cNode);
   cMethodNode = rb_define_class_under(cServer, "ObjectMethodNode", cNode);
   cReferenceTypeNode = rb_define_class_under(cServer, "ReferenceTypeNode", cNode);
+  cVariableTypeNode = rb_define_class_under(cServer, "VariableTypeNode", cNode);
+  cDataTypeNode = rb_define_class_under(cServer, "DataTypeNode", cNode);
 
   rb_define_alloc_func(cServer, server_alloc);
   rb_define_method(cServer, "initialize", server_init, 0);
