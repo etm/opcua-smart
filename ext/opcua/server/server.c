@@ -91,7 +91,7 @@ static UA_NodeId nodeid_from_str(VALUE nodeid)
   with_ns = strchr(nstr, ';'); //get offset of ';'
   if (with_ns == NULL)         // nodeid looks like 'i=45' (equals 'ns=0;i=45')
   {
-    nid_id = (char *)malloc(strlen(nstr) - 2);
+    nid_id = calloc(strlen(nstr) - 2, sizeof(char));
     strncpy(nid_id, nstr + 2, strlen(nstr) - 2);
     nid_id[strlen(nstr) - 2] = '\0';
     nid_type = nstr[0];
@@ -99,19 +99,14 @@ static UA_NodeId nodeid_from_str(VALUE nodeid)
   else // nodeid looks like 'ns=0;i=45'
   {
     index = (int)(with_ns - nstr);
-    char *nsi = (char *)malloc(index - 3);
+    char *nsi = calloc(index - 3, sizeof(char));
     strncpy(nsi, nstr + 3, index - 3);
     nid_index = atoi(nsi);
     free(nsi);
     nid_type = nstr[index + 1];
-    nid_id = (char *)malloc(strlen(nstr) - index - 3);
+    nid_id = calloc(strlen(nstr) - index - 3, sizeof(char));
     strncpy(nid_id, nstr + index + 3, strlen(nstr) - index - 3);
   }
-
-  // TEST
-  // just checking with int nodeids
-  printf("'%s' to refnid '%s' to int '%i'\n", nstr, nid_id, atoi(nid_id));
-  // TESTEND
 
   if (nid_type == 'i')
   {
