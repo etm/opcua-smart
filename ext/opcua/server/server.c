@@ -900,8 +900,8 @@ static VALUE node_abstract_set(VALUE self, VALUE value)
 { //{{{
   node_struct *ns;
   Data_Get_Struct(self, node_struct, ns);
-  // TODO: parse value to UA_Boolean
-  UA_Boolean b = true;
+
+  int b = RTEST(value);
 
   UA_Server_writeIsAbstract(ns->master->master, ns->id, b);
   return self;
@@ -916,19 +916,30 @@ static VALUE node_abstract(VALUE self)
   UA_Boolean_init(&value);
   UA_StatusCode retval = UA_Server_readIsAbstract(ns->master->master, ns->id, &value);
 
-  VALUE ret = Qnil;
-  if (retval == UA_STATUSCODE_GOOD)
+  VALUE ret = Qfalse;
+  if (retval == UA_STATUSCODE_GOOD && value == 1)
   {
-    if(value){
-      ret = true;
-    }
-    else{
-      ret = false;
-    }
+    ret = Qtrue;
   }
-  else
+
+  UA_Boolean_clear(&value);
+  return ret;
+} //}}}
+
+static VALUE node_symmetric(VALUE self)
+{ //{{{
+  node_struct *ns;
+
+  Data_Get_Struct(self, node_struct, ns);
+
+  UA_Boolean value;
+  UA_Boolean_init(&value);
+  UA_StatusCode retval = UA_Server_readSymmetric(ns->master->master, ns->id, &value);
+
+  VALUE ret = Qfalse;
+  if (retval == UA_STATUSCODE_GOOD && value == 1)
   {
-    ret = false;
+    ret = Qtrue;
   }
 
   UA_Boolean_clear(&value);
@@ -1168,6 +1179,11 @@ void Init_server(void)
   rb_define_method(cNode, "description=", node_description_set, 1);
   rb_define_method(cNode, "abstract", node_abstract, 0);
   rb_define_method(cNode, "abstract=", node_abstract_set, 1);
+  rb_define_method(cNode, "symmetric", node_symmetric, 0);
+  // This will not work, as Symmetric has to be defined when creating of the node
+  // see: https://github.com/open62541/open62541/blob/d871105cc2bf1c01b36018d2dd9de551c1a621d5/include/open62541/server.h#L307
+  // rb_define_method(cNode, "symmetric=", node_symmetric_set, 1);
+
   // TODO: use link or add_reference
   // node.link(ref_id, target_id)
 

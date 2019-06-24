@@ -69,21 +69,16 @@ module OPCUA
 
       doc.find("//*[name()='UAReferenceType']").each do |x|
         t = create_from_nodeset(self, x, namespace_indices, local_nss)
-        unless t.nil?
-          #puts "abstract? #{t.abstract}"
-          #t.abstract = true
-          #puts "abstract? #{t.abstract}"
-        end
       end
 
       doc.find("//*[name()='UADataType']").each do |x|
-        create_from_nodeset(self, x, namespace_indices, local_nss)
-        # c = BaseNode.from_xml(self, x, namespace_indices, local_nss)
+        t = create_from_nodeset(self, x, namespace_indices, local_nss)
         # TODO: not implemented in c yet
       end
 
       doc.find("//*[name()='UAVariableType']").each do |x|
-        c = BaseNode.from_xml(self, x, namespace_indices, local_nss)
+        create_from_nodeset(self, x, namespace_indices, local_nss)
+        #c = BaseNode.from_xml(self, x, namespace_indices, local_nss)
         # TODO: creates Errors, missing DataType
         # create_from_nodese(self, x, namespace_indices, local_nss)
       end
@@ -127,7 +122,18 @@ module OPCUA
         unless local_parent_nodeid.nil?
           parent_nodeid = NodeId.new(server.namespaces.index(local_namespaces[local_parent_nodeid.ns]), local_parent_nodeid.id, local_parent_nodeid.type)
           unless server.find_nodeid(parent_nodeid).nil? # only create if parent already exists
-            return server.add_type(c.BrowseName.name, c, parent_nodeid, "i=45", c.NodeClass)
+            if xml.find('boolean(@Symmetric)')
+              symmetric = true # TODO: add reference property when creating the node, not possible after
+            end
+            type = server.add_type(c.BrowseName.name, c, parent_nodeid, "i=45", c.NodeClass)
+            if xml.find('boolean(@IsAbstract)')
+              type.abstract = true
+            end
+            # TODO: 
+            # ReferenceType: IsAbstract="true" Symmetric="true"
+            # VariableType & Variable: ValueRank="1" ArrayDimensions="0" DataType="i=868" or DataType="String" (use Alias)
+            # ObjectType: IsAbstract="true"
+            # Object: SymbolicName="CPIdentifier"
           else
             warn "Nodeset - Parent #{parent_nodeid} not found"
           end
