@@ -112,18 +112,21 @@ static UA_NodeId nodeid_from_str(VALUE nodeid)
 
   if (nid_type == 'i')
   {
+    //printf("'%s' to 'ns=%d;i=%i'\n", nstr, nid_index, atoi(nid_id));
     UA_NodeId id = UA_NODEID_NUMERIC(nid_index, atoi(nid_id));
     free(nid_id);
     return id;
   }
   else if (nid_type == 's')
   {
+    //printf("'%s' to 'ns=%d;s=%s'\n", nstr, nid_index, nid_id);
     UA_NodeId id = UA_NODEID_STRING(nid_index, nid_id);
     free(nid_id);
     return id;
   }
   else
   {
+    //printf("'%s' to 'ns=%d;g=%s'\n", nstr, nid_index, nid_id);
     // TODO: add GUID,...
     UA_NodeId id = UA_NODEID_STRING(nid_index, nid_id);
     free(nid_id);
@@ -131,7 +134,7 @@ static UA_NodeId nodeid_from_str(VALUE nodeid)
   }
 } //}}}
 
-static VALUE server_add_type(VALUE self, VALUE name, VALUE nodeid, VALUE parent_nodeid, VALUE reference_nodeid, VALUE nodeclass, VALUE datatype_nodeid)
+static VALUE server_add_type(VALUE self, VALUE name, VALUE nodeid, VALUE parent_nodeid, VALUE reference_nodeid, VALUE nodeclass)
 { //{{{
   server_struct *pss;
 
@@ -180,16 +183,16 @@ static VALUE server_add_type(VALUE self, VALUE name, VALUE nodeid, VALUE parent_
   }
   else if (nc == UA_NODECLASS_VARIABLETYPE)
   {
-    UA_NodeId datatype_nid = nodeid_from_str(datatype_nodeid);
-
     UA_VariableTypeAttributes vtAttr = UA_VariableTypeAttributes_default;
     vtAttr.displayName = UA_LOCALIZEDTEXT("en-US", nstr);
+    //UA_NodeId datatype_nid = nodeid_from_str(datatype_nodeid);
+    //vtAttr.dataType = datatype_nid;
     UA_Server_addVariableTypeNode(pss->master,
                                   nid,
                                   parent_nid,
                                   reference_nid,
                                   UA_QUALIFIEDNAME(nid.namespaceIndex, nstr),
-                                  datatype_nid,
+                                  parent_nid,
                                   vtAttr,
                                   NULL,
                                   NULL);
@@ -893,6 +896,45 @@ static VALUE node_description(VALUE self)
   return ret;
 } //}}}
 
+static VALUE node_abstract_set(VALUE self, VALUE value)
+{ //{{{
+  node_struct *ns;
+  Data_Get_Struct(self, node_struct, ns);
+  // TODO: parse value to UA_Boolean
+  UA_Boolean b = true;
+
+  UA_Server_writeIsAbstract(ns->master->master, ns->id, b);
+  return self;
+} //}}}
+static VALUE node_abstract(VALUE self)
+{ //{{{
+  node_struct *ns;
+
+  Data_Get_Struct(self, node_struct, ns);
+
+  UA_Boolean value;
+  UA_Boolean_init(&value);
+  UA_StatusCode retval = UA_Server_readIsAbstract(ns->master->master, ns->id, &value);
+
+  VALUE ret = Qnil;
+  if (retval == UA_STATUSCODE_GOOD)
+  {
+    if(value){
+      ret = true;
+    }
+    else{
+      ret = false;
+    }
+  }
+  else
+  {
+    ret = false;
+  }
+
+  UA_Boolean_clear(&value);
+  return ret;
+} //}}}
+
 /* -- */
 static void server_free(server_struct *pss)
 { //{{{
@@ -1100,12 +1142,40 @@ void Init_server(void)
   rb_define_method(cServer, "debug=", server_debug_set, 1);
   rb_define_method(cServer, "namespaces", server_namespaces, 0);
   rb_define_method(cServer, "find_nodeid", server_find_nodeid, 1);
-  rb_define_method(cServer, "add_type", server_add_type, 6);
+  rb_define_method(cServer, "add_type", server_add_type, 5);
+  // TODO:
+  // server methods to add in server address space:
+  // server.add_type(name, id, parent_id, ref_id, nodeclass)
+  // node methods to add to node
+  // server.find_nodeid(parent_id).add_type(id, ref_id, nodeclass)
+
+  // TODO:
+  // to add instances in server address space:
+  // server.add(name, id, parent_id, ref_id, type_id)
+
+  // TODO: use link or add_reference
+  // server.link(nodeid, ref_id, target_id)
+
+  // TODO: references
+  // server.references(nodeid)
+
+  // TODO: use follow to follow a specific reference
+  // server.follow(nodeid, ref_id)
 
   rb_define_method(cNode, "to_s", node_to_s, 0);
   rb_define_method(cNode, "id", node_id, 0);
   rb_define_method(cNode, "description", node_description, 0);
   rb_define_method(cNode, "description=", node_description_set, 1);
+  rb_define_method(cNode, "abstract", node_abstract, 0);
+  rb_define_method(cNode, "abstract=", node_abstract_set, 1);
+  // TODO: use link or add_reference
+  // node.link(ref_id, target_id)
+
+  // TODO: references
+  // node.references
+
+  // TODO: use follow to follow a specific reference
+  // node.follow(ref_id)
 
   rb_define_method(cTypeTopNode, "add_object_type", node_add_object_type, 1);
   rb_define_method(cTypeTopNode, "folder", node_type_folder, 0);

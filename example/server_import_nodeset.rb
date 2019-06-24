@@ -14,7 +14,7 @@ Daemonite.new do
     # in this way you could also load a newer version of the opc ua standard nodeset
 
     puts "UA::HasSubtype NodeId: #{UA::HasSubtype}"
-    puts "Found UA::HasSubtype = #{!srv.find_nodeid(UA::HasSubtype).nil?}";
+    puts "Found UA::HasSubtype = #{!srv.find_nodeid(UA::HasSubtype).nil?}"
 
     srv.add_nodeset File.read('Opc.Ua.Di.1.2.NodeSet2.xml'), :DI                               # https://opcfoundation.org/UA/schemas/DI/1.2/Opc.Ua.Di.NodeSet2.xml
     srv.add_nodeset File.read('Opc.Ua.AutoID.1.0.NodeSet2.xml'), :AutoId, :DI                  # https://opcfoundation.org/UA/schemas/AutoID/1.0/Opc.Ua.AutoID.NodeSet2.xml
@@ -25,11 +25,11 @@ Daemonite.new do
     ex = srv.add_namespace 'http://example.org/' # TODO: add_namespace should return namespace index
     ex = 6
 
-    puts "TestType.nil? = #{srv.find_nodeid("ns=#{ex};i=77777").nil?}";
-    # just needed when adding nodeset
-    srv.add_type("TestType","ns=#{ex};i=77777", UA::BaseObjectType, UA::HasSubtype, NodeClass::ObjectType, "");
+    puts "TestType.nil? = #{srv.find_nodeid("ns=#{ex};i=77777").nil?}"
+    puts srv.add_type("TestType","ns=#{ex};i=77777", UA::BaseObjectType, UA::HasSubtype, NodeClass::ObjectType)
     puts "TestType.nil? = #{srv.find_nodeid("ns=#{ex};i=77777").nil?}";
 
+    puts srv.add_type("TestDataType","ns=#{ex};i=77778", "i=22", UA::HasSubtype, NodeClass::DataType)
 
 
 

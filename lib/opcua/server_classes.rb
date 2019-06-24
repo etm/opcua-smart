@@ -25,7 +25,13 @@ class BaseNode
         Object.const_set(namespace_index, Module.new)
       end
       basenode = Class.new(BaseNode)
-      Object.const_get(namespace_index).const_set(constant_name, basenode)
+      mod = Object.const_get(namespace_index)
+      if mod.const_defined?(constant_name)
+        #return nil # do not return nil # we get into this loop at UA::Integer
+        mod.const_set(constant_name, basenode)
+      else
+        mod.const_set(constant_name, basenode)
+      end
     end
 
     basenode.define_singleton_method(:NodeId, -> { return nodeid })
@@ -65,17 +71,19 @@ class NodeId
   def id() @id end
   def type() @type end
   def to_s() 
-    nodeid_type = "i"
-    if id.equal? 3
-      nodeid_type = "s"
+    if type.equal? NodeIdType::Numeric
+      return "ns=#{ns};i=#{id}"
+    elsif type.equal? NodeIdType::String
+      return "ns=#{ns};s=#{id}"
+    else
+      return nil
     end
-    "ns=#{ns};#{nodeid_type}=#{id}"
   end
   def initialize(namespaceindex, identifier, identifiertype=NodeIdType::String) 
     unless(namespaceindex.is_a?(Integer) || namespaceindex >= 0)
       raise "Bad namespaceindex #{namespaceindex}" 
     end
-    if (identifier =~ /\A[-+]?[0-9]+\z/) && identifier.to_i > 0
+    if(identifiertype == NodeIdType::String && (identifier =~ /\A[-+]?[0-9]+\z/) && identifier.to_i > 0)
       identifier = identifier.to_i
       identifiertype = NodeIdType::Numeric
     end
@@ -87,7 +95,7 @@ class NodeId
     if nodeid.nil?
       return nil
     end
-    if nodeid.match /ns=(.*?);/
+    if nodeid.start_with? "ns="#/ns=(.*?);/
       ns = nodeid.match(/ns=(.*?);/)[1].to_i
       type = nodeid.match(/;(.)=/)[1]
       id = nodeid.match(/;.=(.*)/)[1]

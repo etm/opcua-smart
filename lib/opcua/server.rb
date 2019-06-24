@@ -68,11 +68,16 @@ module OPCUA
       end
 
       doc.find("//*[name()='UAReferenceType']").each do |x|
-        create_with_parents(self, x, namespace_indices, local_nss)
+        t = create_from_nodeset(self, x, namespace_indices, local_nss)
+        unless t.nil?
+          #puts "abstract? #{t.abstract}"
+          #t.abstract = true
+          #puts "abstract? #{t.abstract}"
+        end
       end
 
       doc.find("//*[name()='UADataType']").each do |x|
-        create_with_parents(self, x, namespace_indices, local_nss)
+        create_from_nodeset(self, x, namespace_indices, local_nss)
         # c = BaseNode.from_xml(self, x, namespace_indices, local_nss)
         # TODO: not implemented in c yet
       end
@@ -80,11 +85,11 @@ module OPCUA
       doc.find("//*[name()='UAVariableType']").each do |x|
         c = BaseNode.from_xml(self, x, namespace_indices, local_nss)
         # TODO: creates Errors, missing DataType
-        # create_with_parents(self, x, namespace_indices, local_nss)
+        # create_from_nodese(self, x, namespace_indices, local_nss)
       end
 
       doc.find("//*[name()='UAObjectType']").each do |x|
-        create_with_parents(self, x, namespace_indices, local_nss)
+        create_from_nodeset(self, x, namespace_indices, local_nss)
       end
 
       # TODO: just add without BaseNode
@@ -114,35 +119,22 @@ module OPCUA
       end
     end
 
-    def create_with_parents(server, xml, namespace_indices, local_namespaces)
+    def create_from_nodeset(server, xml, namespace_indices, local_namespaces)
       c = BaseNode.from_xml(server, xml, namespace_indices, local_namespaces)
       if(!c.nil? && server.find_nodeid(c.NodeId).nil?)# && c.NodeId.ns != 0)  # TODO: also add ns=0 because of some missing types in V1.00 --> V1.04
         parent_nodeid_str = xml.find("*[name()='References']/*[name()='Reference' and @ReferenceType='HasSubtype' and @IsForward='false']/text()").first.to_s
-        parent_xml = xml.find("/*[@NodeId='#{parent_nodeid_str}']").first
-        if parent_xml # create parents before
-          parent = create_with_parents(server, parent_xml, namespace_indices, local_namespaces)
-          server.add_type(c.BrowseName.name, c, parent.NodeId, "i=45", c.NodeClass, "")
-        elsif parent_nodeid_str.strip.empty?
-          # it is a top node -> UA base Node -> do not add
-        else
-          local_parent_nodeid = NodeId.from_string(parent_nodeid_str)
-          unless local_parent_nodeid.nil?
-            parent_nodeid = NodeId.new(server.namespaces.index(local_namespaces[local_parent_nodeid.ns]), local_parent_nodeid.id, local_parent_nodeid.type)
-            unless server.find_nodeid(parent_nodeid).nil? # only create if parent already exists
-              server.add_type(c.BrowseName.name, c, parent_nodeid, "i=45", c.NodeClass, "")
-            else
-              if parent_nodeid.to_s.eql? "ns=0;i=22"
-                server.add_type(c.BrowseName.name, c, parent_nodeid, "i=45", c.NodeClass, "")
-              end
-              # puts "not found: #{parent_nodeid}"
-              # TODO: we assume the parent already exists if it is not defined within this nodeset
-              # all non-existant parents will getinto this loop
-            end
+        local_parent_nodeid = NodeId.from_string(parent_nodeid_str)
+        unless local_parent_nodeid.nil?
+          parent_nodeid = NodeId.new(server.namespaces.index(local_namespaces[local_parent_nodeid.ns]), local_parent_nodeid.id, local_parent_nodeid.type)
+          unless server.find_nodeid(parent_nodeid).nil? # only create if parent already exists
+            return server.add_type(c.BrowseName.name, c, parent_nodeid, "i=45", c.NodeClass)
+          else
+            warn "Nodeset - Parent #{parent_nodeid} not found"
           end
         end
-        # create by type...
+        return nil
       end
-      return c
+      return nil
     end
   end
 end
