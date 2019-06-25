@@ -32,6 +32,19 @@ Daemonite.new do
 
     puts srv.add_data_type("TestDataType","ns=#{ex};i=77778", "i=22", UA::HasSubtype)
 
+    tt = srv.add_object_type(:TestComponentType, "ns=#{ex};i=77900", DI::ComponentType, UA::HasSubtype).tap{ |t|
+      t.add_variable :TestVar1
+      # t.add_object :TestObject1, DI::DeviceType # TODO: not working yet, 2nd param to nodeid
+    }
+
+    tt2 = srv.add_object_type(:TestComponent2Type, "ns=#{ex};i=77901", tt, UA::HasSubtype).tap{ |t|
+      t.add_variable :TestVar2
+      t.add_object :TestObject2, tt
+    }
+
+    srv.objects.manifest(:Test1, tt).find(:TestObject1)
+    srv.objects.manifest(:Test2, tt2).find(:TestObject2)
+
 
 
 

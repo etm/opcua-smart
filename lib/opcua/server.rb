@@ -68,23 +68,20 @@ module OPCUA
       end
 
       doc.find("//*[name()='UAReferenceType']").each do |x|
-        t = create_from_nodeset(self, x, namespace_indices, local_nss)
+        t = create_type_from_nodeset(self, x, namespace_indices, local_nss, aliases)
       end
 
       doc.find("//*[name()='UADataType']").each do |x|
-        t = create_from_nodeset(self, x, namespace_indices, local_nss)
-        # TODO: not implemented in c yet
+        t = create_type_from_nodeset(self, x, namespace_indices, local_nss, aliases)
+        # TODO: not completely implemented yet -> a lot of work to create structure dynamically in c
       end
 
       doc.find("//*[name()='UAVariableType']").each do |x|
-        create_from_nodeset(self, x, namespace_indices, local_nss)
-        #c = BaseNode.from_xml(self, x, namespace_indices, local_nss)
-        # TODO: creates Errors, missing DataType
-        # create_from_nodese(self, x, namespace_indices, local_nss)
+        create_type_from_nodeset(self, x, namespace_indices, local_nss, aliases)
       end
 
       doc.find("//*[name()='UAObjectType']").each do |x|
-        create_from_nodeset(self, x, namespace_indices, local_nss)
+        create_type_from_nodeset(self, x, namespace_indices, local_nss, aliases)
       end
 
       # TODO: just add without BaseNode
@@ -114,7 +111,7 @@ module OPCUA
       end
     end
 
-    def create_from_nodeset(server, xml, namespace_indices, local_namespaces)
+    def create_type_from_nodeset(server, xml, namespace_indices, local_namespaces, aliases)
       c = BaseNode.from_xml(server, xml, namespace_indices, local_namespaces)
       if(!c.nil? && server.find_nodeid(c.NodeId).nil?)# && c.NodeId.ns != 0)  # TODO: also add ns=0 because of some missing types in V1.00 --> V1.04
         parent_nodeid_str = xml.find("*[name()='References']/*[name()='Reference' and @ReferenceType='HasSubtype' and @IsForward='false']/text()").first.to_s
@@ -122,7 +119,6 @@ module OPCUA
         unless local_parent_nodeid.nil?
           parent_nodeid = NodeId.new(server.namespaces.index(local_namespaces[local_parent_nodeid.ns]), local_parent_nodeid.id, local_parent_nodeid.type)
           unless server.find_nodeid(parent_nodeid).nil? # only create if parent already exists
-            # type = server.add_type(c.BrowseName.name, c, parent_nodeid, "i=45", c.NodeClass)
             if (c.NodeClass == NodeClass::ReferenceType)
               if xml.find('boolean(@Symmetric)')
                 type = server.add_reference_type(c.BrowseName.name, c, parent_nodeid, "i=45", true)
@@ -146,10 +142,8 @@ module OPCUA
               end
             end
             # TODO: 
-            # ReferenceType: IsAbstract="true" Symmetric="true"
-            # VariableType & Variable: ValueRank="1" ArrayDimensions="0" DataType="i=868" or DataType="String" (use Alias)
-            # ObjectType: IsAbstract="true"
-            # Object: SymbolicName="CPIdentifier"
+            # - VariableType & Variable: ValueRank="1" ArrayDimensions="0" DataType="i=868" or DataType="String" (use Alias)
+            # - Object: SymbolicName="CPIdentifier"
           else
             warn "Nodeset - Parent #{parent_nodeid} not found"
           end
