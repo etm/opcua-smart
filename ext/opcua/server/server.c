@@ -134,10 +134,9 @@ static UA_NodeId nodeid_from_str(VALUE nodeid)
   }
 } //}}}
 
-static VALUE server_add_type(VALUE self, VALUE name, VALUE nodeid, VALUE parent_nodeid, VALUE reference_nodeid, VALUE nodeclass)
+static VALUE server_add_object_type(VALUE self, VALUE name, VALUE nodeid, VALUE parent_nodeid, VALUE reference_nodeid)
 { //{{{
   server_struct *pss;
-
   Data_Get_Struct(self, server_struct, pss);
 
   VALUE str = rb_obj_as_string(name);
@@ -145,65 +144,13 @@ static VALUE server_add_type(VALUE self, VALUE name, VALUE nodeid, VALUE parent_
     rb_raise(rb_eTypeError, "cannot convert obj to string");
   char *nstr = (char *)StringValuePtr(str);
 
-  int nc = FIX2INT(nodeclass);
-
   UA_NodeId nid = nodeid_from_str(nodeid);
   UA_NodeId parent_nid = nodeid_from_str(parent_nodeid);
   UA_NodeId reference_nid = nodeid_from_str(reference_nodeid);
 
-  if (nc == UA_NODECLASS_OBJECTTYPE)
-  {
-    UA_ObjectTypeAttributes dtAttr = UA_ObjectTypeAttributes_default;
-    dtAttr.displayName = UA_LOCALIZEDTEXT("en-US", nstr);
-    UA_Server_addObjectTypeNode(pss->master,
-                                nid,
-                                parent_nid,
-                                reference_nid,
-                                UA_QUALIFIEDNAME(nid.namespaceIndex, nstr),
-                                dtAttr,
-                                NULL,
-                                NULL);
-
-    return node_wrap(cTypeSubNode, node_alloc(pss, nid));
-  }
-  else if (nc == UA_NODECLASS_REFERENCETYPE)
-  {
-    UA_ReferenceTypeAttributes rtAttr = UA_ReferenceTypeAttributes_default;
-    rtAttr.displayName = UA_LOCALIZEDTEXT("en-US", nstr);
-    UA_Server_addReferenceTypeNode(pss->master,
-                                   nid,
-                                   parent_nid,
-                                   reference_nid,
-                                   UA_QUALIFIEDNAME(nid.namespaceIndex, nstr),
-                                   rtAttr,
-                                   NULL,
-                                   NULL);
-
-    return node_wrap(cReferenceTypeNode, node_alloc(pss, nid));
-  }
-  else if (nc == UA_NODECLASS_VARIABLETYPE)
-  {
-    UA_VariableTypeAttributes vtAttr = UA_VariableTypeAttributes_default;
-    vtAttr.displayName = UA_LOCALIZEDTEXT("en-US", nstr);
-    //UA_NodeId datatype_nid = nodeid_from_str(datatype_nodeid);
-    //vtAttr.dataType = datatype_nid;
-    UA_Server_addVariableTypeNode(pss->master,
-                                  nid,
-                                  parent_nid,
-                                  reference_nid,
-                                  UA_QUALIFIEDNAME(nid.namespaceIndex, nstr),
-                                  parent_nid,
-                                  vtAttr,
-                                  NULL,
-                                  NULL);
-
-    return node_wrap(cVariableTypeNode, node_alloc(pss, nid));
-  }
-  else if (nc == UA_NODECLASS_DATATYPE)
-  {
-    UA_DataTypeAttributes dtAttr = UA_DataTypeAttributes_default;
-    dtAttr.displayName = UA_LOCALIZEDTEXT("en-US", nstr);
-    UA_Server_addDataTypeNode(pss->master,
+  UA_ObjectTypeAttributes dtAttr = UA_ObjectTypeAttributes_default;
+  dtAttr.displayName = UA_LOCALIZEDTEXT("en-US", nstr);
+  UA_Server_addObjectTypeNode(pss->master,
                               nid,
                               parent_nid,
                               reference_nid,
@@ -212,12 +159,99 @@ static VALUE server_add_type(VALUE self, VALUE name, VALUE nodeid, VALUE parent_
                               NULL,
                               NULL);
 
-    return node_wrap(cDataTypeNode, node_alloc(pss, nid));
-  }
-  else
-  {
-    return Qnil;
-  }
+  return node_wrap(cTypeSubNode, node_alloc(pss, nid));
+} //}}}
+
+
+static VALUE server_add_variable_type(VALUE self, VALUE name, VALUE nodeid, VALUE parent_nodeid, VALUE reference_nodeid)
+{ //{{{
+  server_struct *pss;
+  Data_Get_Struct(self, server_struct, pss);
+
+  VALUE str = rb_obj_as_string(name);
+  if (NIL_P(str) || TYPE(str) != T_STRING)
+    rb_raise(rb_eTypeError, "cannot convert obj to string");
+  char *nstr = (char *)StringValuePtr(str);
+
+  UA_NodeId nid = nodeid_from_str(nodeid);
+  UA_NodeId parent_nid = nodeid_from_str(parent_nodeid);
+  UA_NodeId reference_nid = nodeid_from_str(reference_nodeid);
+
+  UA_VariableTypeAttributes vtAttr = UA_VariableTypeAttributes_default;
+  vtAttr.displayName = UA_LOCALIZEDTEXT("en-US", nstr);
+  //UA_NodeId datatype_nid = nodeid_from_str(datatype_nodeid);
+  //vtAttr.dataType = datatype_nid;
+  UA_Server_addVariableTypeNode(pss->master,
+                                nid,
+                                parent_nid,
+                                reference_nid,
+                                UA_QUALIFIEDNAME(nid.namespaceIndex, nstr),
+                                parent_nid,
+                                vtAttr,
+                                NULL,
+                                NULL);
+
+  return node_wrap(cVariableTypeNode, node_alloc(pss, nid));
+} //}}}
+
+static VALUE server_add_reference_type(VALUE self, VALUE name, VALUE nodeid, VALUE parent_nodeid, VALUE reference_nodeid, VALUE symmetric)
+{ //{{{
+  server_struct *pss;
+  Data_Get_Struct(self, server_struct, pss);
+
+  VALUE str = rb_obj_as_string(name);
+  if (NIL_P(str) || TYPE(str) != T_STRING)
+    rb_raise(rb_eTypeError, "cannot convert obj to string");
+  char *nstr = (char *)StringValuePtr(str);
+
+  int sym = RTEST(symmetric);
+
+  UA_NodeId nid = nodeid_from_str(nodeid);
+  UA_NodeId parent_nid = nodeid_from_str(parent_nodeid);
+  UA_NodeId reference_nid = nodeid_from_str(reference_nodeid);
+
+  UA_ReferenceTypeAttributes rtAttr = UA_ReferenceTypeAttributes_default;
+  rtAttr.displayName = UA_LOCALIZEDTEXT("en-US", nstr);
+  rtAttr.symmetric = sym;
+  UA_Server_addReferenceTypeNode(pss->master,
+                                  nid,
+                                  parent_nid,
+                                  reference_nid,
+                                  UA_QUALIFIEDNAME(nid.namespaceIndex, nstr),
+                                  rtAttr,
+                                  NULL,
+                                  NULL);
+
+  return node_wrap(cReferenceTypeNode, node_alloc(pss, nid));
+} //}}}
+
+
+static VALUE server_add_data_type(VALUE self, VALUE name, VALUE nodeid, VALUE parent_nodeid, VALUE reference_nodeid)
+{ //{{{
+  server_struct *pss;
+  Data_Get_Struct(self, server_struct, pss);
+
+  VALUE str = rb_obj_as_string(name);
+  if (NIL_P(str) || TYPE(str) != T_STRING)
+    rb_raise(rb_eTypeError, "cannot convert obj to string");
+  char *nstr = (char *)StringValuePtr(str);
+
+  UA_NodeId nid = nodeid_from_str(nodeid);
+  UA_NodeId parent_nid = nodeid_from_str(parent_nodeid);
+  UA_NodeId reference_nid = nodeid_from_str(reference_nodeid);
+
+  UA_DataTypeAttributes dtAttr = UA_DataTypeAttributes_default;
+  dtAttr.displayName = UA_LOCALIZEDTEXT("en-US", nstr);
+  UA_Server_addDataTypeNode(pss->master,
+                            nid,
+                            parent_nid,
+                            reference_nid,
+                            UA_QUALIFIEDNAME(nid.namespaceIndex, nstr),
+                            dtAttr,
+                            NULL,
+                            NULL);
+
+  return node_wrap(cDataTypeNode, node_alloc(pss, nid));
 } //}}}
 
 static VALUE node_id(VALUE self)
@@ -1153,7 +1187,10 @@ void Init_server(void)
   rb_define_method(cServer, "debug=", server_debug_set, 1);
   rb_define_method(cServer, "namespaces", server_namespaces, 0);
   rb_define_method(cServer, "find_nodeid", server_find_nodeid, 1);
-  rb_define_method(cServer, "add_type", server_add_type, 5);
+  rb_define_method(cServer, "add_object_type", server_add_object_type, 4);
+  rb_define_method(cServer, "add_variable_type", server_add_variable_type, 4);
+  rb_define_method(cServer, "add_reference_type", server_add_reference_type, 5);
+  rb_define_method(cServer, "add_data_type", server_add_data_type, 4);
   // TODO:
   // server methods to add in server address space:
   // server.add_type(name, id, parent_id, ref_id, nodeclass)
@@ -1177,12 +1214,6 @@ void Init_server(void)
   rb_define_method(cNode, "id", node_id, 0);
   rb_define_method(cNode, "description", node_description, 0);
   rb_define_method(cNode, "description=", node_description_set, 1);
-  rb_define_method(cNode, "abstract", node_abstract, 0);
-  rb_define_method(cNode, "abstract=", node_abstract_set, 1);
-  rb_define_method(cNode, "symmetric", node_symmetric, 0);
-  // This will not work, as Symmetric has to be defined when creating of the node
-  // see: https://github.com/open62541/open62541/blob/d871105cc2bf1c01b36018d2dd9de551c1a621d5/include/open62541/server.h#L307
-  // rb_define_method(cNode, "symmetric=", node_symmetric_set, 1);
 
   // TODO: use link or add_reference
   // node.link(ref_id, target_id)
@@ -1195,12 +1226,26 @@ void Init_server(void)
 
   rb_define_method(cTypeTopNode, "add_object_type", node_add_object_type, 1);
   rb_define_method(cTypeTopNode, "folder", node_type_folder, 0);
+  rb_define_method(cTypeTopNode, "abstract", node_abstract, 0);
+  rb_define_method(cTypeTopNode, "abstract=", node_abstract_set, 1);
 
   rb_define_method(cTypeSubNode, "add_object_type", node_add_object_type, 1);
   rb_define_method(cTypeSubNode, "add_variable", node_add_variable, -1);
   rb_define_method(cTypeSubNode, "add_variable_rw", node_add_variable_rw, -1);
   rb_define_method(cTypeSubNode, "add_object", node_add_object, -1);
   rb_define_method(cTypeSubNode, "add_method", node_add_method, -1);
+  rb_define_method(cTypeSubNode, "abstract", node_abstract, 0);
+  rb_define_method(cTypeSubNode, "abstract=", node_abstract_set, 1);
+
+  rb_define_method(cVariableTypeNode, "abstract", node_abstract, 0);
+  rb_define_method(cVariableTypeNode, "abstract=", node_abstract_set, 1);
+
+  rb_define_method(cReferenceTypeNode, "abstract", node_abstract, 0);
+  rb_define_method(cReferenceTypeNode, "abstract=", node_abstract_set, 1);
+  rb_define_method(cReferenceTypeNode, "symmetric", node_symmetric, 0);
+  // The following will not work, as Symmetric has to be defined when creating of the node
+  // see: https://github.com/open62541/open62541/blob/d871105cc2bf1c01b36018d2dd9de551c1a621d5/include/open62541/server.h#L307
+  // rb_define_method(cNode, "symmetric=", node_symmetric_set, 1);
 
   rb_define_method(cObjectNode, "manifest", node_manifest, 2);
   rb_define_method(cObjectNode, "find", node_find, 1);

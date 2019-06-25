@@ -26,10 +26,11 @@ Daemonite.new do
     ex = 6
 
     puts "TestType.nil? = #{srv.find_nodeid("ns=#{ex};i=77777").nil?}"
-    puts srv.add_type("TestType","ns=#{ex};i=77777", UA::BaseObjectType, UA::HasSubtype, NodeClass::ObjectType)
+    puts srv.add_object_type("TestType","ns=#{ex};i=77777", UA::BaseObjectType, UA::HasSubtype)
+    # REMOVED: puts srv.add_object_type("TestType","ns=#{ex};i=77777", UA::BaseObjectType, UA::HasSubtype, NodeClass::ObjectType)
     puts "TestType.nil? = #{srv.find_nodeid("ns=#{ex};i=77777").nil?}";
 
-    puts srv.add_type("TestDataType","ns=#{ex};i=77778", "i=22", UA::HasSubtype, NodeClass::DataType)
+    puts srv.add_data_type("TestDataType","ns=#{ex};i=77778", "i=22", UA::HasSubtype)
 
 
 

@@ -122,12 +122,28 @@ module OPCUA
         unless local_parent_nodeid.nil?
           parent_nodeid = NodeId.new(server.namespaces.index(local_namespaces[local_parent_nodeid.ns]), local_parent_nodeid.id, local_parent_nodeid.type)
           unless server.find_nodeid(parent_nodeid).nil? # only create if parent already exists
-            if xml.find('boolean(@Symmetric)')
-              symmetric = true # TODO: add reference property when creating the node, not possible after
-            end
-            type = server.add_type(c.BrowseName.name, c, parent_nodeid, "i=45", c.NodeClass)
-            if xml.find('boolean(@IsAbstract)')
-              type.abstract = true
+            # type = server.add_type(c.BrowseName.name, c, parent_nodeid, "i=45", c.NodeClass)
+            if (c.NodeClass == NodeClass::ReferenceType)
+              if xml.find('boolean(@Symmetric)')
+                type = server.add_reference_type(c.BrowseName.name, c, parent_nodeid, "i=45", true)
+              else
+                type = server.add_reference_type(c.BrowseName.name, c, parent_nodeid, "i=45", false)
+              end
+              if xml.find('boolean(@IsAbstract)')
+                type.abstract = true
+              end
+            elsif (c.NodeClass == NodeClass::DataType)
+              type = server.add_data_type(c.BrowseName.name, c, parent_nodeid, "i=45")
+            elsif (c.NodeClass == NodeClass::ObjectType)
+              type = server.add_object_type(c.BrowseName.name, c, parent_nodeid, "i=45")
+              if xml.find('boolean(@IsAbstract)')
+                type.abstract = true
+              end
+            elsif (c.NodeClass == NodeClass::VariableType)
+              type = server.add_variable_type(c.BrowseName.name, c, parent_nodeid, "i=45")
+              if xml.find('boolean(@IsAbstract)')
+                type.abstract = true
+              end
             end
             # TODO: 
             # ReferenceType: IsAbstract="true" Symmetric="true"
