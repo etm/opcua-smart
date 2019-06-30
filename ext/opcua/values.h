@@ -2,8 +2,13 @@
 VALUE mTYPES = Qnil;
 
 /* -- */
-static int value_to_array(VALUE value, UA_Variant *variant) {/*{{{*/
-  int done = 0;
+static void variant_set_one_dimension(UA_Variant *variant,UA_UInt32 len) {
+  variant->arrayDimensions = (UA_UInt32 *)UA_Array_new(1, &UA_TYPES[UA_TYPES_UINT32]);
+  variant->arrayDimensions[0] = len;
+  variant->arrayDimensionsSize = 1;
+}
+static bool value_to_array(VALUE value, UA_Variant *variant) {/*{{{*/
+  int done = false;
 
   if (rb_obj_is_kind_of(RARRAY_AREF(value,0),rb_cTime)) {
     UA_DateTime tmp[RARRAY_LEN(value)];
@@ -14,8 +19,9 @@ static int value_to_array(VALUE value, UA_Variant *variant) {/*{{{*/
         tmp[i] = UA_DateTime_fromUnixTime(0);
       }
     }
+    variant_set_one_dimension(variant,1);
     UA_Variant_setArrayCopy(variant, tmp, RARRAY_LEN(value), &UA_TYPES[UA_TYPES_BOOLEAN]);
-    done = 1;
+    done = true;
   } else {
     switch (TYPE(RARRAY_AREF(value,0))) {
       case T_TRUE:
@@ -29,8 +35,9 @@ static int value_to_array(VALUE value, UA_Variant *variant) {/*{{{*/
               tmp[i] = true;
             }
           }
+          variant_set_one_dimension(variant,1);
           UA_Variant_setArrayCopy(variant, tmp, RARRAY_LEN(value), &UA_TYPES[UA_TYPES_BOOLEAN]);
-          done = 1;
+          done = true;
           break;
         }
       case T_FLOAT:
@@ -44,8 +51,9 @@ static int value_to_array(VALUE value, UA_Variant *variant) {/*{{{*/
               tmp[i] = 0.0;
             }
           }
+          variant_set_one_dimension(variant,1);
           UA_Variant_setArrayCopy(variant, tmp, RARRAY_LEN(value), &UA_TYPES[UA_TYPES_DOUBLE]);
-          done = 1;
+          done = true;
           break;
         }
       case T_STRING:
@@ -60,8 +68,9 @@ static int value_to_array(VALUE value, UA_Variant *variant) {/*{{{*/
               tmp[i] = UA_STRING("");
             }
           }
+          variant_set_one_dimension(variant,1);
           UA_Variant_setArrayCopy(variant, tmp, RARRAY_LEN(value), &UA_TYPES[UA_TYPES_STRING]);
-          done = 1;
+          done = true;
           break;
         }
         //////// TODO Currently only one-dimensional data structures are supported
@@ -76,7 +85,7 @@ static int value_to_array(VALUE value, UA_Variant *variant) {/*{{{*/
         //       }
         //     }
         //     UA_Variant_setArrayCopy(variant, tmp, RARRAY_LEN(value) * RARRAY_LEN(RARRAY_AREF(value,0)), &UA_TYPES[UA_TYPES_STRING]);
-        //     done = 2;
+        //     done = true;
         //     break;
         //   }
     }
@@ -124,10 +133,7 @@ static bool value_to_variant(VALUE value, UA_Variant *variant) { //{{{
         }
       case T_ARRAY:
         {
-          if (value_to_array(value,variant) == 1) {
-            variant->arrayDimensions = (UA_UInt32 *)UA_Array_new(1, &UA_TYPES[UA_TYPES_UINT32]);
-            variant->arrayDimensions[0] = RARRAY_LEN(value);
-            variant->arrayDimensionsSize = 1;
+          if (value_to_array(value,variant)) {
             done = true;
           }
           break;

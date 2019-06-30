@@ -6,6 +6,9 @@ VALUE cNode = Qnil;
 VALUE cObjectNode = Qnil;
 VALUE cTypeTopNode = Qnil;
 VALUE cTypeSubNode = Qnil;
+VALUE cReferenceTopNode = Qnil;
+VALUE cReferenceSubNode = Qnil;
+VALUE cReferenceNode = Qnil;
 VALUE cVarNode = Qnil;
 VALUE cMethodNode = Qnil;
 
@@ -69,6 +72,33 @@ static VALUE node_add_object_type(VALUE self, VALUE name) { //{{{
 
   return node_wrap(cTypeSubNode,node_alloc(ns->master,n));
 } //}}}
+static VALUE node_add_reference_type(VALUE self, VALUE name, VALUE type) { //{{{
+  node_struct *ns;
+
+  Data_Get_Struct(self, node_struct, ns);
+
+  VALUE str = rb_obj_as_string(name);
+  if (NIL_P(str) || TYPE(str) != T_STRING)
+    rb_raise(rb_eTypeError, "cannot convert arg 1 to string");
+  char *nstr = (char *)StringValuePtr(str);
+  if (TYPE(type) != T_FIXNUM)
+    rb_raise(rb_eTypeError, "cannot convert arg 2 to integer");
+
+  UA_NodeId n = UA_NODEID_NUMERIC(ns->master->default_ns, nodecounter++);
+
+  UA_ReferenceTypeAttributes rtAttr = UA_ReferenceTypeAttributes_default;
+                             rtAttr.displayName = UA_LOCALIZEDTEXT("en-US", nstr);
+  UA_Server_addReferenceTypeNode(ns->master->master,
+                                 n,
+                                 ns->id,
+                                 UA_NODEID_NUMERIC(0, NUM2INT(type)),
+                                 UA_QUALIFIEDNAME(ns->master->default_ns, nstr),
+                                 rtAttr,
+                                 NULL,
+                                 NULL);
+
+  return node_wrap(cReferenceSubNode,node_alloc(ns->master,n));
+} //}}}
 
 static VALUE node_id(VALUE self) { //{{{
   node_struct *ns;
@@ -102,6 +132,31 @@ static VALUE node_to_s(VALUE self) { //{{{
     ret = rb_sprintf("ns=%d;unsupported",ns->id.namespaceIndex);
   }
   return ret;
+} //}}}
+static VALUE node_add_reference(VALUE self, VALUE to, VALUE type) { //{{{
+  node_struct *ns;
+  node_struct *ts;
+
+  Data_Get_Struct(self, node_struct, ns);
+
+  if (!(rb_obj_is_kind_of(type,cReferenceSubNode) || rb_obj_is_kind_of(to,cTypeSubNode))) {
+    rb_raise(rb_eArgError, "arguments have to be NodeIDs.");
+  }
+  Data_Get_Struct(self, node_struct, ts);
+  UA_NodeId n = UA_NODEID_NUMERIC(ns->master->default_ns, nodecounter++);
+
+  UA_ExpandedNodeId tNodeId;
+                    tNodeId.serverIndex = 0;
+                    tNodeId.namespaceUri = UA_STRING_NULL;
+                    tNodeId.nodeId = ts->id;
+
+  UA_Server_addReference(ns->master->master,
+                         n,
+                         UA_NODEID_NUMERIC(0, NUM2INT(type)),
+                         tNodeId,
+                         true);
+
+  return node_wrap(cReferenceNode,node_alloc(ns->master,n));
 } //}}}
 
 static UA_StatusCode node_add_method_callback( //{{{
@@ -595,6 +650,57 @@ static VALUE node_find(VALUE self, VALUE qname) { //{{{
     return node;
   }
 } //}}}
+static VALUE server_get(int argc, VALUE* argv, VALUE self) { //{{{
+  if (argc > 2 || argc < 1) { // there should only be 1 or 2 arguments
+    rb_raise(rb_eArgError, "wrong number of arguments");
+  }
+
+  server_struct *pss;
+  Data_Get_Struct(self, server_struct, pss);
+
+  VALUE ns = UINT2NUM(pss->default_ns);
+  VALUE id;
+
+  if (argc == 1) {
+    id = argv[0];
+  } else {
+    ns = argv[0];
+    id = argv[1];
+  }
+
+  if (NIL_P(ns) || TYPE(ns) != T_FIXNUM)
+    rb_raise(rb_eTypeError, "ns is not a valid (numeric) namespace id");
+
+  UA_NodeId it;
+
+  if (TYPE(id) == T_FIXNUM) {
+    it = UA_NODEID_NUMERIC(NUM2INT(ns), NUM2INT(id));
+  } else {
+    VALUE str = rb_obj_as_string(id);
+    if (NIL_P(str) || TYPE(str) != T_STRING)
+      rb_raise(rb_eTypeError, "cannot convert url to string");
+    char *nstr = (char *)StringValuePtr(str);
+
+    it = UA_NODEID_STRING(NUM2INT(ns), nstr);
+  }
+
+  UA_NodeClass nc;UA_NodeClass_init(&nc);
+  UA_Server_readNodeClass(pss->master, it, &nc);
+
+  VALUE node;
+  if (nc == UA_NODECLASS_VARIABLE) {
+    node = node_wrap(cVarNode,node_alloc(pss, it));
+  } else if (nc == UA_NODECLASS_METHOD) {
+    node = node_wrap(cNode,node_alloc(pss, it));
+  } else if (nc == UA_NODECLASS_UNSPECIFIED) {
+    node = Qnil;
+  } else {
+    node = node_wrap(cNode,node_alloc(pss, it));
+  }
+  UA_NodeClass_clear(&nc);
+
+  return node;
+} //}}}
 
 static VALUE node_value_set(VALUE self, VALUE value) { //{{{
   node_struct *ns;
@@ -727,6 +833,11 @@ static VALUE server_types(VALUE self) { //{{{
   Data_Get_Struct(self, server_struct, pss);
   return node_wrap(cTypeTopNode, node_alloc(pss, UA_NODEID_NUMERIC(0, UA_NS0ID_BASEOBJECTTYPE)));
 } //}}}
+static VALUE server_references(VALUE self) { //{{{
+  server_struct *pss;
+  Data_Get_Struct(self, server_struct, pss);
+  return node_wrap(cReferenceTopNode, node_alloc(pss, UA_NODEID_NUMERIC(0, UA_NS0ID_NONHIERARCHICALREFERENCES)));
+} //}}}
 static VALUE server_objects(VALUE self) { //{{{
   server_struct *pss;
   Data_Get_Struct(self, server_struct, pss);
@@ -780,30 +891,36 @@ void Init_server(void) {
 
   Init_types();
 
-  cServer       = rb_define_class_under(mOPCUA, "Server", rb_cObject);
-  cNode         = rb_define_class_under(cServer, "Node", rb_cObject);
-  cObjectNode   = rb_define_class_under(cServer, "ObjectNode", cNode);
-  cTypeTopNode  = rb_define_class_under(cServer, "TypeTopNode", cNode);
-  cTypeSubNode  = rb_define_class_under(cServer, "TypeSubNode", cNode);
-  cVarNode      = rb_define_class_under(cServer, "ObjectVarNode", cNode);
-  cMethodNode   = rb_define_class_under(cServer, "ObjectMethodNode", cNode);
+  cServer            = rb_define_class_under(mOPCUA, "Server", rb_cObject);
+  cNode              = rb_define_class_under(cServer, "Node", rb_cObject);
+  cObjectNode        = rb_define_class_under(cServer, "ObjectNode", cNode);
+  cTypeTopNode       = rb_define_class_under(cServer, "TypeTopNode", cNode);
+  cTypeSubNode       = rb_define_class_under(cServer, "TypeSubNode", cNode);
+  cReferenceTopNode  = rb_define_class_under(cServer, "ReferenceTopNode", cNode);
+  cReferenceSubNode  = rb_define_class_under(cServer, "ReferenceSubNode", cNode);
+  cReferenceNode     = rb_define_class_under(cServer, "ObjectReferenceNode", cNode);
+  cVarNode           = rb_define_class_under(cServer, "ObjectVarNode", cNode);
+  cMethodNode        = rb_define_class_under(cServer, "ObjectMethodNode", cNode);
 
   rb_define_alloc_func(cServer, server_alloc);
   rb_define_method(cServer, "initialize", server_init, 0);
   rb_define_method(cServer, "run", server_run, 0);
   rb_define_method(cServer, "add_namespace", server_add_namespace, 1);
   rb_define_method(cServer, "types", server_types, 0);
+  rb_define_method(cServer, "references", server_references, 0);
   rb_define_method(cServer, "objects", server_objects, 0);
   rb_define_method(cServer, "debug", server_debug, 0);
   rb_define_method(cServer, "debug=", server_debug_set, 1);
   rb_define_method(cServer, "namespaces", server_namespaces, 0);
+  rb_define_method(cServer, "get", server_get, -1);
 
   rb_define_method(cNode, "to_s", node_to_s, 0);
   rb_define_method(cNode, "id", node_id, 0);
-  rb_define_method(cNode, "description", node_description, 1);
+  rb_define_method(cNode, "description", node_description, 0);
   rb_define_method(cNode, "description=", node_description_set, 1);
 
   rb_define_method(cTypeTopNode, "add_object_type", node_add_object_type, 1);
+  rb_define_method(cTypeTopNode, "add_reference_type", node_add_reference_type, 1);
   rb_define_method(cTypeTopNode, "folder", node_type_folder, 0);
 
   rb_define_method(cTypeSubNode, "add_object_type", node_add_object_type, 1);
@@ -811,6 +928,7 @@ void Init_server(void) {
   rb_define_method(cTypeSubNode, "add_variable_rw", node_add_variable_rw, -1);
   rb_define_method(cTypeSubNode, "add_object", node_add_object, -1);
   rb_define_method(cTypeSubNode, "add_method", node_add_method, -1);
+  rb_define_method(cTypeSubNode, "add_reference", node_add_reference, 2);
 
   rb_define_method(cObjectNode, "manifest", node_manifest, 2);
   rb_define_method(cObjectNode, "find", node_find, 1);

@@ -16,7 +16,7 @@ Daemonite.new do
       t.add_variable :SollWertX
       t.add_variable :SollWertY
       t.add_variable :SollWertZ
-      t.add_variable :ToolNumber
+      t.add_variable_rw :ToolNumber
       t.add_variable :DuploNumber
       t.add_property :testValue1
       t.add_method :testMethod, test1: OPCUA::TYPES::STRING, test2: OPCUA::TYPES::DATETIME do |node, test1, test2|
@@ -45,6 +45,9 @@ Daemonite.new do
     t3 = tools.manifest(:Tool3,tt)
 
     opts[:tn] = t1.find(:ToolNumber)
+    opts[:tn].description = 'test test'
+    opts[:tn].value = [0,1]
+    p opts[:tn].description
 
     measurments_t1 = t1.find(:Measurements)
     measurments_t1.manifest(:M1,mt)
@@ -60,12 +63,12 @@ Daemonite.new do
   run do |opts|
     GC.start
     sleep opts['server'].run
-    if counter % 100 == 0
-      opts[:tn].value = [counter, counter]
-      # opts[:tn].value = 1
-      p opts[:tn].value
-    end
-    counter += 1
+    # if counter % 100 == 0
+    #   opts[:tn].value = [counter, counter]
+    #   # opts[:tn].value = 1
+    #   p opts[:tn].value
+    # end
+    # counter += 1
   rescue => e
     puts e.message
   end
