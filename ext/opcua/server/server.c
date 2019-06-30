@@ -125,7 +125,7 @@ static VALUE node_to_s(VALUE self) { //{{{
   Data_Get_Struct(self, node_struct, ns);
 
   if (ns->id.identifierType == UA_NODEIDTYPE_NUMERIC) {
-    ret = rb_sprintf("ns=%d;n=%d", ns->id.namespaceIndex, ns->id.identifier.numeric);
+    ret = rb_sprintf("ns=%d;i=%d", ns->id.namespaceIndex, ns->id.identifier.numeric);
   } else if(ns->id.identifierType == UA_NODEIDTYPE_STRING) {
     ret = rb_sprintf("ns=%d;s=%.*s", ns->id.namespaceIndex, (int)ns->id.identifier.string.length, ns->id.identifier.string.data);
   } else {
@@ -135,25 +135,27 @@ static VALUE node_to_s(VALUE self) { //{{{
 } //}}}
 static VALUE node_add_reference(VALUE self, VALUE to, VALUE type) { //{{{
   node_struct *ns;
-  node_struct *ts;
+  node_struct *tos;
+  node_struct *tys;
 
   Data_Get_Struct(self, node_struct, ns);
 
   if (!(rb_obj_is_kind_of(type,cReferenceSubNode) || rb_obj_is_kind_of(to,cTypeSubNode))) {
     rb_raise(rb_eArgError, "arguments have to be NodeIDs.");
   }
-  Data_Get_Struct(self, node_struct, ts);
+  Data_Get_Struct(to, node_struct, tos);
+  Data_Get_Struct(type, node_struct, tys);
   UA_NodeId n = UA_NODEID_NUMERIC(ns->master->default_ns, nodecounter++);
 
-  UA_ExpandedNodeId tNodeId;
-                    tNodeId.serverIndex = 0;
-                    tNodeId.namespaceUri = UA_STRING_NULL;
-                    tNodeId.nodeId = ts->id;
+  UA_ExpandedNodeId toNodeId;
+                    toNodeId.serverIndex = 0;
+                    toNodeId.namespaceUri = UA_STRING_NULL;
+                    toNodeId.nodeId = tos->id;
 
   UA_Server_addReference(ns->master->master,
                          n,
-                         UA_NODEID_NUMERIC(0, NUM2INT(type)),
-                         tNodeId,
+                         tys->id,
+                         toNodeId,
                          true);
 
   return node_wrap(cReferenceNode,node_alloc(ns->master,n));

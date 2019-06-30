@@ -475,7 +475,7 @@ static VALUE node_to_s(VALUE self) { //{{{
   Data_Get_Struct(self, node_struct, ns);
 
   if (ns->id.identifierType == UA_NODEIDTYPE_NUMERIC) {
-    ret = rb_sprintf("ns=%d;n=%d", ns->id.namespaceIndex, ns->id.identifier.numeric);
+    ret = rb_sprintf("ns=%d;i=%d", ns->id.namespaceIndex, ns->id.identifier.numeric);
   } else if(ns->id.identifierType == UA_NODEIDTYPE_STRING) {
     ret = rb_sprintf("ns=%d;s=%.*s", ns->id.namespaceIndex, (int)ns->id.identifier.string.length, ns->id.identifier.string.data);
   } else {
