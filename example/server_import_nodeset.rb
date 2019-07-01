@@ -32,9 +32,11 @@ Daemonite.new do
 
     puts srv.add_data_type("TestDataType","ns=#{ex};i=77778", "i=22", UA::HasSubtype)
 
+    puts srv.add_object("TestDevice", "ns=#{ex};i=31243", srv.objects, AutoId::OpticalReaderDeviceType, UA::HasChild)
+
     tt = srv.add_object_type(:TestComponentType, "ns=#{ex};i=77900", DI::ComponentType, UA::HasSubtype).tap{ |t|
       t.add_variable :TestVar1
-      # t.add_object :TestObject1, DI::DeviceType # TODO: not working yet, 2nd param to nodeid
+      # t.add_object :TestObject1, DI::DeviceType # TODO: not working yet, 2nd param to string nodeid
     }
 
     tt2 = srv.add_object_type(:TestComponent2Type, "ns=#{ex};i=77901", tt, UA::HasSubtype).tap{ |t|
@@ -42,8 +44,10 @@ Daemonite.new do
       t.add_object :TestObject2, tt
     }
 
-    srv.objects.manifest(:Test1, tt).find(:TestObject1)
-    srv.objects.manifest(:Test2, tt2).find(:TestObject2)
+    srv.objects.manifest(:Test1, tt)
+    srv.objects.manifest(:Test2, tt2)
+
+    # srv.objects.manifest(:Test3, DI::ComponentType) # TODO: not working yet, 2nd param to string nodeid
 
 
 

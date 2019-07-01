@@ -73,7 +73,7 @@ module OPCUA
 
       doc.find("//*[name()='UADataType']").each do |x|
         t = create_type_from_nodeset(self, x, namespace_indices, local_nss, aliases)
-        # TODO: not completely implemented yet -> a lot of work to create structure dynamically in c
+        # TODO: not completely implemented yet -> a lot of work to create actual structure dynamically in c
       end
 
       doc.find("//*[name()='UAVariableType']").each do |x|
@@ -85,18 +85,19 @@ module OPCUA
       end
 
       # TODO: just add without BaseNode
+      doc.find("//*[name()='UAObject']").each do |x|
+        c = BaseNode.from_xml(self, x, namespace_indices, local_nss)
+        # TODO
+      end
+
+      # TODO: just add without BaseNode
       doc.find("//*[name()='UAMethod']").each do |x|
       end
 
       # TODO: just add without BaseNode
       doc.find("//*[name()='UAVariable']").each do |x|
       end
-
-      # TODO: just add without BaseNode
-      doc.find("//*[name()='UAObject']").each do |x|
-      end
       
-      # TODO: create all References of ReferenceTypes
       # TODO: create all References of DataTypes
       # TODO: create all References of VariableTypes
       # TODO: create all References of Objects

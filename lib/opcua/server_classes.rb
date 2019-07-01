@@ -20,7 +20,12 @@ class BaseNode
       constant_name = browsename.name
     end
 
-    unless namespace_index.to_s.equal? ""
+    if(namespace_index.to_s != "" &&
+      (nodeclass == NodeClass::ObjectType ||
+      nodeclass == NodeClass::VariableType ||
+      nodeclass == NodeClass::DataType ||
+      nodeclass == NodeClass::ReferenceType))
+      
       unless Object.const_defined?(namespace_index)
         Object.const_set(namespace_index, Module.new)
       end

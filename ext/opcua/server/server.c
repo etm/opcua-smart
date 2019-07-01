@@ -93,7 +93,7 @@ static UA_NodeId nodeid_from_str(VALUE nodeid)
   with_ns = strchr(nstr, ';'); //get offset of ';'
   if (with_ns == NULL)         // nodeid looks like 'i=45' (equals 'ns=0;i=45')
   {
-    nid_id = calloc(strlen(nstr) - 2, sizeof(char));
+    nid_id = (char *)calloc(strlen(nstr) - 2, sizeof(char));
     strncpy(nid_id, nstr + 2, strlen(nstr) - 2);
     nid_id[strlen(nstr) - 2] = '\0';
     nid_type = nstr[0];
@@ -101,7 +101,7 @@ static UA_NodeId nodeid_from_str(VALUE nodeid)
   else // nodeid looks like 'ns=0;i=45'
   {
     index = (int)(with_ns - nstr);
-    char *nsi = calloc(index - 3, sizeof(char));
+    char *nsi = (char *)calloc(index - 3, sizeof(char));
     strncpy(nsi, nstr + 3, index - 3);
     nid_index = atoi(nsi);
     free(nsi);
@@ -110,28 +110,35 @@ static UA_NodeId nodeid_from_str(VALUE nodeid)
     strncpy(nid_id, nstr + index + 3, strlen(nstr) - index - 3);
   }
 
+  UA_NodeId ret;
+  UA_NodeId_init(&ret);
+
   if (nid_type == 'i')
   {
     //printf("'%s' to 'ns=%d;i=%i'\n", nstr, nid_index, atoi(nid_id));
     UA_NodeId id = UA_NODEID_NUMERIC(nid_index, atoi(nid_id));
+    UA_NodeId_copy(id, &ret);
+    UA_NodeId_clear(&id);
     free(nid_id);
-    return id;
   }
   else if (nid_type == 's')
   {
     //printf("'%s' to 'ns=%d;s=%s'\n", nstr, nid_index, nid_id);
     UA_NodeId id = UA_NODEID_STRING(nid_index, nid_id);
+    UA_NodeId_copy(id, &ret);
+    UA_NodeId_clear(&id);
     free(nid_id);
-    return id;
   }
   else
   {
     //printf("'%s' to 'ns=%d;g=%s'\n", nstr, nid_index, nid_id);
     // TODO: add GUID,...
     UA_NodeId id = UA_NODEID_STRING(nid_index, nid_id);
+    UA_NodeId_copy(id, &ret);
+    UA_NodeId_clear(&id);
     free(nid_id);
-    return id;
   }
+  return ret;
 } //}}}
 
 static VALUE server_add_object_type(VALUE self, VALUE name, VALUE nodeid, VALUE parent_nodeid, VALUE reference_nodeid)
@@ -161,8 +168,6 @@ static VALUE server_add_object_type(VALUE self, VALUE name, VALUE nodeid, VALUE 
 
   return node_wrap(cTypeSubNode, node_alloc(pss, nid));
 } //}}}
-
-
 static VALUE server_add_variable_type(VALUE self, VALUE name, VALUE nodeid, VALUE parent_nodeid, VALUE reference_nodeid)
 { //{{{
   server_struct *pss;
@@ -193,7 +198,6 @@ static VALUE server_add_variable_type(VALUE self, VALUE name, VALUE nodeid, VALU
 
   return node_wrap(cVariableTypeNode, node_alloc(pss, nid));
 } //}}}
-
 static VALUE server_add_reference_type(VALUE self, VALUE name, VALUE nodeid, VALUE parent_nodeid, VALUE reference_nodeid, VALUE symmetric)
 { //{{{
   server_struct *pss;
@@ -224,8 +228,6 @@ static VALUE server_add_reference_type(VALUE self, VALUE name, VALUE nodeid, VAL
 
   return node_wrap(cReferenceTypeNode, node_alloc(pss, nid));
 } //}}}
-
-
 static VALUE server_add_data_type(VALUE self, VALUE name, VALUE nodeid, VALUE parent_nodeid, VALUE reference_nodeid)
 { //{{{
   server_struct *pss;
@@ -252,6 +254,36 @@ static VALUE server_add_data_type(VALUE self, VALUE name, VALUE nodeid, VALUE pa
                             NULL);
 
   return node_wrap(cDataTypeNode, node_alloc(pss, nid));
+} //}}}
+
+static VALUE server_add_object(VALUE self, VALUE name, VALUE nodeid, VALUE parent_nodeid, VALUE type_nodeid, VALUE reference_nodeid)
+{ //{{{
+  server_struct *pss;
+  Data_Get_Struct(self, server_struct, pss);
+
+  VALUE str = rb_obj_as_string(name);
+  if (NIL_P(str) || TYPE(str) != T_STRING)
+    rb_raise(rb_eTypeError, "cannot convert obj to string");
+  char *nstr = (char *)StringValuePtr(str);
+
+  UA_NodeId nid = nodeid_from_str(nodeid);
+  UA_NodeId parent_nid = nodeid_from_str(parent_nodeid);
+  UA_NodeId type_nid = nodeid_from_str(type_nodeid);
+  UA_NodeId reference_nid = nodeid_from_str(reference_nodeid);
+
+  UA_ObjectAttributes oAttr = UA_ObjectAttributes_default;
+  oAttr.displayName = UA_LOCALIZEDTEXT("en-US", nstr);
+  UA_Server_addObjectNode(pss->master,
+                          nid,
+                          parent_nid,
+                          reference_nid,
+                          UA_QUALIFIEDNAME(nid.namespaceIndex, nstr),
+                          type_nid,
+                          oAttr,
+                          NULL,
+                          NULL);
+
+  return node_wrap(cObjectNode, node_alloc(pss, nid));
 } //}}}
 
 static VALUE node_id(VALUE self)
@@ -1191,6 +1223,7 @@ void Init_server(void)
   rb_define_method(cServer, "add_variable_type", server_add_variable_type, 4);
   rb_define_method(cServer, "add_reference_type", server_add_reference_type, 5);
   rb_define_method(cServer, "add_data_type", server_add_data_type, 4);
+  rb_define_method(cServer, "add_object", server_add_object, 5);
   // TODO:
   // server methods to add in server address space:
   // server.add_type(name, id, parent_id, ref_id, nodeclass)
