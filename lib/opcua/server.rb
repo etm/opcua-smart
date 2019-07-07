@@ -9,8 +9,27 @@ require 'xml/smart'
 
 module OPCUA
   class Server
+    def nodes
+      if @nodes.nil?
+        @nodes = Hash.new
+      end
+      @nodes
+    end
     def import_ua
       add_nodeset File.read(File.join(File.dirname(__FILE__), "Opc.Ua.1.04.NodeSet2.xml"))
+    end
+
+    alias_method :get_base, :get
+    def get(*a)
+      if a.length == 1 && a[0].to_s =~ /ns=(\d+);i=(.*)/
+        get_base $1.to_i, $2.to_i
+      elsif a.length == 1 && a[0].to_s =~ /i=(.*)/
+        get_base 0, $2.to_i
+      elsif a.length == 1 && a[0].to_s =~ /ns=(\d+);s=(.*)/
+        get_base $1.to_i, $2
+      else
+        get_base *a
+      end
     end
 
     class ObjectNode
@@ -67,34 +86,36 @@ module OPCUA
         aliases[x.find("@Alias").first.to_s] = x.find("text()").first.to_s
       end
 
+      doc.find("//*[name()='UAReferenceType' and @NodeId='i=45']").each do |x|
+        t = create_from_nodeset(self, x, namespace_indices, local_nss, aliases)
+        #t = create_type_from_nodeset(self, x, namespace_indices, local_nss, aliases)
+      end
+
       doc.find("//*[name()='UAReferenceType']").each do |x|
-        t = create_type_from_nodeset(self, x, namespace_indices, local_nss, aliases)
+        t = create_from_nodeset(self, x, namespace_indices, local_nss, aliases)
       end
 
       doc.find("//*[name()='UADataType']").each do |x|
-        t = create_type_from_nodeset(self, x, namespace_indices, local_nss, aliases)
+        t = create_from_nodeset(self, x, namespace_indices, local_nss, aliases)
         # TODO: not completely implemented yet -> a lot of work to create actual structure dynamically in c
       end
 
       doc.find("//*[name()='UAVariableType']").each do |x|
-        create_type_from_nodeset(self, x, namespace_indices, local_nss, aliases)
+        t = create_from_nodeset(self, x, namespace_indices, local_nss, aliases)
       end
 
       doc.find("//*[name()='UAObjectType']").each do |x|
-        create_type_from_nodeset(self, x, namespace_indices, local_nss, aliases)
+        t = create_from_nodeset(self, x, namespace_indices, local_nss, aliases)
       end
 
-      # TODO: just add without BaseNode
       doc.find("//*[name()='UAObject']").each do |x|
-        c = BaseNode.from_xml(self, x, namespace_indices, local_nss)
+        # t = create_from_nodeset(self, x, namespace_indices, local_nss, aliases)
         # TODO
       end
 
-      # TODO: just add without BaseNode
       doc.find("//*[name()='UAMethod']").each do |x|
       end
 
-      # TODO: just add without BaseNode
       doc.find("//*[name()='UAVariable']").each do |x|
       end
       
@@ -112,14 +133,100 @@ module OPCUA
       end
     end
 
+    def create_from_nodeset(server, xml, namespace_indices, local_namespaces, aliases)
+      local_nodeid = NodeId.from_string(xml.find("@NodeId").first.to_s)
+      namespace_index = namespace_indices[local_nodeid.ns]
+      namespace = local_namespaces[local_nodeid.ns]
+      nodeid = NodeId.new(server.namespaces.index(local_namespaces[local_nodeid.ns]), local_nodeid.id, local_nodeid.type)
+      name = LocalizedText.parse(xml.find("*[name()='DisplayName']").first).text
+      description = LocalizedText.parse xml.find("*[name()='Description']").first
+      nodeclass = NodeClass.const_get(xml.find("name()")[2..-1])
+      if xml.find("@ParentNodeId").first
+        parent_local_nodeid = NodeId.from_string(xml.find("@ParentNodeId").first.to_s)
+        parent_nodeid = NodeId.new(server.namespaces[0].index(local_namespaces[parent_local_nodeid.ns]), parent_local_nodeid.id, parent_local_nodeid.type)
+      elsif xml.find("*[name()='References']/*[name()='Reference' and @ReferenceType='HasSubtype' and @IsForward='false']/text()").first
+        parent_nodeid_str = xml.find("*[name()='References']/*[name()='Reference' and @ReferenceType='HasSubtype' and @IsForward='false']/text()").first.to_s
+        parent_local_nodeid = NodeId.from_string(parent_nodeid_str)
+        parent_nodeid = NodeId.new(server.namespaces.index(local_namespaces[parent_local_nodeid.ns]), parent_local_nodeid.id, parent_local_nodeid.type)
+      end
+
+      node = server.get(nodeid.to_s)
+      if node.nil?
+        parent_node = server.get(parent_nodeid.to_s)
+        case nodeclass
+        when NodeClass::ReferenceType
+          if xml.find('boolean(@Symmetric)')
+            node = server.add_reference_type(name, nodeid.to_s,parent_node, UA::HasSubtype, true)
+          else
+            node = server.add_reference_type(name, nodeid.to_s,parent_node, UA::HasSubtype, false)
+          end
+          if xml.find('boolean(@IsAbstract)')
+            node.abstract = true
+          end
+        when NodeClass::DataType
+          node = server.add_data_type(name, nodeid.to_s,parent_node, UA::HasSubtype)
+        when NodeClass::VariableType
+          node = server.add_variable_type(name, nodeid.to_s,parent_node, UA::HasSubtype)
+          if xml.find('boolean(@IsAbstract)')
+            node.abstract = true
+          end
+        when NodeClass::ObjectType
+          node = server.add_object_type(name, nodeid.to_s,parent_node, UA::HasSubtype)
+          if xml.find('boolean(@IsAbstract)')
+            node.abstract = true
+          end
+        when NodeClass::Object
+          # TODO:
+          # node = server.add_object_type(name, nodeid.to_s,parent_node, UA::HasSubtype)
+          if xml.find("@SymbolicName").first
+            sname = xml.find("@SymbolicName").first.to_s
+          end
+        else
+          return nil
+        end
+      end
+
+      if (nodeclass == NodeClass::ReferenceType ||
+          nodeclass == NodeClass::DataType ||
+          nodeclass == NodeClass::VariableType ||
+          nodeclass == NodeClass::ObjectType)
+        unless Object.const_defined?(namespace_index)
+          Object.const_set(namespace_index, Module.new)
+        end
+        mod = Object.const_get(namespace_index)
+        if name.start_with? '3'
+          name = "T_#{name}"
+        end
+        unless mod.const_defined?(name)
+          mod.const_set(name, node)
+          server.nodes[nodeid.to_s] = node
+        end
+      end
+    end
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     def create_type_from_nodeset(server, xml, namespace_indices, local_namespaces, aliases)
       c = BaseNode.from_xml(server, xml, namespace_indices, local_namespaces)
-      if(!c.nil? && server.find_nodeid(c.NodeId).nil?)# && c.NodeId.ns != 0)  # TODO: also add ns=0 because of some missing types in V1.00 --> V1.04
+      if(!c.nil? && server.get(c.NodeId).nil?)# && c.NodeId.ns != 0)  # TODO: also add ns=0 because of some missing types in V1.00 --> V1.04
         parent_nodeid_str = xml.find("*[name()='References']/*[name()='Reference' and @ReferenceType='HasSubtype' and @IsForward='false']/text()").first.to_s
         local_parent_nodeid = NodeId.from_string(parent_nodeid_str)
         unless local_parent_nodeid.nil?
           parent_nodeid = NodeId.new(server.namespaces.index(local_namespaces[local_parent_nodeid.ns]), local_parent_nodeid.id, local_parent_nodeid.type)
-          unless server.find_nodeid(parent_nodeid).nil? # only create if parent already exists
+          unless server.get(parent_nodeid).nil? # only create if parent already exists
             if (c.NodeClass == NodeClass::ReferenceType)
               if xml.find('boolean(@Symmetric)')
                 type = server.add_reference_type(c.BrowseName.name, c, parent_nodeid, "i=45", true)

@@ -1,3 +1,35 @@
+class BNode
+  def nodeid() @nodeid end
+  def name() @name end
+  def description() @description end
+  def nodeclass() @nodeclass end
+  def self.from_xml(server, xml, namespace_indices, local_namespaces)
+    local_nodeid = NodeId.from_string(xml.find("@NodeId").first.to_s)
+    namespace_index = namespace_indices[local_nodeid.ns]
+    namespace = local_namespaces[local_nodeid.ns]
+    nodeid = NodeId.new(server.namespaces.index(local_namespaces[local_nodeid.ns]), local_nodeid.id, local_nodeid.type)
+    name = LocalizedText.parse xml.find("*[name()='DisplayName']").first
+    description = LocalizedText.parse xml.find("*[name()='Description']").first
+    nodeclass = NodeClass.const_get(xml.find("name()")[2..-1])
+    BNode.new(name, nodeid, description, nodeclass)
+  end
+  def initialize(name, nodeid, description, nodeclass)
+    @name = name
+    @nodeid = nodeid
+    @description = description
+    @nodeclass = nodeclass
+  end
+end
+
+
+
+
+
+
+
+
+
+
 class BaseNode
   def self.to_s() return self.NodeId.to_s end
   def self.from_xml(server, xml, namespace_indices, local_namespaces)
@@ -84,7 +116,7 @@ class NodeId
       return nil
     end
   end
-  def initialize(namespaceindex, identifier, identifiertype=NodeIdType::String) 
+  def initialize(namespaceindex, identifier, identifiertype=NodeIdType::String)
     unless(namespaceindex.is_a?(Integer) || namespaceindex >= 0)
       raise "Bad namespaceindex #{namespaceindex}" 
     end

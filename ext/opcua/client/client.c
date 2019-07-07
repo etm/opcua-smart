@@ -58,6 +58,28 @@ static VALUE node_value(VALUE self) { //{{{
   UA_Variant_clear(&value);
   return rb_ary_entry(ret,0);
 } //}}}
+static VALUE node_value_set(VALUE self, VALUE value) { //{{{
+  node_struct *ns;
+  Data_Get_Struct(self, node_struct, ns);
+  if (!ns->master->started) rb_raise(rb_eRuntimeError, "Client disconnected.");
+
+  UA_Variant variant;
+  if (value_to_variant(value,&variant)) {
+    // printf("-----------------------------------------%ld\n",variant.arrayDimensionsSize);
+    if (variant.arrayDimensionsSize > 0) {
+       UA_Int32 ads = (UA_Int32) variant.arrayDimensionsSize;
+       UA_Client_writeValueRankAttribute(ns->master->master, ns->id, &ads);
+       UA_Client_writeArrayDimensionsAttribute(ns->master->master, ns->id, variant.arrayDimensionsSize, variant.arrayDimensions);
+     }
+
+    UA_StatusCode retval = UA_Client_writeValueAttribute(ns->master->master, ns->id, &variant);
+    if (retval != UA_STATUSCODE_GOOD) {
+      rb_raise(rb_eRuntimeError, "Can't set value: %s.", UA_StatusCode_name(retval));
+    }
+  }
+
+  return self;
+} //}}}
 static VALUE node_on_change(VALUE self) { //{{{
   node_struct *ns;
   Data_Get_Struct(self, node_struct, ns);
@@ -409,6 +431,25 @@ static VALUE client_debug_set(VALUE self, VALUE val) { //{{{
   return self;
 } //}}}
 
+static VALUE client_namespaces(VALUE self) { //{{{
+  client_struct *pss;
+  Data_Get_Struct(self, client_struct, pss);
+  if (!pss->started) rb_raise(rb_eRuntimeError, "Client disconnected.");
+
+  UA_Variant value;
+  UA_Variant_init(&value);
+  UA_StatusCode retval = UA_Client_readValueAttribute(pss->master, UA_NODEID_NUMERIC(0, UA_NS0ID_SERVER_NAMESPACEARRAY), &value);
+
+  VALUE ret = Qnil;
+  if (retval == UA_STATUSCODE_GOOD) {
+    ret = extract_value(value);
+  }
+
+  UA_Variant_clear(&value);
+  RB_OBJ_FREEZE(ret);
+  return rb_ary_entry(ret,0);
+} //}}}
+
 static VALUE node_id(VALUE self) { //{{{
   node_struct *ns;
 
@@ -434,7 +475,7 @@ static VALUE node_to_s(VALUE self) { //{{{
   Data_Get_Struct(self, node_struct, ns);
 
   if (ns->id.identifierType == UA_NODEIDTYPE_NUMERIC) {
-    ret = rb_sprintf("ns=%d;n=%d", ns->id.namespaceIndex, ns->id.identifier.numeric);
+    ret = rb_sprintf("ns=%d;i=%d", ns->id.namespaceIndex, ns->id.identifier.numeric);
   } else if(ns->id.identifierType == UA_NODEIDTYPE_STRING) {
     ret = rb_sprintf("ns=%d;s=%.*s", ns->id.namespaceIndex, (int)ns->id.identifier.string.length, ns->id.identifier.string.data);
   } else {
@@ -566,6 +607,7 @@ void Init_client(void) {
   rb_define_method(cClient, "subscription_interval=", client_subscription_interval_set, 1);
   rb_define_method(cClient, "default_ns", client_default_ns, 0);
   rb_define_method(cClient, "default_ns=", client_default_ns_set, 1);
+  rb_define_method(cClient, "namespaces", client_namespaces, 0);
   rb_define_method(cClient, "debug", client_debug, 0);
   rb_define_method(cClient, "debug=", client_debug_set, 1);
 
@@ -575,6 +617,7 @@ void Init_client(void) {
   rb_define_method(cMethodNode, "call", node_call, -1);
 
   rb_define_method(cVarNode, "value", node_value, 0);
+  rb_define_method(cVarNode, "value=", node_value_set, 1);
   rb_define_method(cVarNode, "on_change", node_on_change, 0);
   rb_define_method(cVarNode, "on_value_change", node_on_value_change, 0);
 }
