@@ -52,11 +52,6 @@ Daemonite.new do
     measurments_t1 = t1.find(:Measurements)
     measurments_t1.manifest(:M1,mt)
     m2 = measurments_t1.manifest(:M2,mt)
-    m2.delete!
-    p m2
-    p m2.id
-
-
     p opts['server'].namespaces
   rescue => e
     puts e.message

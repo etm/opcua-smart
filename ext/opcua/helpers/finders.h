@@ -5,6 +5,7 @@
 #include <ruby.h>
 
 RUBY_EXTERN UA_BrowsePathResult node_browse_path(UA_Server *server, UA_NodeId relative, UA_NodeId ref, UA_QualifiedName mqn, bool inverse);
-RUBY_EXTERN bool node_get_reference(UA_Server *server, UA_NodeId parent, UA_NodeId *result);
+RUBY_EXTERN bool server_node_get_reference(UA_Server *server, UA_NodeId parent, UA_NodeId *result, bool inverse);
+RUBY_EXTERN bool client_node_get_reference(UA_Client *client, UA_NodeId parent, UA_NodeId *result, bool inverse);
 
 #endif

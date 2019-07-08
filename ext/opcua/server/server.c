@@ -496,7 +496,7 @@ static UA_StatusCode node_manifest_iter(UA_NodeId child_id, UA_Boolean is_invers
           buffer = strnautocat(buffer,(char *)qn.name.data,qn.name.length);
           if(nc == UA_NODECLASS_OBJECT) {
             UA_NodeId typeid;
-            node_get_reference(parent->master->master, child_id, &typeid);
+            server_node_get_reference(parent->master->master, child_id, &typeid, false);
 
             node_struct *thetype = node_alloc(parent->master,typeid);
 
@@ -528,7 +528,7 @@ static UA_StatusCode node_manifest_iter(UA_NodeId child_id, UA_Boolean is_invers
           if(nc == UA_NODECLASS_METHOD) {
             UA_NodeId ttt;
             VALUE blk = rb_hash_aref(parent->master->methods,INT2NUM(child_id.identifier.numeric));
-            if (node_get_reference(parent->master->master, child_id, &ttt)) {
+            if (server_node_get_reference(parent->master->master, child_id, &ttt, false)) {
               UA_Variant arv; UA_Variant_init(&arv);
               UA_Server_readValue(parent->master->master, ttt, &arv);
 
