@@ -143,7 +143,7 @@ in the ```do...end```section you write the code which should be executed by call
 ObjectTypes can be instiantiated with the ```.manifest``` method. 
 
 ```ruby
-    testobject =server.objects.manifest(:TestObjectType, to)
+testobject =server.objects.manifest(:TestObjectType, to)
 ```
 
 #### Delete Objects
