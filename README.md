@@ -111,11 +111,33 @@ ObjectTypes can be instiantiated with the ```.manifest``` method.
 
 #### Find Nodes in the Addressspace
 
-To get a specific node u should use th ```.find``` method. 
+To get a specific node you should use the ```.find``` method. 
 ```ruby
-tv = to.find(:TestVariable)
+tv = to.find :TestVariable
 ```
 _tv_ is now the _TestVariable_ node.
+
+You can also find several nodes at the same time.
+```ruby
+tva = to.find :TestVariable1, :TestVariable2
+```
+_tva_ is now a array containing the requested nodes.
+
+```ruby
+tv1, tv2 = to.find :TestVariable1, :TestVariable2
+```
+You can also request several nodes with one _find_ statement.
+
+#### Access the value of a node
+
+To get the value of a specific node use the ```.value``` method.
+```ruby
+tv.value = 10
+tv.value = 'ten'
+puts tv.value
+```
+
+You can assign vlaues without definig a datatype. The correct _DataType_ will be used. Default we use _UA::STRING, UA::DOUBLE and _UA::INT_. Additional Datatypes can be added by request.
 
 #### Loop for getting Real Life Data
 The server loop looks like follows:
