@@ -63,6 +63,24 @@ The server has following steps:
 * Find nodes in the adress space
 * Loop for getting real life data
 
+Every server application uses the Demonite gem, which allows to run the server as service.
+```ruby
+Daemonite.new do
+  on startup do |opts|
+    ...
+  end
+  run do |opts|
+    ...
+  end
+  on exit do
+    ...
+  end
+end.loop!
+```
+Each server has 3 sections the __startup__, __rund__, and __exit__.
+In the __startup__ we create the server and the namespace, define all nodes and typically manifest the adress space. The __run__ section loops and therefore  updates the values of the nodes in the server.
+On __exit__ we can d additionally things e.g. close the connection to another interface.
+
 #### Create Server and Namespace
 
 ```ruby
@@ -88,9 +106,16 @@ to = server.types.add_object_type(:TestObjectType).tap{ |t|
 ```
 In this example the _TestObjectType_ is defined. It consits of _TestVariable_ of the _BaseVariableType_ an _TestObject_ of the _FolderType_ and a _TestMethod_.
 
+##### Add Variable
+
 The ``` .add_variable :TestVariable ``` command adds a variable with the name _TestVariable_.
+Multible variables can be defined at once with the ```.add_variables :TestVar1, :TestVar2``` command.
+
+##### Add Object
 
 With ```.add_object(:TestObject)``` a new object named _TestObject_ is added. The second parameter is optional and definies of which type the new object is. Default the object is from _BaseObjectType_. In this example the created object is from _FolderType_. All child nodes of the object can be definded in the ```tap{}``` area.
+
+##### Add Method
 
 Methods are added with the ```.add_method(:TestMethod)``` function. Per default the method has no input and output arguments. By adding additional arguments you can define input arguments. The code for defining a method with input arguments looks like 
 ```ruby
