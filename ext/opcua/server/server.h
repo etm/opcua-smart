@@ -18,4 +18,5 @@ typedef struct node_struct {
   server_struct *master;
   UA_NodeId id;
   VALUE method;
+  bool exists;
 } node_struct;

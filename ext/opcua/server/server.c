@@ -24,7 +24,7 @@ static void  node_free(node_struct *ns) { //{{{
     }
     free(ns);
   }
-} //}}}
+} // }}}
 static node_struct * node_alloc(server_struct *server, UA_NodeId nodeid) { //{{{
   node_struct *ns;
   ns = (node_struct *)malloc(sizeof(node_struct));
@@ -34,6 +34,7 @@ static node_struct * node_alloc(server_struct *server, UA_NodeId nodeid) { //{{{
   ns->master = server;
   ns->id     = nodeid;
   ns->method = Qnil;
+  ns->exists = true;
 
 	return ns;
 } //}}}
@@ -45,12 +46,14 @@ static VALUE node_wrap(VALUE klass, node_struct *ns) { //{{{
 static VALUE node_type_folder(VALUE self) { //{{{
   node_struct *ns;
   Data_Get_Struct(self, node_struct, ns);
+  if (!ns->exists) rb_raise(rb_eRuntimeError, "Node does not exist anymore.");
   return node_wrap(cTypeTopNode, node_alloc(ns->master, UA_NODEID_NUMERIC(0, UA_NS0ID_FOLDERTYPE)));
 } //}}}
 static VALUE node_add_object_type(VALUE self, VALUE name) { //{{{
   node_struct *ns;
 
   Data_Get_Struct(self, node_struct, ns);
+  if (!ns->exists) rb_raise(rb_eRuntimeError, "Node does not exist anymore.");
 
   VALUE str = rb_obj_as_string(name);
   if (NIL_P(str) || TYPE(str) != T_STRING)
@@ -76,6 +79,7 @@ static VALUE node_add_reference_type(VALUE self, VALUE name, VALUE type) { //{{{
   node_struct *ns;
 
   Data_Get_Struct(self, node_struct, ns);
+  if (!ns->exists) rb_raise(rb_eRuntimeError, "Node does not exist anymore.");
 
   VALUE str = rb_obj_as_string(name);
   if (NIL_P(str) || TYPE(str) != T_STRING)
@@ -104,6 +108,7 @@ static VALUE node_id(VALUE self) { //{{{
   node_struct *ns;
 
   Data_Get_Struct(self, node_struct, ns);
+  if (!ns->exists) rb_raise(rb_eRuntimeError, "Node does not exist anymore.");
 
   VALUE ret = rb_ary_new();
 
@@ -123,6 +128,7 @@ static VALUE node_to_s(VALUE self) { //{{{
   VALUE ret;
 
   Data_Get_Struct(self, node_struct, ns);
+  if (!ns->exists) rb_raise(rb_eRuntimeError, "Node does not exist anymore.");
 
   if (ns->id.identifierType == UA_NODEIDTYPE_NUMERIC) {
     ret = rb_sprintf("ns=%d;i=%d", ns->id.namespaceIndex, ns->id.identifier.numeric);
@@ -139,12 +145,15 @@ static VALUE node_add_reference(VALUE self, VALUE to, VALUE type) { //{{{
   node_struct *tys;
 
   Data_Get_Struct(self, node_struct, ns);
+  if (!ns->exists) rb_raise(rb_eRuntimeError, "Node does not exist anymore.");
 
   if (!(rb_obj_is_kind_of(type,cReferenceSubNode) || rb_obj_is_kind_of(to,cTypeSubNode))) {
     rb_raise(rb_eArgError, "arguments have to be NodeIDs.");
   }
   Data_Get_Struct(to, node_struct, tos);
+  if (!tos->exists) rb_raise(rb_eRuntimeError, "To (arg 1) node does not exist anymore.");
   Data_Get_Struct(type, node_struct, tys);
+  if (!tys->exists) rb_raise(rb_eRuntimeError, "Type (arg 2) node does not exist anymore.");
   UA_NodeId n = UA_NODEID_NUMERIC(ns->master->default_ns, nodecounter++);
 
   UA_ExpandedNodeId toNodeId;
@@ -269,6 +278,7 @@ static VALUE node_add_method(int argc, VALUE* argv, VALUE self) { //{{{
   if (NIL_P(opts)) opts = rb_hash_new();
 
   Data_Get_Struct(self, node_struct, parent);
+  if (!parent->exists) rb_raise(rb_eRuntimeError, "Node does not exist anymore.");
 
   VALUE str = rb_obj_as_string(name);
   if (NIL_P(str) || TYPE(str) != T_STRING)
@@ -326,6 +336,7 @@ static VALUE node_add_variable_wrap(int argc, VALUE* argv, VALUE self, UA_Byte a
   }
 
   Data_Get_Struct(self, node_struct, parent);
+  if (!parent->exists) rb_raise(rb_eRuntimeError, "Node does not exist anymore.");
 
   VALUE str = rb_obj_as_string(argv[0]);
   if (NIL_P(str) || TYPE(str) != T_STRING)
@@ -422,7 +433,9 @@ static VALUE node_add_object(int argc, VALUE* argv, VALUE self) { //{{{
   }
 
   Data_Get_Struct(self, node_struct, parent);
+  if (!parent->exists) rb_raise(rb_eRuntimeError, "Parent node does not exist anymore.");
   Data_Get_Struct(argv[1], node_struct, datatype);
+  if (!datatype->exists) rb_raise(rb_eRuntimeError, "Datatype node does not exist anymore.");
 
   VALUE str = rb_obj_as_string(argv[0]);
   if (NIL_P(str) || TYPE(str) != T_STRING)
@@ -593,7 +606,9 @@ static VALUE node_manifest(VALUE self, VALUE name, VALUE parent) { //{{{
   }
 
   Data_Get_Struct(self, node_struct, ns);
+  if (!ns->exists) rb_raise(rb_eRuntimeError, "Node does not exist anymore.");
   Data_Get_Struct(parent, node_struct, ts);
+  if (!ns->exists) rb_raise(rb_eRuntimeError, "Target node does not exist anymore.");
 
   VALUE str = rb_obj_as_string(name);
   if (NIL_P(str) || TYPE(str) != T_STRING)
@@ -620,6 +635,7 @@ static VALUE node_find(VALUE self, VALUE qname) { //{{{
   node_struct *ns;
 
   Data_Get_Struct(self, node_struct, ns);
+  if (!ns->exists) rb_raise(rb_eRuntimeError, "Node does not exist anymore.");
 
   VALUE str = rb_obj_as_string(qname);
   if (NIL_P(str) || TYPE(str) != T_STRING)
@@ -707,6 +723,7 @@ static VALUE server_get(int argc, VALUE* argv, VALUE self) { //{{{
 static VALUE node_value_set(VALUE self, VALUE value) { //{{{
   node_struct *ns;
   Data_Get_Struct(self, node_struct, ns);
+  if (!ns->exists) rb_raise(rb_eRuntimeError, "Node does not exist anymore.");
 
   UA_Variant variant;
   if (value_to_variant(value,&variant)) {
@@ -726,6 +743,7 @@ static VALUE node_value(VALUE self) { //{{{
   node_struct *ns;
 
   Data_Get_Struct(self, node_struct, ns);
+  if (!ns->exists) rb_raise(rb_eRuntimeError, "Node does not exist anymore.");
 
   UA_Variant value;
   UA_Variant_init(&value);
@@ -740,9 +758,34 @@ static VALUE node_value(VALUE self) { //{{{
   UA_Variant_clear(&value);
   return rb_ary_entry(ret,0);
 } //}}}
+static VALUE node_delete(VALUE self) { //{{{
+  node_struct *ns;
+
+  Data_Get_Struct(self, node_struct, ns);
+  if (!ns->exists) rb_raise(rb_eRuntimeError, "Node does not exist anymore.");
+
+  UA_StatusCode retval = UA_Server_deleteNode(ns->master->master, ns->id, true);
+
+  if (retval == UA_STATUSCODE_GOOD) {
+    ns->exists = false;
+    return Qtrue;
+  }
+
+  return Qfalse;
+} //}}}
+static VALUE node_exists(VALUE self) { //{{{
+  node_struct *ns;
+
+  Data_Get_Struct(self, node_struct, ns);
+  if (ns->exists)
+    return Qtrue;
+  else
+    return Qfalse;
+} //}}}
 static VALUE node_description_set(VALUE self, VALUE value) { //{{{
   node_struct *ns;
   Data_Get_Struct(self, node_struct, ns);
+  if (!ns->exists) rb_raise(rb_eRuntimeError, "Node does not exist anymore.");
 
   VALUE str = rb_obj_as_string(value);
   if (NIL_P(str) || TYPE(str) != T_STRING)
@@ -757,6 +800,7 @@ static VALUE node_description(VALUE self) { //{{{
   node_struct *ns;
 
   Data_Get_Struct(self, node_struct, ns);
+  if (!ns->exists) rb_raise(rb_eRuntimeError, "Node does not exist anymore.");
 
   UA_LocalizedText value;
   UA_LocalizedText_init(&value);
@@ -920,6 +964,7 @@ void Init_server(void) {
   rb_define_method(cNode, "id", node_id, 0);
   rb_define_method(cNode, "description", node_description, 0);
   rb_define_method(cNode, "description=", node_description_set, 1);
+  rb_define_method(cNode, "exists?", node_exists, 0);
 
   rb_define_method(cTypeTopNode, "add_object_type", node_add_object_type, 1);
   rb_define_method(cTypeTopNode, "add_reference_type", node_add_reference_type, 1);
@@ -931,10 +976,13 @@ void Init_server(void) {
   rb_define_method(cTypeSubNode, "add_object", node_add_object, -1);
   rb_define_method(cTypeSubNode, "add_method", node_add_method, -1);
   rb_define_method(cTypeSubNode, "add_reference", node_add_reference, 2);
+  rb_define_method(cTypeSubNode, "delete!", node_delete, 0);
 
   rb_define_method(cObjectNode, "manifest", node_manifest, 2);
   rb_define_method(cObjectNode, "find", node_find, 1);
+  rb_define_method(cObjectNode, "delete!", node_delete, 0);
 
   rb_define_method(cVarNode, "value", node_value, 0);
   rb_define_method(cVarNode, "value=", node_value_set, 1);
+  rb_define_method(cVarNode, "delete!", node_delete, 0);
 }
