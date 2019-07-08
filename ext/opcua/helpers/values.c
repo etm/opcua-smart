@@ -1,5 +1,6 @@
-/* -- */
-VALUE mTYPES = Qnil;
+#include "values.h"
+
+VALUE mOPCUA;
 
 /* -- */
 static void variant_set_one_dimension(UA_Variant *variant,UA_UInt32 len) {
@@ -92,7 +93,7 @@ static bool value_to_array(VALUE value, UA_Variant *variant) {/*{{{*/
   }
   return done;
 }/*}}}*/
-static bool value_to_variant(VALUE value, UA_Variant *variant) { //{{{
+bool value_to_variant(VALUE value, UA_Variant *variant) { //{{{
   bool done = false;
   if (rb_obj_is_kind_of(value,rb_cTime)) {
     UA_DateTime tmp = UA_DateTime_fromUnixTime(rb_time_timeval(value).tv_sec);
@@ -144,7 +145,7 @@ static bool value_to_variant(VALUE value, UA_Variant *variant) { //{{{
 } //}}}
 /* ++ */
 
-static void Init_types() {/*{{{*/
+void Init_types() {/*{{{*/
   mTYPES = rb_define_module_under(mOPCUA,"TYPES");
   rb_define_const(mTYPES, "DATETIME",            INT2NUM(UA_TYPES_DATETIME           ));
   rb_define_const(mTYPES, "BOOLEAN",             INT2NUM(UA_TYPES_BOOLEAN            ));
@@ -181,7 +182,7 @@ static VALUE UA_TYPES_STRING_to_value(UA_String data) {
   return rb_str_export_locale(rb_str_new((char *)(data.data),data.length));
 }
 
-static VALUE extract_value(UA_Variant value) { //{{{
+VALUE extract_value(UA_Variant value) { //{{{
   VALUE ret = rb_ary_new2(2);
   rb_ary_store(ret,0,Qnil);
   rb_ary_store(ret,1,Qnil);

@@ -1,7 +1,8 @@
 #include <ruby.h>
 #include <stdio.h>
 #include <open62541.h>
-#include "../log_none.h"
+#include "log_none.h"
+#include "finders.h"
 
 typedef struct client_struct {
   UA_ClientConfig *config;

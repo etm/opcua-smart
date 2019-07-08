@@ -12,7 +12,7 @@ VALUE cReferenceNode = Qnil;
 VALUE cVarNode = Qnil;
 VALUE cMethodNode = Qnil;
 
-#include "../values.h"
+#include "values.h"
 
 int nodecounter = 2000;
 
@@ -445,52 +445,6 @@ static VALUE node_add_object(int argc, VALUE* argv, VALUE self) { //{{{
   return node_wrap(CLASS_OF(self),node_alloc(parent->master,node_add_object_ua_simple(type,nstr,parent,datatype,argv[2])));
 } //}}}
 
-static UA_BrowsePathResult node_browse_path(UA_Server *server, UA_NodeId relative, UA_NodeId ref, UA_QualifiedName mqn) { //{{{
-  UA_RelativePathElement rpe;
-  UA_RelativePathElement_init(&rpe);
-  rpe.referenceTypeId = ref;
-  rpe.isInverse = false;
-  rpe.includeSubtypes = false;
-  rpe.targetName = mqn;
-
-  UA_BrowsePath bp;
-  UA_BrowsePath_init(&bp);
-  bp.startingNode = relative;
-  bp.relativePath.elementsSize = 1;
-  bp.relativePath.elements = &rpe;
-
-  return UA_Server_translateBrowsePathToNodeIds(server, &bp);
-} //}}}
-
-static bool node_get_reference(UA_Server *server, UA_NodeId parent, UA_NodeId *result) { //{{{
-	UA_BrowseDescription bDes;
-  UA_BrowseDescription_init(&bDes);
-  bDes.nodeId = parent;
-  bDes.resultMask = UA_BROWSERESULTMASK_ALL;
-  UA_BrowseResult bRes = UA_Server_browse(server, 999, &bDes);
-
-  if (bRes.referencesSize > 0) {
-    UA_ReferenceDescription *ref = &(bRes.references[0]);
-
-    UA_NodeId_copy(&ref->nodeId.nodeId,result);
-
-		UA_QualifiedName qn;  UA_QualifiedName_init(&qn);
-		UA_Server_readBrowseName(server, ref->nodeId.nodeId, &qn);
-
-		// printf("NS: %d ---> NodeId %u; %-16.*s\n",
-		// 			 ref->nodeId.nodeId.namespaceIndex,
-		// 			 ref->nodeId.nodeId.identifier.numeric,
-		// 			 (int)qn.name.length,
-		// 			 qn.name.data
-		// );
-
-    UA_BrowseResult_deleteMembers(&bRes);
-    UA_BrowseResult_clear(&bRes);
-    return true;
-  }
-  return false;
-} //}}}
-
 static UA_StatusCode node_manifest_iter(UA_NodeId child_id, UA_Boolean is_inverse, UA_NodeId reference_type_id, void *handle) { //{{{
     if (is_inverse) return UA_STATUSCODE_GOOD;
 
@@ -529,8 +483,8 @@ static UA_StatusCode node_manifest_iter(UA_NodeId child_id, UA_Boolean is_invers
       if (child_id.namespaceIndex == parent->master->default_ns) {
         UA_QualifiedName mqn;UA_QualifiedName_init(&mqn);
         UA_Server_readBrowseName(parent->master->master, UA_NODEID_NUMERIC(0, UA_NS0ID_MODELLINGRULE_MANDATORY), &mqn);
-
-        UA_BrowsePathResult mandatory = node_browse_path(parent->master->master, child_id, UA_NODEID_NUMERIC(0, UA_NS0ID_HASMODELLINGRULE), mqn);
+        UA_BrowsePathResult mandatory = node_browse_path(parent->master->master, child_id, UA_NODEID_NUMERIC(0, UA_NS0ID_HASMODELLINGRULE), mqn, false);
+        UA_QualifiedName_clear(&mqn);
 
         if (mandatory.statusCode == UA_STATUSCODE_GOOD && (nc == UA_NODECLASS_OBJECT || nc == UA_NODECLASS_VARIABLE || nc == UA_NODECLASS_METHOD)) {
           char * buffer = strnautocat(NULL,"",0);
@@ -560,7 +514,8 @@ static UA_StatusCode node_manifest_iter(UA_NodeId child_id, UA_Boolean is_invers
           if(nc == UA_NODECLASS_VARIABLE) {
             UA_QualifiedName pqn;UA_QualifiedName_init(&pqn);
             UA_Server_readBrowseName(parent->master->master, UA_NODEID_NUMERIC(0, UA_NS0ID_PROPERTYTYPE), &pqn);
-            UA_BrowsePathResult property = node_browse_path(parent->master->master, child_id, UA_NODEID_NUMERIC(0, UA_NS0ID_HASTYPEDEFINITION), pqn);
+            UA_BrowsePathResult property = node_browse_path(parent->master->master, child_id, UA_NODEID_NUMERIC(0, UA_NS0ID_HASTYPEDEFINITION), pqn, false);
+            UA_QualifiedName_clear(&pqn);
 
             if (property.statusCode == UA_STATUSCODE_GOOD) {
               node_add_variable_ua(UA_NS0ID_PROPERTYTYPE,UA_NODEID_STRING(parent->master->default_ns,buffer),dn,qn,newnode,al);
@@ -569,7 +524,6 @@ static UA_StatusCode node_manifest_iter(UA_NodeId child_id, UA_Boolean is_invers
             }
 
             UA_BrowsePathResult_clear(&property);
-            UA_QualifiedName_clear(&pqn);
           }
           if(nc == UA_NODECLASS_METHOD) {
             UA_NodeId ttt;
@@ -586,7 +540,6 @@ static UA_StatusCode node_manifest_iter(UA_NodeId child_id, UA_Boolean is_invers
           }
         }
         UA_BrowsePathResult_clear(&mandatory);
-        UA_QualifiedName_clear(&mqn);
       }
 
       UA_NodeClass_clear(&nc);
@@ -642,7 +595,7 @@ static VALUE node_find(VALUE self, VALUE qname) { //{{{
     rb_raise(rb_eTypeError, "cannot convert obj to string");
   char *nstr = (char *)StringValuePtr(str);
 
-  UA_BrowsePathResult bpr = node_browse_path(ns->master->master, ns->id, UA_NODEID_NUMERIC(0, UA_NS0ID_HASCOMPONENT), UA_QUALIFIEDNAME(ns->master->default_ns, nstr));
+  UA_BrowsePathResult bpr = node_browse_path(ns->master->master, ns->id, UA_NODEID_NUMERIC(0, UA_NS0ID_HASCOMPONENT), UA_QUALIFIEDNAME(ns->master->default_ns, nstr), false);
 
   if(bpr.statusCode != UA_STATUSCODE_GOOD || bpr.targetsSize < 1) {
     return Qnil;

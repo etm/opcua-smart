@@ -9,7 +9,7 @@ VALUE cVarNode = Qnil;
 VALUE cMethodNode = Qnil;
 VALUE cNode = Qnil;
 
-#include "../values.h"
+#include "values.h"
 
 #include <signal.h>
 
@@ -497,6 +497,7 @@ static VALUE node_call(int argc, VALUE* argv, VALUE self) { //{{{
     value_to_variant(RARRAY_AREF(splat, i),&inputArguments[i]);
   }
 
+  printf("rrrrr1\n");
   VALUE path = rb_str_new((const char *)ns->id.identifier.string.data,ns->id.identifier.string.length);
   VALUE pat  = rb_str_new2("\\/[a-z0-9A-Z]+\\/?$");
   VALUE obj  = rb_funcall(path,rb_intern("sub"),2,rb_reg_new_str(pat, 0),rb_str_new2(""));
