@@ -10,6 +10,9 @@ The development of OPC UA applications takes currently a lot of effort. This is 
     1. [Server](#Server)
         1. [Create Server and Namespace](#Create-Server-and-Namespace)
         2. [Create ObjectTypes](#Create-ObjectTypes)
+            1.[Add Variable](#add-variable)
+            2.[Add Object](#add-object)
+            3.[Add Method](#add-method)
         3. [Manifest Objects](#Manifest-Objects)
         4. [Find Nodes in the Addressspace](#Find-Nodes-in-the-Addressspace)
         5. [Loop for getting Real Life Data](#Loop-for-getting-Real-Life-Data)
@@ -77,7 +80,7 @@ Daemonite.new do
   end
 end.loop!
 ```
-Each server has 3 sections the __startup__, __rund__, and __exit__.
+Each server has 3 sections the __startup__, __run__, and __exit__.
 In the __startup__ we create the server and the namespace, define all nodes and typically manifest the adress space. The __run__ section loops and therefore  updates the values of the nodes in the server.
 On __exit__ we can d additionally things e.g. close the connection to another interface.
 
