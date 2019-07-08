@@ -59,10 +59,11 @@ sudo ldconfig -p | grep libopen62541 # check if its there
 
 ### Server
 
-The server has following steps:
+The server has following functions:
 * Create the server and add_namespace
 * Create ObjectTypes
 * Manifest ObjectTypes
+* Delete Objects
 * Find nodes in the adress space
 * Loop for getting real life data
 
@@ -112,7 +113,15 @@ In this example the _TestObjectType_ is defined. It consits of _TestVariable_ of
 ##### Add Variable
 
 The ``` .add_variable :TestVariable ``` command adds a variable with the name _TestVariable_.
-Multible variables can be defined at once with the ```.add_variables :TestVar1, :TestVar2``` command.
+Multible variables can be defined at once with the ```.add_variables``` command.
+```ruby
+t.add_variables :TestVar1, :TestVar2
+```
+By default variables are read-only.
+If you want to add a variable with read/write support you must use the ```.add_Varable_rw``` method.
+```ruby
+t.add_variable_rw :TestVar1
+```
 
 ##### Add Object
 
@@ -135,6 +144,14 @@ ObjectTypes can be instiantiated with the ```.manifest``` method.
 
 ```ruby
     testobject =server.objects.manifest(:TestObjectType, to)
+```
+
+#### Delete Objects
+Objects can be deleted witch the ```.delete!``` function.
+
+```ruby
+testobject =server.objects.manifest(:TestObjectType, to)
+testobject.delete!
 ```
 
 #### Find Nodes in the Addressspace
