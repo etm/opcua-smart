@@ -30,15 +30,14 @@ bool server_node_get_reference(UA_Server *server, UA_NodeId parent, UA_NodeId *r
 
     UA_NodeId_copy(&ref->nodeId.nodeId,result);
 
-		UA_QualifiedName qn;  UA_QualifiedName_init(&qn);
-		UA_Server_readBrowseName(server, ref->nodeId.nodeId, &qn);
-
-		printf("NS: %d ---> NodeId %u; %-16.*s\n",
-					 ref->nodeId.nodeId.namespaceIndex,
-					 ref->nodeId.nodeId.identifier.numeric,
-					 (int)qn.name.length,
-					 qn.name.data
-		);
+		// UA_QualifiedName qn;  UA_QualifiedName_init(&qn);
+		// UA_Server_readBrowseName(server, ref->nodeId.nodeId, &qn);
+		// printf("NS: %d ---> NodeId %u; %-16.*s\n",
+		// 			 ref->nodeId.nodeId.namespaceIndex,
+		// 			 ref->nodeId.nodeId.identifier.numeric,
+		// 			 (int)qn.name.length,
+		// 			 qn.name.data
+		// );
 
     UA_BrowseResult_deleteMembers(&bRes);
     UA_BrowseResult_clear(&bRes);
@@ -63,15 +62,14 @@ bool client_node_get_reference(UA_Client *client, UA_NodeId parent, UA_NodeId *r
 
     UA_NodeId_copy(&ref->nodeId.nodeId,result);
 
-		UA_QualifiedName qn;  UA_QualifiedName_init(&qn);
-		UA_Client_readBrowseNameAttribute(client, ref->nodeId.nodeId, &qn);
-
-		printf("NS: %d ---> NodeId %u; %-16.*s\n",
-					 ref->nodeId.nodeId.namespaceIndex,
-					 ref->nodeId.nodeId.identifier.numeric,
-					 (int)qn.name.length,
-					 qn.name.data
-		);
+		// UA_QualifiedName qn;  UA_QualifiedName_init(&qn);
+		// UA_Client_readBrowseNameAttribute(client, ref->nodeId.nodeId, &qn);
+		// printf("NS: %d ---> NodeId %u; %-16.*s\n",
+		// 			 ref->nodeId.nodeId.namespaceIndex,
+		// 			 ref->nodeId.nodeId.identifier.numeric,
+		// 			 (int)qn.name.length,
+		// 			 qn.name.data
+		// );
 
     UA_BrowseResponse_deleteMembers(&bResp);
     UA_BrowseResponse_clear(&bResp);

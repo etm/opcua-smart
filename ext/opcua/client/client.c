@@ -492,13 +492,13 @@ static VALUE node_call(int argc, VALUE* argv, VALUE self) { //{{{
 
   Data_Get_Struct(self, node_struct, ns);
 
+  UA_NodeId parent;
+  client_node_get_reference(ns->master->master, ns->id, &parent, true);
+
   UA_Variant inputArguments[RARRAY_LEN(splat)];
   for (long i=0; i<RARRAY_LEN(splat); i++) {
     value_to_variant(RARRAY_AREF(splat, i),&inputArguments[i]);
   }
-
-  UA_NodeId parent;
-  client_node_get_reference(ns->master->master, ns->id, &parent, true);
 
   UA_StatusCode retval = UA_Client_call(
     ns->master->master,

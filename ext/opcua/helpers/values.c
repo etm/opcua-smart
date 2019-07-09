@@ -3,11 +3,11 @@
 VALUE mOPCUA;
 
 /* -- */
-static void variant_set_one_dimension(UA_Variant *variant,UA_UInt32 len) {
+static void variant_set_one_dimension(UA_Variant *variant,UA_UInt32 len) { //{{{
   variant->arrayDimensions = (UA_UInt32 *)UA_Array_new(1, &UA_TYPES[UA_TYPES_UINT32]);
   variant->arrayDimensions[0] = len;
   variant->arrayDimensionsSize = 1;
-}
+} //}}}
 static bool value_to_array(VALUE value, UA_Variant *variant) {/*{{{*/
   int done = false;
 
@@ -93,6 +93,7 @@ static bool value_to_array(VALUE value, UA_Variant *variant) {/*{{{*/
   }
   return done;
 }/*}}}*/
+
 bool value_to_variant(VALUE value, UA_Variant *variant) { //{{{
   bool done = false;
   if (rb_obj_is_kind_of(value,rb_cTime)) {
@@ -143,7 +144,6 @@ bool value_to_variant(VALUE value, UA_Variant *variant) { //{{{
   }
   return done;
 } //}}}
-/* ++ */
 
 void Init_types() {/*{{{*/
   mTYPES = rb_define_module_under(mOPCUA,"TYPES");
@@ -157,30 +157,30 @@ void Init_types() {/*{{{*/
   rb_define_const(mTYPES, "STRING",              INT2NUM(UA_TYPES_STRING             ));
 }/*}}}*/
 
-static VALUE UA_TYPES_DATETIME_to_value(UA_DateTime data) {
+static VALUE UA_TYPES_DATETIME_to_value(UA_DateTime data) { //{{{
   return rb_time_new(UA_DateTime_toUnixTime(data),0);
-}
-static VALUE UA_TYPES_BOOLEAN_to_value(UA_Boolean data) {
+} //}}}
+static VALUE UA_TYPES_BOOLEAN_to_value(UA_Boolean data) { //{{{
   return data ? Qtrue : Qfalse;
-}
-static VALUE UA_TYPES_DOUBLE_to_value(UA_Double data) {
+} //}}}
+static VALUE UA_TYPES_DOUBLE_to_value(UA_Double data) { //{{{
   return DBL2NUM(data);
-}
-static VALUE UA_TYPES_INT32_to_value(UA_Int32 data) {
+} //}}}
+static VALUE UA_TYPES_INT32_to_value(UA_Int32 data) { //{{{
   return INT2NUM(data);
-}
-static VALUE UA_TYPES_INT16_to_value(UA_Int16 data) {
+} //}}}
+static VALUE UA_TYPES_INT16_to_value(UA_Int16 data) { //{{{
   return INT2NUM(data);
-}
-static VALUE UA_TYPES_UINT32_to_value(UA_UInt32 data) {
+} //}}}
+static VALUE UA_TYPES_UINT32_to_value(UA_UInt32 data) { //{{{
   return UINT2NUM(data);
-}
-static VALUE UA_TYPES_UINT16_to_value(UA_UInt16 data) {
+} //}}}
+static VALUE UA_TYPES_UINT16_to_value(UA_UInt16 data) { //{{{
   return UINT2NUM(data);
-}
-static VALUE UA_TYPES_STRING_to_value(UA_String data) {
+} //}}}
+static VALUE UA_TYPES_STRING_to_value(UA_String data) { //{{{
   return rb_str_export_locale(rb_str_new((char *)(data.data),data.length));
-}
+} //}}}
 
 VALUE extract_value(UA_Variant value) { //{{{
   VALUE ret = rb_ary_new2(2);

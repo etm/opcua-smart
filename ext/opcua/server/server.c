@@ -123,6 +123,17 @@ static VALUE node_id(VALUE self) { //{{{
   }
   return ret;
 } //}}}
+static VALUE node_name(VALUE self) { //{{{
+  node_struct *ns;
+
+  Data_Get_Struct(self, node_struct, ns);
+  if (!ns->exists) rb_raise(rb_eRuntimeError, "Node does not exist anymore.");
+
+  UA_QualifiedName qn;  UA_QualifiedName_init(&qn);
+  UA_Server_readBrowseName(ns->master->master, ns->id, &qn);
+
+  return rb_sprintf("%.*s", (int)qn.name.length, qn.name.data);
+} //}}}
 static VALUE node_to_s(VALUE self) { //{{{
   node_struct *ns;
   VALUE ret;
@@ -915,6 +926,7 @@ void Init_server(void) {
 
   rb_define_method(cNode, "to_s", node_to_s, 0);
   rb_define_method(cNode, "id", node_id, 0);
+  rb_define_method(cNode, "name", node_name, 0);
   rb_define_method(cNode, "description", node_description, 0);
   rb_define_method(cNode, "description=", node_description_set, 1);
   rb_define_method(cNode, "exists?", node_exists, 0);
