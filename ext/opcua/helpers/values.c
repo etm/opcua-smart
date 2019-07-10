@@ -166,11 +166,17 @@ static VALUE UA_TYPES_BOOLEAN_to_value(UA_Boolean data) { //{{{
 static VALUE UA_TYPES_DOUBLE_to_value(UA_Double data) { //{{{
   return DBL2NUM(data);
 } //}}}
+static VALUE UA_TYPES_SBYTE_to_value(UA_SByte data) { //{{{
+  return CHR2FIX((signed char)data);
+} //}}}
 static VALUE UA_TYPES_INT32_to_value(UA_Int32 data) { //{{{
   return INT2NUM(data);
 } //}}}
 static VALUE UA_TYPES_INT16_to_value(UA_Int16 data) { //{{{
   return INT2NUM(data);
+} //}}}
+static VALUE UA_TYPES_BYTE_to_value(UA_Byte data) { //{{{
+  return CHR2FIX((unsigned char)data);
 } //}}}
 static VALUE UA_TYPES_UINT32_to_value(UA_UInt32 data) { //{{{
   return UINT2NUM(data);
@@ -211,6 +217,12 @@ VALUE extract_value(UA_Variant value) { //{{{
     } else if (UA_Variant_hasScalarType(&value, &UA_TYPES[UA_TYPES_UINT16])) {
       rb_ary_store(ret,0,UA_TYPES_UINT16_to_value(*(UA_UInt16 *)value.data));
       rb_ary_store(ret,1,ID2SYM(rb_intern("VariantType.UInt16")));
+    } else if (UA_Variant_hasScalarType(&value, &UA_TYPES[UA_TYPES_SBYTE])) {
+      rb_ary_store(ret,0,UA_TYPES_SBYTE_to_value(*(UA_SByte *)value.data));
+      rb_ary_store(ret,1,ID2SYM(rb_intern("VariantType.SByte")));
+    } else if (UA_Variant_hasScalarType(&value, &UA_TYPES[UA_TYPES_BYTE])) {
+      rb_ary_store(ret,0,UA_TYPES_BYTE_to_value(*(UA_Byte *)value.data));
+      rb_ary_store(ret,1,ID2SYM(rb_intern("VariantType.Byte")));
     } else if (UA_Variant_hasScalarType(&value, &UA_TYPES[UA_TYPES_STRING])) {
       rb_ary_store(ret,0,UA_TYPES_STRING_to_value(*(UA_String *)value.data));
       rb_ary_store(ret,1,ID2SYM(rb_intern("VariantType.String")));
