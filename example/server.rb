@@ -1,46 +1,80 @@
 #!/usr/bin/ruby
 require_relative '../lib/opcua/server'
+#require 'opcua/server'
 
 Daemonite.new do
-  server = OPCUA::Server.new
-  server.add_namespace "https://centurio.work/kelch"
+  on startup do |opts|
+    opts['server'] = OPCUA::Server.new
+    opts['server'].add_namespace "https://centurio.work/kelch"
 
-  mt = server.types.add_object_type(:MeasurementType).tap{ |t|
-    t.add_variable :SollWertX
-    t.add_variable :SollWertY
-    t.add_variable :SollWertZ
-  }
-  tt = server.types.add_object_type(:ToolType).tap{ |t|
-    t.add_variable :ToolNumber
-    t.add_variable :DuploNumber
-    t.add_variable :testValue1
-    t.add_object(:Measurements, server.types.folder).tap{ |u|
-      u.add_object :M, mt, OPCUA::OPTIONALPLACEHOLDER
+    mt = opts['server'].types.add_object_type(:MeasurementType).tap{ |t|
+      t.add_variable :SollWertX
+      t.add_variable :SollWertY
+      t.add_variable :SollWertZ
     }
-  }
-  pt = server.types.add_object_type(:PresetterType).tap{ |t|
-    t.add_variable :ManufacturerName
-    t.add_object(:Tools, server.types.folder).tap{ |u|
-      u.add_object :Tool, tt, OPCUA::OPTIONALPLACEHOLDER
+    tt = opts['server'].types.add_object_type(:ToolType).tap{ |t|
+      t.add_variable :SollWertX
+      t.add_variable :SollWertY
+      t.add_variable :SollWertZ
+      t.add_variable_rw :ToolNumber
+      t.add_variable :DuploNumber
+      t.add_property :testValue1
+      t.add_method :testMethod, test1: OPCUA::TYPES::STRING, test2: OPCUA::TYPES::DATETIME do |node, test1, test2|
+        ns, nid = node.id
+        puts '-' * 10
+        p nid
+        p test1
+        p test2
+        puts '-' * 10
+      end
+      t.add_object(:Measurements, opts['server'].types.folder).tap{ |u|
+        u.add_object :M, mt, OPCUA::OPTIONAL
+      }
     }
-  }
+    pt = opts['server'].types.add_object_type(:PresetterType).tap{ |t|
+      t.add_variable :ManufacturerName
+      t.add_object(:Tools, opts['server'].types.folder).tap{ |u|
+        u.add_object :Tool, tt, OPCUA::OPTIONAL
+      }
+    }
 
-  tools = server.objects.instantiate(:KalimatC34, pt).find(:Tools)
+    tools = opts['server'].objects.manifest(:KalimatC34, pt).find(:Tools)
 
-  t1 = tools.instantiate(:Tool1,tt)
-  t2 = tools.instantiate(:Tool2,tt)
-  t3 = tools.instantiate(:Tool3,tt)
+    t1 = tools.manifest(:Tool1,tt)
+    t2 = tools.manifest(:Tool2,tt)
+    t3 = tools.manifest(:Tool3,tt)
 
-  tn = t1.find(:ToolNumber)
+    opts[:tn] = t1.find(:ToolNumber)
+    opts[:tn].description = 'test test'
+    opts[:tn].value = [0,1]
+    p opts[:tn].description
+    p opts[:tn].to_s
+    p opts[:tn].name
 
-  measurments_t1 = t1.find(:Measurements)
-  measurments_t1.instantiate(:M1,mt)
-  measurments_t1.instantiate(:M2,mt)
+    measurments_t1 = t1.find(:Measurements)
+    measurments_t1.manifest(:M1,mt)
+    m2 = measurments_t1.manifest(:M2,mt)
+  rescue => e
+    puts e.message
+  end
 
-  p tn.id
 
-  run do
-    sleep server.run
-    tn.value = Time.now
+  counter = 0
+  run do |opts|
+    GC.start
+    sleep opts['server'].run
+    # if counter % 100 == 0
+    #   opts[:tn].value = [counter, counter]
+    #   # opts[:tn].value = 1
+    #   p opts[:tn].value
+    # end
+    # counter += 1
+  rescue => e
+    puts e.message
+  end
+
+  on exit do
+    # we could disconnect here, but OPCUA::Server does not have an explicit disconnect
+    puts 'bye.'
   end
 end.loop!

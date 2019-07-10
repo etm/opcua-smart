@@ -1,26 +1,26 @@
 Gem::Specification.new do |s|
   s.name             = "opcua"
-  s.version          = "0.1"
+  s.version          = "0.12"
   s.platform         = Gem::Platform::RUBY
   s.license          = "LGPL-3.0"
-  s.summary          = "Preliminary release of cloud process execution engine (cpee). If you just need workflow execution, without a rest/xmpp service exposing it, then use WEEL"
+  s.summary          = "Preliminary release of opcua (open62541) ruby bindings. C performance, Ruby elegance, simplicity, and productivity."
 
-  s.description      = "see http://centurio.work"
+  s.description      = "see https://github.com/etm/opcua-smart"
 
-  s.files            = Dir['{example/**/*,tools/**/*,lib/**/*,contrib/logo*}'] + %w(COPYING Rakefile opcua.gemspec README.md)
+  s.files            = Dir['{example/**/*,tools/**/*,lib/**/*.rb,ext/**/*.c,ext/**/*.h,cert/*.h,contrib/logo*}'] + %w(COPYING Rakefile opcua.gemspec README.md)
   s.extensions       = Dir["ext/**/extconf.rb"]
-  p s.extensions
   s.require_path     = 'lib'
   s.extra_rdoc_files = ['README.md']
   s.bindir           = 'tools'
 
-  s.required_ruby_version = '>=2.3.0'
+  s.required_ruby_version = '>=2.5.0'
 
   s.authors          = ['Juergen eTM Mangler','Florian Pauker']
 
   s.email            = 'juergen.mangler@gmail.com'
-  s.homepage         = 'http://centurio.work/'
+  s.homepage         = 'https://github.com/etm/opcua-smart'
 
-  s.add_runtime_dependency 'riddl', '~> 0.99'
+  s.add_runtime_dependency 'daemonite', '~> 0', '>= 0.5.4'
+  s.add_development_dependency 'rake', '~> 12'
   s.add_development_dependency 'rake-compiler', '~> 1.0'
 end

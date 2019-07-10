@@ -1,5 +1,6 @@
 require 'rubygems/package_task'
 require 'rake/extensiontask'
+require 'fileutils'
 
 spec = eval(File.read('opcua.gemspec'))
 
@@ -17,11 +18,12 @@ Rake.application.clear
 
 task :default => [:gem]
 
-Gem::PackageTask.new(spec) do |pkg|
+pkg = Gem::PackageTask.new(spec) do |pkg|
   pkg.need_zip = true
   pkg.need_tar = true
-  `rm pkg/* -rf`
-  `ln -sf #{pkg.name}.gem #{pkg.package_dir}/#{spec.name}.gem`
+  FileUtils.mkdir 'pkg' rescue nil
+  FileUtils.rm_rf Dir.glob('pkg/*')
+  FileUtils.ln_sf "#{pkg.name}.gem", "pkg/#{spec.name}.gem"
 end
 
 task :push => :gem do |r|
