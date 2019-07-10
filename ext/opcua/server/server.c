@@ -690,7 +690,7 @@ static VALUE node_value_set(VALUE self, VALUE value) { //{{{
   if (!ns->exists) rb_raise(rb_eRuntimeError, "Node does not exist anymore.");
 
   UA_Variant variant;
-  if (value_to_variant(value,&variant)) {
+  if (value_to_variant(value,&variant,-1)) {
     // printf("-----------------------------------------%ld\n",variant.arrayDimensionsSize);
     if (variant.arrayDimensionsSize > 0) {
       UA_Server_writeValueRank(ns->master->master, ns->id, variant.arrayDimensionsSize);
