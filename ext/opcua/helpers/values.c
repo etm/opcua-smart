@@ -94,7 +94,7 @@ static bool value_to_array(VALUE value, UA_Variant *variant) {/*{{{*/
   return done;
 }/*}}}*/
 
-bool value_to_variant(VALUE value, UA_Variant *variant) { //{{{
+bool value_to_variant(VALUE value, UA_Variant *variant, UA_UInt32 proposal) { //{{{
   bool done = false;
   if (rb_obj_is_kind_of(value,rb_cTime)) {
     UA_DateTime tmp = UA_DateTime_fromUnixTime(rb_time_timeval(value).tv_sec);
@@ -117,10 +117,38 @@ bool value_to_variant(VALUE value, UA_Variant *variant) { //{{{
           break;
         }
       case T_FLOAT:
-      case T_FIXNUM:
         {
           UA_Double tmp = NUM2DBL(value);
           UA_Variant_setScalarCopy(variant, &tmp, &UA_TYPES[UA_TYPES_DOUBLE]);
+          done = true;
+          break;
+        }
+      case T_FIXNUM:
+        {
+          if (proposal == UA_TYPES_SBYTE) {
+            UA_SByte tmp = (UA_SByte)NUM2CHR(value);
+            UA_Variant_setScalarCopy(variant, &tmp, &UA_TYPES[UA_TYPES_SBYTE]);
+          } else if (proposal == UA_TYPES_SBYTE) {
+            UA_SByte tmp = (UA_Byte)NUM2CHR(value);
+            UA_Variant_setScalarCopy(variant, &tmp, &UA_TYPES[UA_TYPES_BYTE]);
+          } else if (proposal == UA_TYPES_INT16) {
+            UA_Int16 tmp = NUM2INT(value);
+            UA_Variant_setScalarCopy(variant, &tmp, &UA_TYPES[UA_TYPES_INT16]);
+          } else if (proposal == UA_TYPES_UINT16) {
+            UA_UInt16 tmp = NUM2INT(value);
+            UA_Variant_setScalarCopy(variant, &tmp, &UA_TYPES[UA_TYPES_UINT16]);
+          } else if (proposal == UA_TYPES_INT32) {
+            UA_Int32 tmp = NUM2LONG(value);
+            UA_Variant_setScalarCopy(variant, &tmp, &UA_TYPES[UA_TYPES_INT32]);
+          } else if (proposal == UA_TYPES_UINT32) {
+            printf("prop %d %d\n",proposal,UA_TYPES_UINT32);
+            UA_UInt32 tmp = NUM2ULONG(value);
+            printf("rrrrrrrr %d\n",tmp);
+            UA_Variant_setScalarCopy(variant, &tmp, &UA_TYPES[UA_TYPES_UINT32]);
+          } else {
+            UA_Int32 tmp = NUM2LONG(value);
+            UA_Variant_setScalarCopy(variant, &tmp, &UA_TYPES[UA_TYPES_INT32]);
+          }
           done = true;
           break;
         }
