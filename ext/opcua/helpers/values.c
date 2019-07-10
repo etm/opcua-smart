@@ -128,7 +128,7 @@ bool value_to_variant(VALUE value, UA_Variant *variant, UA_UInt32 proposal) { //
           if (proposal == UA_TYPES_SBYTE) {
             UA_SByte tmp = (UA_SByte)NUM2CHR(value);
             UA_Variant_setScalarCopy(variant, &tmp, &UA_TYPES[UA_TYPES_SBYTE]);
-          } else if (proposal == UA_TYPES_SBYTE) {
+          } else if (proposal == UA_TYPES_BYTE) {
             UA_SByte tmp = (UA_Byte)NUM2CHR(value);
             UA_Variant_setScalarCopy(variant, &tmp, &UA_TYPES[UA_TYPES_BYTE]);
           } else if (proposal == UA_TYPES_INT16) {
@@ -141,9 +141,7 @@ bool value_to_variant(VALUE value, UA_Variant *variant, UA_UInt32 proposal) { //
             UA_Int32 tmp = NUM2LONG(value);
             UA_Variant_setScalarCopy(variant, &tmp, &UA_TYPES[UA_TYPES_INT32]);
           } else if (proposal == UA_TYPES_UINT32) {
-            printf("prop %d %d\n",proposal,UA_TYPES_UINT32);
             UA_UInt32 tmp = NUM2ULONG(value);
-            printf("rrrrrrrr %d\n",tmp);
             UA_Variant_setScalarCopy(variant, &tmp, &UA_TYPES[UA_TYPES_UINT32]);
           } else {
             UA_Int32 tmp = NUM2LONG(value);

@@ -64,7 +64,14 @@ static VALUE node_value_set(VALUE self, VALUE value) { //{{{
   if (!ns->master->started) rb_raise(rb_eRuntimeError, "Client disconnected.");
 
   UA_Variant variant;
-  if (value_to_variant(value,&variant,-1)) {
+  UA_NodeId pdt;
+  UA_Client_readDataTypeAttribute(ns->master->master, ns->id, &pdt);
+  UA_UInt32 proposal = -1;
+  if (pdt.namespaceIndex == 0) {
+    proposal = pdt.identifier.numeric - 1; // what a dirty hack TODO, translate node to value
+  }
+
+  if (value_to_variant(value,&variant,proposal)) {
     // printf("-----------------------------------------%ld\n",variant.arrayDimensionsSize);
     if (variant.arrayDimensionsSize > 0) {
        UA_Int32 ads = (UA_Int32) variant.arrayDimensionsSize;
