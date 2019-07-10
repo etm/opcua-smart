@@ -97,7 +97,7 @@ static VALUE node_on_change(VALUE self) { //{{{
   return self;
 } //}}}
 
-static void node_on_value_change_handler(UA_Client *client, UA_UInt32 subId, void *subContext, UA_UInt32 monId, void *monContext, UA_DataValue *value) {# {{{
+static void node_on_value_change_handler(UA_Client *client, UA_UInt32 subId, void *subContext, UA_UInt32 monId, void *monContext, UA_DataValue *value) { // {{{
   VALUE ins = (VALUE)monContext;
   VALUE blk = RARRAY_AREF(ins,1);
 
@@ -121,8 +121,8 @@ static void node_on_value_change_handler(UA_Client *client, UA_UInt32 subId, voi
     rb_ary_store(args,2,rb_ary_entry(ret,1));
     rb_proc_call(blk,args);
   }
-}# }}}
-static VALUE node_on_value_change(VALUE self) {# {{{
+} // }}}
+static VALUE node_on_value_change(VALUE self) { // {{{
   node_struct *ns;
   Data_Get_Struct(self, node_struct, ns);
   if (!ns->master->started) rb_raise(rb_eRuntimeError, "Client disconnected.");
@@ -172,7 +172,7 @@ static VALUE node_on_value_change(VALUE self) {# {{{
   UA_CreateSubscriptionRequest_clear(&sreq);
 
   return self;
-}# }}}
+} // }}}
 
 /* -- */
 static void  client_free(client_struct *pss) { //{{{
