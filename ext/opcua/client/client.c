@@ -486,6 +486,7 @@ static VALUE node_to_s(VALUE self) { //{{{
 
 static VALUE node_call(int argc, VALUE* argv, VALUE self) { //{{{
   node_struct *ns;
+  UA_StatusCode retval;
 
   VALUE splat;
   rb_scan_args(argc, argv, "*", &splat);
@@ -493,14 +494,30 @@ static VALUE node_call(int argc, VALUE* argv, VALUE self) { //{{{
   Data_Get_Struct(self, node_struct, ns);
 
   UA_NodeId parent;
-  client_node_get_reference(ns->master->master, ns->id, &parent, true);
+  client_node_get_reference_by_type(ns->master->master, ns->id, UA_NODEID_NUMERIC(0,UA_NS0ID_HASCOMPONENT), &parent, true);
+
+  UA_NodeId ia;
+  client_node_get_reference_by_name(ns->master->master, ns->id, UA_QUALIFIEDNAME(0,"InputArguments"), &ia, false);
+  UA_Variant iaval;
+  UA_Variant_init(&iaval);
+  UA_Client_readValueAttribute(ns->master->master, ia, &iaval);
+
+  printf("al %ld\n",iaval.arrayLength);
+  for (int i=0; i < iaval.arrayLength; i++) {
+    UA_Argument arg = ((UA_Argument *)iaval.data)[i];
+		printf("NS: %d ---> NodeId %u\n",
+					 arg.dataType.namespaceIndex,
+					 arg.dataType.identifier.numeric
+		);
+  }
+
 
   UA_Variant inputArguments[RARRAY_LEN(splat)];
   for (long i=0; i<RARRAY_LEN(splat); i++) {
     value_to_variant(RARRAY_AREF(splat, i),&inputArguments[i]);
   }
 
-  UA_StatusCode retval = UA_Client_call(
+  retval = UA_Client_call(
     ns->master->master,
     parent,
     ns->id,
@@ -509,6 +526,7 @@ static VALUE node_call(int argc, VALUE* argv, VALUE self) { //{{{
     0,
     NULL
   );
+
 
   if(retval == UA_STATUSCODE_GOOD) {
     return Qtrue;
