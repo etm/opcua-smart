@@ -25,12 +25,8 @@ Daemonite.new do
     ex = srv.add_namespace 'http://example.org/' # TODO: add_namespace should return namespace index
     ex = 6
     
-    puts "TestType.nil? = #{srv.get("ns=#{ex};i=77777").nil?}"
     puts srv.add_object_type("TestType","ns=#{ex};i=77777", UA::BaseObjectType, UA::HasSubtype)
-    puts "TestType.nil? = #{srv.get("ns=#{ex};i=77777").nil?}";
-
     puts srv.add_data_type("TestDataType","ns=#{ex};i=77778", UA::Structure, UA::HasSubtype)
-
     puts srv.add_object("TestDevice", "ns=#{ex};i=31243", srv.objects, UA::Organizes, AutoId::OpticalReaderDeviceType)
 
     tt = srv.add_object_type(:TestComponentType, "ns=#{ex};i=77900", DI::ComponentType, UA::HasSubtype).tap{ |t|

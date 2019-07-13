@@ -57,6 +57,7 @@ module NodeSet
       nodeset.find("//*[name()='UAObjectType']").each do |x|
         bn = BaseNode.new(self, x)
         t = create_from_basenode(bn) # create ObjectTypes
+        puts t if bn.Name == "OpticalReaderDeviceType"
         #puts bn.Name
         #bn.References.each do |r|
         #  puts "\t#{r.ReferenceNodeId}\t#{r.Forward}\t#{r.TypeNodeId}"
@@ -138,6 +139,7 @@ module NodeSet
       def Description() @description end
       def NodeClass() @nodeclass end
       def ParentNodeId() @parent_nodeid end
+      def ParentReferenceNodeId() @parent_reference_nodeid end
       def Symmetric() @symmetric end
       def Abstract() @abstract end
       def DataType() @datatype end
@@ -147,40 +149,38 @@ module NodeSet
       def References() @references end
 
       def initialize(importer, xml)
+        @xml = xml
+
         local_nodeid = NodeId.from_string(xml.find("string(@NodeId)"))
         @index = importer.namespace_indices[local_nodeid.ns]
-        namespace = importer.local_namespaces[local_nodeid.ns]
-        nodeid = importer.nodeid_to_server(local_nodeid)
-        name = LocalizedText.parse(xml.find("*[name()='DisplayName']").first).text
-        description = LocalizedText.parse xml.find("*[name()='Description']").first
-        nodeclass = NodeClass.const_get(xml.find("name()")[2..-1])
-        if xml.find("@ParentNodeId").first
-          parent_nodeid_str = xml.find("string(@ParentNodeId)")
-          parent_local_nodeid = NodeId.from_string(parent_nodeid_str)
-          parent_nodeid = importer.nodeid_to_server(parent_local_nodeid)
-        elsif xml.find("*[name()='References']/*[name()='Reference' and @ReferenceType='HasSubtype' and @IsForward='false']/text()").first
-          parent_nodeid_str = xml.find("*[name()='References']/*[name()='Reference' and @ReferenceType='HasSubtype' and @IsForward='false']/text()").first.to_s
-          parent_local_nodeid = NodeId.from_string(parent_nodeid_str)
-          parent_nodeid = importer.nodeid_to_server(parent_local_nodeid)
-        end
-
-        @symmetric = false unless @symmetric = xml.find('boolean(@Symmetric)')
-        @abstract = false unless @abstract = xml.find('boolean(@IsAbstract)')
-        @datatype = importer.nodeid_from_nodeset(xml.find('string(@DataType)')) if xml.find('@DataType').first
-        @symbolic_name = xml.find('string(@SymbolicName)') if xml.find('@SymbolicName').first
-        @eventnotifier = xml.find('integer(@EventNotifier)') if xml.find('@EventNotifier').first
+        # namespace = importer.local_namespaces[local_nodeid.ns]
+        @nodeid = importer.nodeid_to_server(local_nodeid)
+        @name = LocalizedText.parse(xml.find("*[name()='DisplayName']").first).text
+        @description = LocalizedText.parse xml.find("*[name()='Description']").first
+        @nodeclass = NodeClass.const_get(xml.find("name()")[2..-1])
 
         @references = []
         xml.find("*[name()='References']/*[name()='Reference']").each do |r|
           @references.push(Reference.new(importer, r))
         end
 
-        @name = name
-        @nodeid = nodeid
-        @parent_nodeid = parent_nodeid
-        @description = description
-        @nodeclass = nodeclass
-        @xml = xml
+        @parent_nodeid = importer.nodeid_from_nodeset(xml.find('string(@ParentNodeId)')) if xml.find('@ParentNodeId').first
+        parent_reference = @references.select { |r| r.Forward == false }.select { |r| r.ReferenceNodeId.to_s == @parent_nodeid.to_s }.first
+        # TODO: check all hierarchical References
+        parent_reference = @references.select { |r| r.Forward == false }.select { |r| r.ReferenceNodeId.to_s == "ns=0;i=45" }.first unless parent_reference
+        parent_reference = @references.select { |r| r.Forward == false }.first unless parent_reference
+        raise "Not the correct parent found: #{@nodeid}" unless parent_reference.ReferenceNodeId.to_s == @parent_nodeid.to_s if parent_reference && @parent_nodeid
+        puts "No parent found: #{@name} - #{@nodeid}" unless parent_reference
+        @parent_reference_nodeid = parent_reference.TypeNodeId if parent_reference
+        @parent_nodeid = parent_reference.ReferenceNodeId  if parent_reference
+
+        @symmetric = false unless @symmetric = xml.find('boolean(@Symmetric)')
+        @abstract = false unless @abstract = xml.find('boolean(@IsAbstract)')
+        @datatype = importer.nodeid_from_nodeset(xml.find('string(@DataType)')) if xml.find('@DataType').first
+        @symbolic_name = xml.find('string(@SymbolicName)') if xml.find('@SymbolicName').first
+        @eventnotifier = xml.find('integer(@EventNotifier)') if xml.find('@EventNotifier').first
+        # ValueRank="1" ArrayDimensions="0" MinimumSamplingInterval="1000" @UAVariable
+
       end
     end
 
@@ -190,7 +190,9 @@ module NodeSet
       def Forward() @forward end
       def initialize(importer, xml)
         @type_nodeid = importer.nodeid_from_nodeset(xml.find('string(@ReferenceType)'))
-        @forward = false unless @forward = xml.find('boolean(@IsForward)')
+        @forward = true
+        @forward = false unless xml.find('@IsForward').first.nil?
+        # BUG in XML::Smart ? puts "#{xml.find('boolean(@IsForward)')} - #{xml.find('@IsForward').first}"
         @reference_nodeid = importer.nodeid_from_nodeset(xml.find('string(text())'))
       end
     end
