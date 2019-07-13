@@ -18,6 +18,8 @@ module NodeSet
         local_namespaces.push(ns)
         server.add_namespace ns unless server.namespaces.include? ns
       end
+
+      raise "Need #{local_namespaces.length - 1} namespace indices for:\n#{local_namespaces[1,local_namespaces.length - 1].join("\n")}" unless local_namespaces.length == namespace_indices.length
       
       aliases = Hash.new # get Aliases from Nodeset and use like: aliases['HasSubtype'] ... = i=45
       nodeset.find("//*[name()='Aliases']/*[name()='Alias']").each do |x|
