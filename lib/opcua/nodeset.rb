@@ -129,6 +129,7 @@ module NodeSet
             node = server.add_object(bn.Name, bn.NodeId.to_s, parent_node, reference_node, type_node) unless type_node.nil?
             node.notifier = bn.EventNotifier unless bn.EventNotifier.nil?
           when NodeClass::Variable
+            puts "#{bn.Name} is nil" if type_node.nil?
             node = server.add_variable(bn.Name, bn.NodeId.to_s, parent_node, reference_node, type_node)
           when NodeClass::Method
             return nil
