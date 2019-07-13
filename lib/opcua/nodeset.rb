@@ -66,16 +66,20 @@ module NodeSet
 
       # TODO: create all References of VariableTypes
       # TODO: create all References of ObjectTypes
+      # TODO: create all References of Objects
+      # TODO: create all References of Variables
 
       nodeset.find("//*[name()='UAObject']").each do |x|
         bn = BaseNode.new(self, x)
         t = create_from_basenode(bn) # create Objects
       end
 
-      nodeset.find("//*[name()='UAMethod']").each do |x|
+      nodeset.find("//*[name()='UAVariable']").each do |x|
+        #bn = BaseNode.new(self, x)
+        #t = create_from_basenode(bn) # create Objects
       end
 
-      nodeset.find("//*[name()='UAVariable']").each do |x|
+      nodeset.find("//*[name()='UAMethod']").each do |x|
       end
     end
 
@@ -104,6 +108,7 @@ module NodeSet
         unless parent_node.nil?
           reference_node = server.nodes[bn.ReferenceNodeId.to_s]
           type_node = server.nodes[bn.TypeNodeId.to_s] unless bn.TypeNodeId.nil?
+          datatype_node = server.nodes[bn.DataType.to_s] unless bn.DataType.nil?
           case bn.NodeClass
           when NodeClass::ReferenceType
             node = server.add_reference_type(bn.Name, bn.NodeId.to_s, parent_node, reference_node, true) if bn.Symmetric
@@ -113,15 +118,22 @@ module NodeSet
           when NodeClass::DataType
             node = server.add_data_type(bn.Name, bn.NodeId.to_s, parent_node, reference_node)
           when NodeClass::VariableType
-            node = server.add_variable_type(bn.Name, bn.NodeId.to_s, parent_node, reference_node)
+            puts "#{bn.Name} is nil" if datatype_node.nil?
+            return nil if datatype_node.nil?
+            node = server.add_variable_type(bn.Name, bn.NodeId.to_s, parent_node, reference_node, datatype_node)
             node.abstract = true if bn.Abstract
           when NodeClass::ObjectType
             node = server.add_object_type(bn.Name, bn.NodeId.to_s, parent_node, reference_node)
             node.abstract = true if bn.Abstract
           when NodeClass::Object
+            puts "#{bn.Name} is nil" if type_node.nil?
             return nil if type_node.nil?
             node = server.add_object(bn.Name, bn.NodeId.to_s, parent_node, reference_node, type_node)
             node.notifier = bn.EventNotifier unless bn.EventNotifier.nil?
+          when NodeClass::Variable
+            node = server.add_variable(bn.Name, bn.NodeId.to_s, parent_node, reference_node, type_node)
+          when NodeClass::Method
+            return nil
           else
             return nil
           end
@@ -136,7 +148,8 @@ module NodeSet
         mod = Object.const_get(bn.Index)
         name = bn.Name
         name = "T_" + bn.Name unless name[0] =~ /[A-Za-z]/
-        unless mod.const_defined?(name)
+
+        unless mod.const_defined?(name, false)
           mod.const_set(name, node)
           server.nodes[bn.NodeId.to_s] = node
         end

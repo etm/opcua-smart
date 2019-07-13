@@ -222,7 +222,7 @@ static VALUE server_add_data_type(VALUE self, VALUE name, VALUE nodeid, VALUE pa
 
   return node_wrap(cDataTypeNode, node_alloc(pss, nid));
 } //}}}
-static VALUE server_add_variable_type(VALUE self, VALUE name, VALUE nodeid, VALUE parent, VALUE reference)
+static VALUE server_add_variable_type(VALUE self, VALUE name, VALUE nodeid, VALUE parent, VALUE reference, VALUE datatype)
 { //{{{
   server_struct *pss;
   Data_Get_Struct(self, server_struct, pss);
@@ -230,6 +230,8 @@ static VALUE server_add_variable_type(VALUE self, VALUE name, VALUE nodeid, VALU
   Data_Get_Struct(parent, node_struct, pa);
   node_struct *re;
   Data_Get_Struct(reference, node_struct, re);
+  node_struct *dt;
+  Data_Get_Struct(datatype, node_struct, dt);
 
   VALUE str = rb_obj_as_string(name);
   if (NIL_P(str) || TYPE(str) != T_STRING)
@@ -240,8 +242,7 @@ static VALUE server_add_variable_type(VALUE self, VALUE name, VALUE nodeid, VALU
 
   UA_VariableTypeAttributes vtAttr = UA_VariableTypeAttributes_default;
   vtAttr.displayName = UA_LOCALIZEDTEXT("en-US", nstr);
-  //UA_NodeId datatype_nid = nodeid_from_str(datatype_nodeid);
-  //vtAttr.dataType = datatype_nid;
+  vtAttr.dataType = dt->id;
   UA_Server_addVariableTypeNode(pss->master,
                                 nid,
                                 pa->id,
@@ -314,6 +315,40 @@ static VALUE server_add_object(VALUE self, VALUE name, VALUE nodeid, VALUE paren
                           NULL);
 
   return node_wrap(cObjectNode, node_alloc(pss, nid));
+} //}}}
+static VALUE server_add_variable(VALUE self, VALUE name, VALUE nodeid, VALUE parent, VALUE reference, VALUE type)
+{ //{{{
+  server_struct *pss;
+  Data_Get_Struct(self, server_struct, pss);
+  node_struct *pa;
+  Data_Get_Struct(parent, node_struct, pa);
+  node_struct *re;
+  Data_Get_Struct(reference, node_struct, re);
+  node_struct *ty;
+  Data_Get_Struct(type, node_struct, ty);
+
+  VALUE str = rb_obj_as_string(name);
+  if (NIL_P(str) || TYPE(str) != T_STRING)
+    rb_raise(rb_eTypeError, "cannot convert obj to string");
+  char *nstr = (char *)StringValuePtr(str);
+
+  UA_NodeId nid = nodeid_from_str(nodeid);
+
+  //get type data
+
+  UA_VariableAttributes vAttr = UA_VariableAttributes_default;
+  vAttr.displayName = UA_LOCALIZEDTEXT("en-US", nstr);
+  UA_Server_addVariableNode(pss->master,
+                            nid,
+                            pa->id,
+                            re->id,
+                            UA_QUALIFIEDNAME(nid.namespaceIndex, nstr),
+                            ty->id,
+                            vAttr,
+                            NULL,
+                            NULL);
+
+  return node_wrap(cVarNode, node_alloc(pss, nid));
 } //}}}
 static VALUE node_id(VALUE self)
 { //{{{
@@ -1477,7 +1512,8 @@ void Init_server(void)
   rb_define_method(cServer, "namespaces", server_namespaces, 0);
   rb_define_method(cServer, "add_reference_type", server_add_reference_type, 5);
   rb_define_method(cServer, "add_data_type", server_add_data_type, 4);
-  rb_define_method(cServer, "add_variable_type", server_add_variable_type, 4);
+  rb_define_method(cServer, "add_variable_type", server_add_variable_type, 5);
+  rb_define_method(cServer, "add_variable", server_add_variable, 5);
   rb_define_method(cServer, "add_object_type", server_add_object_type, 4);
   rb_define_method(cServer, "add_object", server_add_object, 5);
   // TODO:

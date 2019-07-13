@@ -14,6 +14,7 @@ Daemonite.new do
     # in this way you could also load a newer version of the opc ua standard nodeset
 
     puts "UA::HasSubtype NodeId: #{UA::HasSubtype}"
+    puts "UA::LocalizedText NodeId: #{UA::LocalizedText}"
     #puts "Found UA::HasSubtype = #{!srv.find_nodeid(UA::HasSubtype).nil?}"
 
     srv.add_nodeset File.read('Opc.Ua.Di.1.2.NodeSet2.xml'), :DI                               # https://opcfoundation.org/UA/schemas/DI/1.2/Opc.Ua.Di.NodeSet2.xml
