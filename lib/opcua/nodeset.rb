@@ -63,13 +63,13 @@ module NodeSet
         bn = BaseNode.new(self, x)
         t = create_from_basenode(bn) # create ObjectTypes
       end
-      
+
       # TODO: create all References of VariableTypes
       # TODO: create all References of ObjectTypes
 
       nodeset.find("//*[name()='UAObject']").each do |x|
         bn = BaseNode.new(self, x)
-        #t = create_from_basenode(bn) # create Objects
+        t = create_from_basenode(bn) # create Objects
       end
 
       nodeset.find("//*[name()='UAMethod']").each do |x|
@@ -77,6 +77,15 @@ module NodeSet
 
       nodeset.find("//*[name()='UAVariable']").each do |x|
       end
+    end
+
+    def check_supertypes(node, supertype)
+      snode = node
+      until snode.nil?
+        snode = snode.follow_inverse(UA::HasSubtype).first
+        return true if snode.to_s == supertype.to_s
+      end
+      false
     end
 
     def nodeid_from_nodeset(string_nodeid)
@@ -167,31 +176,33 @@ module NodeSet
         end
 
         @parent_nodeid = importer.nodeid_from_nodeset(xml.find('string(@ParentNodeId)')) if xml.find('@ParentNodeId').first
-        parent_reference = @references.select { |r| r.Forward == false }.select { |r| r.ReferenceNodeId.to_s == @parent_nodeid.to_s }.first
-        # TODO: check all hierarchical References
+        parent_reference = @references.select { |r| r.Forward == false }.select { |r| r.NodeId.to_s == @parent_nodeid.to_s }.first
         parent_reference = @references.select { |r| r.Forward == false }.select { |r| r.TypeNodeId.to_s == "ns=0;i=45" }.first unless parent_reference
-        # TODO: check all hierarchical References
-        parent_reference = @references.select { |r| r.Forward == false }.first unless parent_reference
-        raise "Not the correct parent found: #{@nodeid}" unless parent_reference.ReferenceNodeId.to_s == @parent_nodeid.to_s if parent_reference && @parent_nodeid
+        unless parent_reference
+          @references.select { |r| r.Forward == false }.each do |ref|
+            parent_reference = ref if importer.check_supertypes(importer.server.nodes[ref.TypeNodeId.to_s], UA::HierarchicalReferences)
+          end
+        end
+        raise "Not the correct parent found: #{@nodeid}" unless parent_reference.NodeId.to_s == @parent_nodeid.to_s if parent_reference && @parent_nodeid
         # puts "No parent found: #{@name} - #{@nodeid}" unless parent_reference
         @parent_reference_nodeid = parent_reference.TypeNodeId if parent_reference
-        @parent_nodeid = parent_reference.ReferenceNodeId if parent_reference
+        @parent_nodeid = parent_reference.NodeId if parent_reference
 
         type_reference = @references.select { |r| r.TypeNodeId.to_s == "ns=0;i=40" }.first
-        @type_nodeid = type_reference.ReferenceNodeId if type_reference
+        @type_nodeid = type_reference.NodeId if type_reference
 
         @symmetric = false unless @symmetric = xml.find('boolean(@Symmetric)')
         @abstract = false unless @abstract = xml.find('boolean(@IsAbstract)')
         @datatype = importer.nodeid_from_nodeset(xml.find('string(@DataType)')) if xml.find('@DataType').first
         @symbolic_name = xml.find('string(@SymbolicName)') if xml.find('@SymbolicName').first
         @inverse_name = LocalizedText.parse xml.find("*[name()='InverseName']").first
-        #@eventnotifier = xml.find('integer(@EventNotifier)') if xml.find('@EventNotifier').first
+        @eventnotifier = xml.find('number(@EventNotifier)') if xml.find('@EventNotifier').first
         # ValueRank="1" ArrayDimensions="0" MinimumSamplingInterval="1000" @UAVariable
       end
     end
 
     class Reference
-      def ReferenceNodeId() @reference_nodeid end
+      def NodeId() @nodeid end
       def TypeNodeId() @type_nodeid end
       def Forward() @forward end
       def initialize(importer, xml)
@@ -199,7 +210,7 @@ module NodeSet
         @forward = true
         @forward = false unless xml.find('@IsForward').first.nil?
         # BUG in XML::Smart ? puts "#{xml.find('boolean(@IsForward)')} - #{xml.find('@IsForward').first}"
-        @reference_nodeid = importer.nodeid_from_nodeset(xml.find('string(text())'))
+        @nodeid = importer.nodeid_from_nodeset(xml.find('string(text())'))
       end
     end
   end

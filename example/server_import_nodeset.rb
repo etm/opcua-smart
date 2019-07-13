@@ -42,7 +42,7 @@ Daemonite.new do
     srv.objects.manifest(:Test1, tt)
     srv.objects.manifest(:Test2, tt2)
 
-    puts DI::ComponentType.follow_inverse(UA::HasSubtype).name # backward
+    puts DI::ComponentType.follow_inverse(UA::HasSubtype).first.name # backward
     puts UA::HasChild.follow(UA::HasSubtype).length # forward
     UA::HasChild.follow_all(UA::HasSubtype).each do |n| # both directions
       puts n.name
