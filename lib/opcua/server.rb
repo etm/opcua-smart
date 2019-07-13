@@ -68,8 +68,7 @@ module OPCUA
     end
 
     def add_nodeset(nodeset, *namespace_indices)
-      nodeset_importer = NodeSet::Importer.new(self, nodeset, *namespace_indices)
-      nodeset_importer.import
+      NodeSet::Importer.new(self, nodeset, *namespace_indices).import
     end
   end
 end

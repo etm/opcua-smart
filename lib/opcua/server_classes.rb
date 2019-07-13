@@ -1,108 +1,3 @@
-class BNode
-  def nodeid() @nodeid end
-  def name() @name end
-  def description() @description end
-  def nodeclass() @nodeclass end
-  def self.from_xml(server, xml, namespace_indices, local_namespaces)
-    local_nodeid = NodeId.from_string(xml.find("@NodeId").first.to_s)
-    namespace_index = namespace_indices[local_nodeid.ns]
-    namespace = local_namespaces[local_nodeid.ns]
-    nodeid = NodeId.new(server.namespaces.index(local_namespaces[local_nodeid.ns]), local_nodeid.id, local_nodeid.type)
-    name = LocalizedText.parse xml.find("*[name()='DisplayName']").first
-    description = LocalizedText.parse xml.find("*[name()='Description']").first
-    nodeclass = NodeClass.const_get(xml.find("name()")[2..-1])
-    BNode.new(name, nodeid, description, nodeclass)
-  end
-  def initialize(name, nodeid, description, nodeclass)
-    @name = name
-    @nodeid = nodeid
-    @description = description
-    @nodeclass = nodeclass
-  end
-end
-
-
-
-
-
-
-
-
-
-
-class BaseNode
-  def self.to_s() return self.NodeId.to_s end
-  def self.from_xml(server, xml, namespace_indices, local_namespaces)
-    local_nodeid = NodeId.from_string(xml.find("@NodeId").first.to_s)
-    if local_nodeid.nil?
-      return nil
-    end
-    namespace_index = namespace_indices[local_nodeid.ns]
-    namespace = local_namespaces[local_nodeid.ns]
-    nodeid = NodeId.new(server.namespaces.index(local_namespaces[local_nodeid.ns]), local_nodeid.id, local_nodeid.type)
-    local_browsename = QualifiedName.from_string(xml.find("@BrowseName").first.to_s)
-    browsename = QualifiedName.new(server.namespaces.index(local_namespaces[local_browsename.ns]), local_browsename.name)
-    displayname = LocalizedText.parse xml.find("*[name()='DisplayName']").first
-    description = LocalizedText.parse xml.find("*[name()='Description']").first
-    nodeclass = NodeClass.const_get(xml.find("name()")[2..-1])
-
-    if xml.find("@SymbolicName").first
-      constant_name = xml.find("@SymbolicName").first.to_s
-    elsif
-      constant_name = browsename.name
-    end
-
-    if(namespace_index.to_s != "" &&
-      (nodeclass == NodeClass::ObjectType ||
-      nodeclass == NodeClass::VariableType ||
-      nodeclass == NodeClass::DataType ||
-      nodeclass == NodeClass::ReferenceType))
-      
-      unless Object.const_defined?(namespace_index)
-        Object.const_set(namespace_index, Module.new)
-      end
-      basenode = Class.new(BaseNode)
-      mod = Object.const_get(namespace_index)
-      if mod.const_defined?(constant_name)
-        #return nil # do not return nil # we get into this loop at UA::Integer
-        mod.const_set(constant_name, basenode)
-      else
-        mod.const_set(constant_name, basenode)
-      end
-    end
-
-    basenode.define_singleton_method(:NodeId, -> { return nodeid })
-    basenode.define_singleton_method(:BrowseName, -> { return browsename })
-    basenode.define_singleton_method(:DisplayName, -> { return displayname })
-    basenode.define_singleton_method(:Description, -> { return description })
-    basenode.define_singleton_method(:NodeClass, -> { return nodeclass })
-    basenode.define_singleton_method(:Namespace, -> { return namespace })
-
-    xml.find("@*").each do |a|
-      if(a.qname == "NodeId" || a.qname == "BrowseName")
-        # already done
-      elsif a.qname.equal? "ParentNodeId"
-        parent_local_nodeid = NodeId.from_string(a)
-        parent_nodeid = NodeId.new(server.namespaces[0].index(local_namespaces[parent_local_nodeid.ns]), parent_local_nodeid.id, parent_local_nodeid.type)
-        basenode.define_singleton_method(a.qname.to_sym, -> { return parent_nodeid })
-      elsif a.equal? "true"
-        basenode.define_singleton_method(a.qname.to_sym, -> { return true })
-      elsif a.equal? "false"
-        basenode.define_singleton_method(a.qname.to_sym, -> { return false })
-      else
-        basenode.define_singleton_method(a.qname.to_sym, -> { return a })
-      end
-    end
-
-    if nodeclass.equal? NodeClass::ReferenceType
-      inversename = xml.find("*[name()='InverseName']/text()").first.to_s || nil
-      basenode.define_singleton_method(:InverseName, -> { return inversename })
-    end
-
-    basenode
-  end
-end
-
 class NodeId
   def ns() @ns end
   def id() @id end
@@ -116,10 +11,9 @@ class NodeId
       return nil
     end
   end
+
   def initialize(namespaceindex, identifier, identifiertype=NodeIdType::String)
-    unless(namespaceindex.is_a?(Integer) || namespaceindex >= 0)
-      raise "Bad namespaceindex #{namespaceindex}" 
-    end
+    raise "Bad namespaceindex #{namespaceindex}" unless(namespaceindex.is_a?(Integer) || namespaceindex >= 0)
     if(identifiertype == NodeIdType::String && (identifier =~ /\A[-+]?[0-9]+\z/) && identifier.to_i > 0)
       identifier = identifier.to_i
       identifiertype = NodeIdType::Numeric
@@ -128,6 +22,7 @@ class NodeId
     @id = identifier
     @type = identifiertype
   end
+
   def self.from_string(nodeid)
     if nodeid.nil?
       return nil
@@ -156,13 +51,13 @@ class QualifiedName
   def ns() @ns end
   def name() @name end
   def to_s() "#{ns}:#{name}" end
+    
   def initialize(namespaceindex, name) 
-    unless(namespaceindex.is_a?(Integer) || namespaceindex >= 0)
-      raise "Bad namespaceindex #{namespaceindex}" 
-    end
+    raise "Bad namespaceindex #{namespaceindex}" unless(namespaceindex.is_a?(Integer) || namespaceindex >= 0)
     @ns = namespaceindex
     @name = name
   end
+
   def self.from_string(qualifiedname)
     if qualifiedname.include? ":"
       ns = qualifiedname.match(/^([^:]+):/)[1].to_i
@@ -179,28 +74,23 @@ class LocalizedText
   def locale() @locale end
   def text() @text end
   def to_s()
-    if locale == ""
-      return text
-    else
-      return "#{locale}:#{text}"
-    end
+    return text if locale == ""
+    "#{locale}:#{text}"
   end
+
   def initialize(text, locale="")
-    if text == ""
-      return nil
-    end
+    return nil if text == ""
     @locale = locale
     @text = text
   end
+  
   def self.from_string(localizedtext)
     locale = localizedtext.match(/^([^:]+):/)[1]
     text = localizedtext.match(/:(.*)/)[1]
     LocalizedText.new(text, locale)
   end
   def self.parse(xml_element)
-    if(xml_element.nil?)
-      return nil
-    end
+    return nil if(xml_element.nil?)
     text = xml_element.to_s || ""
     locale = xml_element.find("@Locale").first.to_s || ""
     LocalizedText.new(text, locale)

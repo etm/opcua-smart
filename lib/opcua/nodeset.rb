@@ -2,6 +2,12 @@ require 'xml/smart'
 
 module NodeSet
   class Importer
+    def server() return @server end
+    def nodeset() return @nodeset end
+    def namespace_indices() return @namespace_indices end
+    def local_namespaces() return @local_namespaces end
+    def aliases() return @aliases end
+
     def initialize(server, nodeset_xml, *namespace_indices)
       nodeset = XML::Smart.string(nodeset_xml)
       namespace_indices.unshift(:UA)
@@ -27,33 +33,32 @@ module NodeSet
       @aliases = aliases
     end
 
-    def server() return @server end
-    def nodeset() return @nodeset end
-    def namespace_indices() return @namespace_indices end
-    def local_namespaces() return @local_namespaces end
-    def aliases() return @aliases end
-
     def import
       nodeset.find("//*[name()='UAReferenceType' and @NodeId='i=45']").each do |x|
-        t = create_from_nodeset(x) # create HasSubtype Reference First
+        bn = BaseNode.new(self, x)
+        t = create_from_basenode(bn) # create HasSubtype Reference First
       end
 
       nodeset.find("//*[name()='UAReferenceType']").each do |x|
-        t = create_from_nodeset(x) # create all ReferenceTypes
+        bn = BaseNode.new(self, x)
+        t = create_from_basenode(bn) # create ReferenceTypes
       end
 
       nodeset.find("//*[name()='UADataType']").each do |x|
-        t = create_from_nodeset(x) # create DataTypes
+        bn = BaseNode.new(self, x)
+        t = create_from_basenode(bn) # create DataTypes
         # TODO: not completely implemented yet -> a lot of work to create actual structure dynamically in c
         # Definition, Fields, etc.
       end
 
       nodeset.find("//*[name()='UAVariableType']").each do |x|
-        t = create_from_nodeset(x) # create VariableTypes
+        bn = BaseNode.new(self, x)
+        t = create_from_basenode(bn) # create VariableTypes
       end
 
       nodeset.find("//*[name()='UAObjectType']").each do |x|
-        t = create_from_nodeset(x) # create ObjectTypes
+        bn = BaseNode.new(self, x)
+        t = create_from_basenode(bn) # create ObjectTypes
       end
       
       # TODO: create all References of VariableTypes
@@ -80,57 +85,32 @@ module NodeSet
     end
 
     def nodeid_from_nodeset(string_nodeid)
-      unless string_nodeid.include? '='
-        string_nodeid = aliases[string_nodeid]
-      end
-      local_nodeid = NodeId.from_string(string_nodeid)
-      NodeId.new(server.namespaces.index(local_namespaces[local_nodeid.ns]), local_nodeid.id, local_nodeid.type)
+      string_nodeid = aliases[string_nodeid] unless string_nodeid.include? '='
+      nodeid_to_server(NodeId.from_string(string_nodeid))
     end
 
-    def create_from_nodeset(xml)
-      local_nodeid = NodeId.from_string(xml.find("string(@NodeId)"))
-      namespace_index = namespace_indices[local_nodeid.ns]
-      namespace = local_namespaces[local_nodeid.ns]
-      nodeid = NodeId.new(server.namespaces.index(local_namespaces[local_nodeid.ns]), local_nodeid.id, local_nodeid.type)
-      name = LocalizedText.parse(xml.find("*[name()='DisplayName']").first).text
-      description = LocalizedText.parse xml.find("*[name()='Description']").first
-      nodeclass = NodeClass.const_get(xml.find("name()")[2..-1])
-      if xml.find("@ParentNodeId").first
-        parent_nodeid_str = xml.find("string(@ParentNodeId)")
-        parent_local_nodeid = NodeId.from_string(parent_nodeid_str)
-        parent_nodeid = NodeId.new(server.namespaces.index(local_namespaces[parent_local_nodeid.ns]), parent_local_nodeid.id, parent_local_nodeid.type)
-      elsif xml.find("*[name()='References']/*[name()='Reference' and @ReferenceType='HasSubtype' and @IsForward='false']/text()").first
-        parent_nodeid_str = xml.find("*[name()='References']/*[name()='Reference' and @ReferenceType='HasSubtype' and @IsForward='false']/text()").first.to_s
-        parent_local_nodeid = NodeId.from_string(parent_nodeid_str)
-        parent_nodeid = NodeId.new(server.namespaces.index(local_namespaces[parent_local_nodeid.ns]), parent_local_nodeid.id, parent_local_nodeid.type)
-      end
+    def nodeid_to_server(nodeid)
+      NodeId.new(server.namespaces.index(local_namespaces[nodeid.ns]), nodeid.id, nodeid.type)
+    end
 
-      node = server.get(nodeid.to_s)
+    def create_from_basenode(bn)
+      node = server.get(bn.NodeId.to_s)
       if node.nil?
-        parent_node = server.get(parent_nodeid.to_s)
+        parent_node = server.get(bn.ParentNodeId.to_s)
         unless parent_node.nil?
-          case nodeclass
+          case bn.NodeClass
           when NodeClass::ReferenceType
-            if xml.find('boolean(@Symmetric)')
-              node = server.add_reference_type(name, nodeid.to_s,parent_node, UA::HasSubtype, true)
-            else
-              node = server.add_reference_type(name, nodeid.to_s,parent_node, UA::HasSubtype, false)
-            end
-            if xml.find('boolean(@IsAbstract)')
-              node.abstract = true
-            end
+            node = server.add_reference_type(bn.Name, bn.NodeId.to_s, parent_node, UA::HasSubtype, true) if bn.Symmetric
+            node = server.add_reference_type(bn.Name, bn.NodeId.to_s, parent_node, UA::HasSubtype, false) unless bn.Symmetric
+            node.abstract = true if bn.Abstract
           when NodeClass::DataType
-            node = server.add_data_type(name, nodeid.to_s,parent_node, UA::HasSubtype)
+            node = server.add_data_type(bn.Name, bn.NodeId.to_s, parent_node, UA::HasSubtype)
           when NodeClass::VariableType
-            node = server.add_variable_type(name, nodeid.to_s,parent_node, UA::HasSubtype)
-            if xml.find('boolean(@IsAbstract)')
-              node.abstract = true
-            end
+            node = server.add_variable_type(bn.Name, bn.NodeId.to_s, parent_node, UA::HasSubtype)
+            node.abstract = true if bn.Abstract
           when NodeClass::ObjectType
-            node = server.add_object_type(name, nodeid.to_s,parent_node, UA::HasSubtype)
-            if xml.find('boolean(@IsAbstract)')
-              node.abstract = true
-            end
+            node = server.add_object_type(bn.Name, bn.NodeId.to_s, parent_node, UA::HasSubtype)
+            node.abstract = true if bn.Abstract
           when NodeClass::Object
             reference_nodeid_str = xml.find("//*[text()='#{parent_nodeid_str}' and @IsForward='false']").first.find("string(@ReferenceType)")
             reference_nodeid = nodeid_from_nodeset(reference_nodeid_str, server, aliases, local_namespaces)
@@ -138,31 +118,71 @@ module NodeSet
             type_nodeid_str = xml.find("string(//*[name()='Reference' and @ReferenceType='HasTypeDefinition']/text())")
             type_nodeid = nodeid_from_nodeset(type_nodeid_str, server, aliases, local_namespaces)
             type_node = server.nodes[type_nodeid.to_s]
-            node = server.add_object(name, nodeid.to_s, parent_node, reference_node, type_node)
-            if xml.find("@SymbolicName").first
-              sname = xml.find("@SymbolicName").first.to_s
-            end
+            node = server.add_object(bn.Name, bn.NodeId.to_s, parent_node, reference_node, type_node)
           else
             return nil
           end
         end
       end
 
-      if (nodeclass == NodeClass::ReferenceType ||
-          nodeclass == NodeClass::DataType ||
-          nodeclass == NodeClass::VariableType ||
-          nodeclass == NodeClass::ObjectType)
-        unless Object.const_defined?(namespace_index)
-          Object.const_set(namespace_index, Module.new)
-        end
-        mod = Object.const_get(namespace_index)
-        unless name[0] =~ /[A-Za-z]/
-          name = "T_" + name
-        end
+      if (bn.NodeClass == NodeClass::ReferenceType ||
+          bn.NodeClass == NodeClass::DataType ||
+          bn.NodeClass == NodeClass::VariableType ||
+          bn.NodeClass == NodeClass::ObjectType)
+        Object.const_set(bn.Index, Module.new) unless Object.const_defined?(bn.Index)
+        mod = Object.const_get(bn.Index)
+        name = bn.Name
+        name = "T_" + bn.Name unless name[0] =~ /[A-Za-z]/
         unless mod.const_defined?(name)
           mod.const_set(name, node)
-          server.nodes[nodeid.to_s] = node
+          server.nodes[bn.NodeId.to_s] = node
         end
+      end
+    end
+
+    class BaseNode
+      def NodeId() @nodeid end
+      def Name() @name end
+      def Description() @description end
+      def NodeClass() @nodeclass end
+      def ParentNodeId() @parent_nodeid end
+      def Symmetric() @symmetric end
+      def Abstract() @abstract end
+      def DataType() @datatype end
+      def SymbolicName() @symbolic_name end
+      def EventNotifier() @eventnotifier end
+      def Index() @index end
+
+      def initialize(importer, xml)
+        local_nodeid = NodeId.from_string(xml.find("string(@NodeId)"))
+        @index = importer.namespace_indices[local_nodeid.ns]
+        namespace = importer.local_namespaces[local_nodeid.ns]
+        nodeid = importer.nodeid_to_server(local_nodeid)
+        name = LocalizedText.parse(xml.find("*[name()='DisplayName']").first).text
+        description = LocalizedText.parse xml.find("*[name()='Description']").first
+        nodeclass = NodeClass.const_get(xml.find("name()")[2..-1])
+        if xml.find("@ParentNodeId").first
+          parent_nodeid_str = xml.find("string(@ParentNodeId)")
+          parent_local_nodeid = NodeId.from_string(parent_nodeid_str)
+          parent_nodeid = importer.nodeid_to_server(parent_local_nodeid)
+        elsif xml.find("*[name()='References']/*[name()='Reference' and @ReferenceType='HasSubtype' and @IsForward='false']/text()").first
+          parent_nodeid_str = xml.find("*[name()='References']/*[name()='Reference' and @ReferenceType='HasSubtype' and @IsForward='false']/text()").first.to_s
+          parent_local_nodeid = NodeId.from_string(parent_nodeid_str)
+          parent_nodeid = importer.nodeid_to_server(parent_local_nodeid)
+        end
+
+        @symmetric = false unless @symmetric = xml.find('boolean(@Symmetric)')
+        @abstract = false unless @abstract = xml.find('boolean(@IsAbstract)')
+        @datatype = importer.nodeid_from_nodeset(xml.find('string(@DataType)')) if xml.find('@DataType').first
+        @symbolic_name = xml.find('string(@SymbolicName)') if xml.find('@SymbolicName').first
+        @eventnotifier = xml.find('integer(@EventNotifier)') if xml.find('@EventNotifier').first
+
+        @name = name
+        @nodeid = nodeid
+        @parent_nodeid = parent_nodeid
+        @description = description
+        @nodeclass = nodeclass
+        @xml = xml
       end
     end
   end
