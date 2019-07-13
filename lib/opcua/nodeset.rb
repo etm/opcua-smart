@@ -34,6 +34,9 @@ module NodeSet
     end
 
     def import
+      # split into creation of BaseNode from xml and creation of ua node:
+      # possibly allow hierarchical sorting of BaseNodes in the future
+      # until then provided NodeSets should have been sorted hierachically
       nodeset.find("//*[name()='UAReferenceType' and @NodeId='i=45']").each do |x|
         bn = BaseNode.new(self, x)
         t = create_from_basenode(bn) # create HasSubtype Reference First
@@ -59,17 +62,14 @@ module NodeSet
       nodeset.find("//*[name()='UAObjectType']").each do |x|
         bn = BaseNode.new(self, x)
         t = create_from_basenode(bn) # create ObjectTypes
-        puts t if bn.Name == "OpticalReaderDeviceType"
-        #puts bn.Name
-        #bn.References.each do |r|
-        #  puts "\t#{r.ReferenceNodeId}\t#{r.Forward}\t#{r.TypeNodeId}"
-        #end
       end
       
       # TODO: create all References of VariableTypes
       # TODO: create all References of ObjectTypes
 
       nodeset.find("//*[name()='UAObject']").each do |x|
+        bn = BaseNode.new(self, x)
+        t = create_from_basenode(bn) # create Objects
       end
 
       nodeset.find("//*[name()='UAMethod']").each do |x|
@@ -94,6 +94,7 @@ module NodeSet
         parent_node = server.get(bn.ParentNodeId.to_s)
         unless parent_node.nil?
           reference_node = server.nodes[bn.ReferenceNodeId.to_s]
+          type_node = server.nodes[bn.TypeNodeId.to_s] unless bn.TypeNodeId.nil?
           case bn.NodeClass
           when NodeClass::ReferenceType
             node = server.add_reference_type(bn.Name, bn.NodeId.to_s, parent_node, reference_node, true) if bn.Symmetric
@@ -108,9 +109,7 @@ module NodeSet
             node = server.add_object_type(bn.Name, bn.NodeId.to_s, parent_node, reference_node)
             node.abstract = true if bn.Abstract
           when NodeClass::Object
-            type_nodeid_str = xml.find("string(//*[name()='Reference' and @ReferenceType='HasTypeDefinition']/text())")
-            type_nodeid = nodeid_from_nodeset(type_nodeid_str, server, aliases, local_namespaces)
-            type_node = server.nodes[type_nodeid.to_s]
+            return nil if type_node.nil?
             node = server.add_object(bn.Name, bn.NodeId.to_s, parent_node, reference_node, type_node)
           else
             return nil
@@ -140,6 +139,7 @@ module NodeSet
       def NodeClass() @nodeclass end
       def ParentNodeId() @parent_nodeid end
       def ReferenceNodeId() @parent_reference_nodeid end
+      def TypeNodeId() @type_nodeid end
       def Symmetric() @symmetric end
       def Abstract() @abstract end
       def DataType() @datatype end
@@ -167,18 +167,22 @@ module NodeSet
         @parent_nodeid = importer.nodeid_from_nodeset(xml.find('string(@ParentNodeId)')) if xml.find('@ParentNodeId').first
         parent_reference = @references.select { |r| r.Forward == false }.select { |r| r.ReferenceNodeId.to_s == @parent_nodeid.to_s }.first
         # TODO: check all hierarchical References
-        parent_reference = @references.select { |r| r.Forward == false }.select { |r| r.ReferenceNodeId.to_s == "ns=0;i=45" }.first unless parent_reference
+        parent_reference = @references.select { |r| r.Forward == false }.select { |r| r.TypeNodeId.to_s == "ns=0;i=45" }.first unless parent_reference
+        # TODO: check all hierarchical References
         parent_reference = @references.select { |r| r.Forward == false }.first unless parent_reference
         raise "Not the correct parent found: #{@nodeid}" unless parent_reference.ReferenceNodeId.to_s == @parent_nodeid.to_s if parent_reference && @parent_nodeid
         puts "No parent found: #{@name} - #{@nodeid}" unless parent_reference
         @parent_reference_nodeid = parent_reference.TypeNodeId if parent_reference
-        @parent_nodeid = parent_reference.ReferenceNodeId  if parent_reference
+        @parent_nodeid = parent_reference.ReferenceNodeId if parent_reference
+
+        type_reference = @references.select { |r| r.TypeNodeId.to_s == "ns=0;i=40" }.first
+        @type_nodeid = type_reference.ReferenceNodeId if type_reference
 
         @symmetric = false unless @symmetric = xml.find('boolean(@Symmetric)')
         @abstract = false unless @abstract = xml.find('boolean(@IsAbstract)')
         @datatype = importer.nodeid_from_nodeset(xml.find('string(@DataType)')) if xml.find('@DataType').first
         @symbolic_name = xml.find('string(@SymbolicName)') if xml.find('@SymbolicName').first
-        @eventnotifier = xml.find('integer(@EventNotifier)') if xml.find('@EventNotifier').first
+        #@eventnotifier = xml.find('integer(@EventNotifier)') if xml.find('@EventNotifier').first
         # ValueRank="1" ArrayDimensions="0" MinimumSamplingInterval="1000" @UAVariable
       end
     end
