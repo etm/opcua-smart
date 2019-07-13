@@ -33,6 +33,18 @@ module OPCUA
       end
     end
 
+    class Node
+      def follow(reference_type)
+        follow_reference(reference_type, 0)
+      end
+      def follow_inverse(reference_type)
+        follow_reference(reference_type, 1)
+      end
+      def follow_all(reference_type)
+        follow_reference(reference_type, 2)
+      end
+    end
+
     class ObjectNode
       alias_method :find_one, :find
       def find(*what)

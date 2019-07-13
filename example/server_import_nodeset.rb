@@ -42,7 +42,23 @@ Daemonite.new do
     srv.objects.manifest(:Test1, tt)
     srv.objects.manifest(:Test2, tt2)
 
-    # srv.objects.manifest(:Test3, DI::ComponentType) # TODO: not working yet, 2nd param to string nodeid
+    puts DI::ComponentType.follow_inverse(UA::HasSubtype).name # backward
+    puts UA::HasChild.follow(UA::HasSubtype).length # forward
+    UA::HasChild.follow_all(UA::HasSubtype).each do |n| # both directions
+      puts n.name
+    end
+
+    node = UA::HasComponent
+    path = "Find SuperTypes of #{node}"
+    until node.nil?
+      path += "->#{node.name}"
+      node = node.follow_inverse(UA::HasSubtype).first
+    end
+    puts path
+
+
+
+
 
 
 

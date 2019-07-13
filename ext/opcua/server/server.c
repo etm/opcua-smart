@@ -191,7 +191,7 @@ static VALUE server_add_reference_type(VALUE self, VALUE name, VALUE nodeid, VAL
                                  NULL,
                                  NULL);
 
-  return node_wrap(cReferenceSubNode, node_alloc(pss, nid));
+  return node_wrap(cReferenceTypeNode, node_alloc(pss, nid));
 } //}}}
 static VALUE server_add_data_type(VALUE self, VALUE name, VALUE nodeid, VALUE parent, VALUE reference)
 { //{{{
@@ -751,21 +751,60 @@ static VALUE node_follow(VALUE self, VALUE reference_type, VALUE direction)
 
   UA_BrowseResult bRes = UA_Server_browse(ns->master->master, 999, &bDes);
 
-  if (bRes.referencesSize > 0)
+  VALUE nodes = rb_ary_new();
+  for (int i = 0; i < bRes.referencesSize; i++)
   {
-    UA_ReferenceDescription *ref = &(bRes.references[0]);
+    UA_ReferenceDescription *ref = &(bRes.references[i]);
 
-    //UA_NodeId_copy(&ref->nodeId.nodeId, result);
+    UA_NodeClass nc;
+    UA_NodeClass_init(&nc);
+    UA_Server_readNodeClass(ns->master->master, ref->nodeId.nodeId, &nc);
 
-    UA_QualifiedName qn;
-    UA_QualifiedName_init(&qn);
-    UA_Server_readBrowseName(ns->master->master, ref->nodeId.nodeId, &qn);
-
-    UA_BrowseResult_deleteMembers(&bRes);
-    UA_BrowseResult_clear(&bRes);
-    return true;
+    VALUE node;
+    if (nc == UA_NODECLASS_VARIABLE)
+    {
+      node = node_wrap(cVarNode, node_alloc(ns->master, ref->nodeId.nodeId));
+    }
+    else if (nc == UA_NODECLASS_METHOD)
+    {
+      node = node_wrap(cNode, node_alloc(ns->master, ref->nodeId.nodeId));
+    }
+    else if (nc == UA_NODECLASS_UNSPECIFIED)
+    {
+      node = Qnil;
+    }
+    else if (nc == UA_NODECLASS_OBJECTTYPE)
+    {
+      node = node_wrap(cTypeTopNode, node_alloc(ns->master, ref->nodeId.nodeId));
+    }
+    else if (nc == UA_NODECLASS_OBJECT)
+    {
+      node = node_wrap(cObjectNode, node_alloc(ns->master, ref->nodeId.nodeId));
+    }
+    else if (nc == UA_NODECLASS_REFERENCETYPE)
+    {
+      node = node_wrap(cReferenceTypeNode, node_alloc(ns->master, ref->nodeId.nodeId));
+    }
+    else if (nc == UA_NODECLASS_DATATYPE)
+    {
+      node = node_wrap(cDataTypeNode, node_alloc(ns->master, ref->nodeId.nodeId));
+    }
+    else if (nc == UA_NODECLASS_VARIABLETYPE)
+    {
+      node = node_wrap(cVariableTypeNode, node_alloc(ns->master, ref->nodeId.nodeId));
+    }
+    else
+    {
+      node = node_wrap(cNode, node_alloc(ns->master, ref->nodeId.nodeId));
+    }
+    UA_NodeClass_clear(&nc);
+    rb_ary_push(nodes, node);
   }
-  return false;
+
+  UA_BrowseResult_deleteMembers(&bRes);
+  UA_BrowseResult_clear(&bRes);
+
+  return nodes;
 } //}}}
 
 static UA_StatusCode node_manifest_iter(UA_NodeId child_id, UA_Boolean is_inverse, UA_NodeId reference_type_id, void *handle)
@@ -1141,6 +1180,25 @@ static VALUE node_description(VALUE self)
   UA_LocalizedText_clear(&value);
   return ret;
 } //}}}
+static VALUE node_name(VALUE self)
+{ //{{{
+  node_struct *ns;
+
+  Data_Get_Struct(self, node_struct, ns);
+
+  UA_QualifiedName qn;
+  UA_QualifiedName_init(&qn);
+  UA_StatusCode retval = UA_Server_readBrowseName(ns->master->master, ns->id, &qn);
+
+  VALUE ret = Qnil;
+  if (retval == UA_STATUSCODE_GOOD)
+  {
+    ret = rb_str_export_locale(rb_str_new((char *)(qn.name.data), qn.name.length));
+  }
+
+  UA_QualifiedName_clear(&qn);
+  return ret;
+} //}}}
 static VALUE node_inversename_set(VALUE self, VALUE value)
 { //{{{
   node_struct *ns;
@@ -1374,16 +1432,9 @@ void Init_server(void)
   cReferenceTypeNode = rb_define_class_under(cServer, "ReferenceTypeNode", cNode);
   cVariableTypeNode = rb_define_class_under(cServer, "VariableTypeNode", cNode);
   cDataTypeNode = rb_define_class_under(cServer, "DataTypeNode", cNode);
-  cServer = rb_define_class_under(mOPCUA, "Server", rb_cObject);
-  cNode = rb_define_class_under(cServer, "Node", rb_cObject);
-  cObjectNode = rb_define_class_under(cServer, "ObjectNode", cNode);
-  cTypeTopNode = rb_define_class_under(cServer, "TypeTopNode", cNode);
-  cTypeSubNode = rb_define_class_under(cServer, "TypeSubNode", cNode);
   cReferenceTopNode = rb_define_class_under(cServer, "ReferenceTopNode", cNode);
   cReferenceSubNode = rb_define_class_under(cServer, "ReferenceSubNode", cNode);
   cReferenceNode = rb_define_class_under(cServer, "ObjectReferenceNode", cNode);
-  cVarNode = rb_define_class_under(cServer, "ObjectVarNode", cNode);
-  cMethodNode = rb_define_class_under(cServer, "ObjectMethodNode", cNode);
 
   rb_define_alloc_func(cServer, server_alloc);
   rb_define_method(cServer, "initialize", server_init, 0);
@@ -1424,6 +1475,7 @@ void Init_server(void)
   rb_define_method(cNode, "id", node_id, 0);
   rb_define_method(cNode, "description", node_description, 0);
   rb_define_method(cNode, "description=", node_description_set, 1);
+  rb_define_method(cNode, "name", node_name, 0);
   rb_define_method(cNode, "follow_reference", node_follow, 2);
 
   // TODO: use link or add_reference

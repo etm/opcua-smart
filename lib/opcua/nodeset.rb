@@ -100,6 +100,7 @@ module NodeSet
             node = server.add_reference_type(bn.Name, bn.NodeId.to_s, parent_node, reference_node, true) if bn.Symmetric
             node = server.add_reference_type(bn.Name, bn.NodeId.to_s, parent_node, reference_node, false) unless bn.Symmetric
             node.abstract = true if bn.Abstract
+            node.inverse = bn.InverseName.text unless bn.InverseName.nil?
           when NodeClass::DataType
             node = server.add_data_type(bn.Name, bn.NodeId.to_s, parent_node, reference_node)
           when NodeClass::VariableType
@@ -142,6 +143,7 @@ module NodeSet
       def TypeNodeId() @type_nodeid end
       def Symmetric() @symmetric end
       def Abstract() @abstract end
+      def InverseName() @inverse_name end
       def DataType() @datatype end
       def SymbolicName() @symbolic_name end
       def EventNotifier() @eventnotifier end
@@ -171,7 +173,7 @@ module NodeSet
         # TODO: check all hierarchical References
         parent_reference = @references.select { |r| r.Forward == false }.first unless parent_reference
         raise "Not the correct parent found: #{@nodeid}" unless parent_reference.ReferenceNodeId.to_s == @parent_nodeid.to_s if parent_reference && @parent_nodeid
-        puts "No parent found: #{@name} - #{@nodeid}" unless parent_reference
+        # puts "No parent found: #{@name} - #{@nodeid}" unless parent_reference
         @parent_reference_nodeid = parent_reference.TypeNodeId if parent_reference
         @parent_nodeid = parent_reference.ReferenceNodeId if parent_reference
 
@@ -182,6 +184,7 @@ module NodeSet
         @abstract = false unless @abstract = xml.find('boolean(@IsAbstract)')
         @datatype = importer.nodeid_from_nodeset(xml.find('string(@DataType)')) if xml.find('@DataType').first
         @symbolic_name = xml.find('string(@SymbolicName)') if xml.find('@SymbolicName').first
+        @inverse_name = LocalizedText.parse xml.find("*[name()='InverseName']").first
         #@eventnotifier = xml.find('integer(@EventNotifier)') if xml.find('@EventNotifier').first
         # ValueRank="1" ArrayDimensions="0" MinimumSamplingInterval="1000" @UAVariable
       end
