@@ -31,7 +31,7 @@ Daemonite.new do
 
     puts srv.add_data_type("TestDataType","ns=#{ex};i=77778", UA::Structure, UA::HasSubtype)
 
-    puts srv.add_object("TestDevice", "ns=#{ex};i=31243", srv.objects, AutoId::OpticalReaderDeviceType, UA::HasChild)
+    puts srv.add_object("TestDevice", "ns=#{ex};i=31243", srv.objects, UA::Organizes, AutoId::OpticalReaderDeviceType)
 
     tt = srv.add_object_type(:TestComponentType, "ns=#{ex};i=77900", DI::ComponentType, UA::HasSubtype).tap{ |t|
       t.add_variable :TestVar1
