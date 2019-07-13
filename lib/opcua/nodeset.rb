@@ -91,23 +91,21 @@ module NodeSet
       if node.nil?
         parent_node = server.get(bn.ParentNodeId.to_s)
         unless parent_node.nil?
+          reference_node = server.nodes[bn.ReferenceNodeId.to_s]
           case bn.NodeClass
           when NodeClass::ReferenceType
-            node = server.add_reference_type(bn.Name, bn.NodeId.to_s, parent_node, UA::HasSubtype, true) if bn.Symmetric
-            node = server.add_reference_type(bn.Name, bn.NodeId.to_s, parent_node, UA::HasSubtype, false) unless bn.Symmetric
+            node = server.add_reference_type(bn.Name, bn.NodeId.to_s, parent_node, reference_node, true) if bn.Symmetric
+            node = server.add_reference_type(bn.Name, bn.NodeId.to_s, parent_node, reference_node, false) unless bn.Symmetric
             node.abstract = true if bn.Abstract
           when NodeClass::DataType
-            node = server.add_data_type(bn.Name, bn.NodeId.to_s, parent_node, UA::HasSubtype)
+            node = server.add_data_type(bn.Name, bn.NodeId.to_s, parent_node, reference_node)
           when NodeClass::VariableType
-            node = server.add_variable_type(bn.Name, bn.NodeId.to_s, parent_node, UA::HasSubtype)
+            node = server.add_variable_type(bn.Name, bn.NodeId.to_s, parent_node, reference_node)
             node.abstract = true if bn.Abstract
           when NodeClass::ObjectType
-            node = server.add_object_type(bn.Name, bn.NodeId.to_s, parent_node, UA::HasSubtype)
+            node = server.add_object_type(bn.Name, bn.NodeId.to_s, parent_node, reference_node)
             node.abstract = true if bn.Abstract
           when NodeClass::Object
-            reference_nodeid_str = xml.find("//*[text()='#{parent_nodeid_str}' and @IsForward='false']").first.find("string(@ReferenceType)")
-            reference_nodeid = nodeid_from_nodeset(reference_nodeid_str, server, aliases, local_namespaces)
-            reference_node = server.nodes[reference_nodeid.to_s]
             type_nodeid_str = xml.find("string(//*[name()='Reference' and @ReferenceType='HasTypeDefinition']/text())")
             type_nodeid = nodeid_from_nodeset(type_nodeid_str, server, aliases, local_namespaces)
             type_node = server.nodes[type_nodeid.to_s]
@@ -139,7 +137,7 @@ module NodeSet
       def Description() @description end
       def NodeClass() @nodeclass end
       def ParentNodeId() @parent_nodeid end
-      def ParentReferenceNodeId() @parent_reference_nodeid end
+      def ReferenceNodeId() @parent_reference_nodeid end
       def Symmetric() @symmetric end
       def Abstract() @abstract end
       def DataType() @datatype end
@@ -180,7 +178,6 @@ module NodeSet
         @symbolic_name = xml.find('string(@SymbolicName)') if xml.find('@SymbolicName').first
         @eventnotifier = xml.find('integer(@EventNotifier)') if xml.find('@EventNotifier').first
         # ValueRank="1" ArrayDimensions="0" MinimumSamplingInterval="1000" @UAVariable
-
       end
     end
 
