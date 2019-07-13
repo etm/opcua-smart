@@ -14,16 +14,14 @@ module NodeSet
 
       local_namespaces = ["http://opcfoundation.org/UA/"]
       for i in nodeset.find("//*[name()='NamespaceUris']/*[name()='Uri']") do
-        ns = i.find("text()").first.to_s
+        ns = i.find('string(text())')
         local_namespaces.push(ns)
-        unless server.namespaces.include? ns
-          server.add_namespace ns
-        end
+        server.add_namespace ns unless server.namespaces.include? ns
       end
       
       aliases = Hash.new # get Aliases from Nodeset and use like: aliases['HasSubtype'] ... = i=45
       nodeset.find("//*[name()='Aliases']/*[name()='Alias']").each do |x|
-        aliases[x.find("@Alias").first.to_s] = x.find("text()").first.to_s
+        aliases[x.find("@Alias").first.to_s] = x.find('string(text())')
       end
 
       @server = server
@@ -59,22 +57,16 @@ module NodeSet
       nodeset.find("//*[name()='UAObjectType']").each do |x|
         bn = BaseNode.new(self, x)
         t = create_from_basenode(bn) # create ObjectTypes
+        #puts bn.Name
+        #bn.References.each do |r|
+        #  puts "\t#{r.ReferenceNodeId}\t#{r.Forward}\t#{r.TypeNodeId}"
+        #end
       end
       
       # TODO: create all References of VariableTypes
-
       # TODO: create all References of ObjectTypes
-      nodeset.find("//*[name()='UAObjectType']").each do |x|
-        x.find("*[name()='References']/*[name()='Reference']").each do |r|
-          reference_type = r.find("@ReferenceType").first
-          is_forward = r.find("@IsForward").first
-          reference_nodeid = NodeId.from_string(r.find("text()").first.to_s)
-        end
-      end
 
       nodeset.find("//*[name()='UAObject']").each do |x|
-        # t = create_from_nodeset(x)
-        # TODO
       end
 
       nodeset.find("//*[name()='UAMethod']").each do |x|
@@ -152,6 +144,7 @@ module NodeSet
       def SymbolicName() @symbolic_name end
       def EventNotifier() @eventnotifier end
       def Index() @index end
+      def References() @references end
 
       def initialize(importer, xml)
         local_nodeid = NodeId.from_string(xml.find("string(@NodeId)"))
@@ -177,12 +170,28 @@ module NodeSet
         @symbolic_name = xml.find('string(@SymbolicName)') if xml.find('@SymbolicName').first
         @eventnotifier = xml.find('integer(@EventNotifier)') if xml.find('@EventNotifier').first
 
+        @references = []
+        xml.find("*[name()='References']/*[name()='Reference']").each do |r|
+          @references.push(Reference.new(importer, r))
+        end
+
         @name = name
         @nodeid = nodeid
         @parent_nodeid = parent_nodeid
         @description = description
         @nodeclass = nodeclass
         @xml = xml
+      end
+    end
+
+    class Reference
+      def ReferenceNodeId() @reference_nodeid end
+      def TypeNodeId() @type_nodeid end
+      def Forward() @forward end
+      def initialize(importer, xml)
+        @type_nodeid = importer.nodeid_from_nodeset(xml.find('string(@ReferenceType)'))
+        @forward = false unless @forward = xml.find('boolean(@IsForward)')
+        @reference_nodeid = importer.nodeid_from_nodeset(xml.find('string(text())'))
       end
     end
   end
