@@ -118,17 +118,15 @@ module NodeSet
           when NodeClass::DataType
             node = server.add_data_type(bn.Name, bn.NodeId.to_s, parent_node, reference_node)
           when NodeClass::VariableType
-            puts "#{bn.Name} is nil" if datatype_node.nil?
-            return nil if datatype_node.nil?
-            node = server.add_variable_type(bn.Name, bn.NodeId.to_s, parent_node, reference_node, datatype_node)
+            node = server.add_variable_type(bn.Name, bn.NodeId.to_s, parent_node, reference_node, UA::BaseDataType) if datatype_node.nil?
+            node = server.add_variable_type(bn.Name, bn.NodeId.to_s, parent_node, reference_node, datatype_node) unless datatype_node.nil?
             node.abstract = true if bn.Abstract
           when NodeClass::ObjectType
             node = server.add_object_type(bn.Name, bn.NodeId.to_s, parent_node, reference_node)
             node.abstract = true if bn.Abstract
           when NodeClass::Object
-            puts "#{bn.Name} is nil" if type_node.nil?
-            return nil if type_node.nil?
-            node = server.add_object(bn.Name, bn.NodeId.to_s, parent_node, reference_node, type_node)
+            node = server.add_object(bn.Name, bn.NodeId.to_s, parent_node, reference_node, UA::BaseObjectType) if type_node.nil?
+            node = server.add_object(bn.Name, bn.NodeId.to_s, parent_node, reference_node, type_node) unless type_node.nil?
             node.notifier = bn.EventNotifier unless bn.EventNotifier.nil?
           when NodeClass::Variable
             node = server.add_variable(bn.Name, bn.NodeId.to_s, parent_node, reference_node, type_node)
