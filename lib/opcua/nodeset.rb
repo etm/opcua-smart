@@ -121,6 +121,7 @@ module NodeSet
           when NodeClass::Object
             return nil if type_node.nil?
             node = server.add_object(bn.Name, bn.NodeId.to_s, parent_node, reference_node, type_node)
+            node.notifier = bn.EventNotifier unless bn.EventNotifier.nil?
           else
             return nil
           end
@@ -197,7 +198,7 @@ module NodeSet
         @symbolic_name = xml.find('string(@SymbolicName)') if xml.find('@SymbolicName').first
         @inverse_name = LocalizedText.parse xml.find("*[name()='InverseName']").first
         @eventnotifier = xml.find('number(@EventNotifier)') if xml.find('@EventNotifier').first
-        # ValueRank="1" ArrayDimensions="0" MinimumSamplingInterval="1000" @UAVariable
+        # TODO: ValueRank="1" ArrayDimensions="0" MinimumSamplingInterval="1000" @UAVariable
       end
     end
 

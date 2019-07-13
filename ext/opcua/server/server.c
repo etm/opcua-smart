@@ -1262,6 +1262,35 @@ static VALUE node_abstract(VALUE self)
   UA_Boolean_clear(&value);
   return ret;
 } //}}}
+static VALUE node_notifier_set(VALUE self, VALUE value)
+{ //{{{
+  node_struct *ns;
+  Data_Get_Struct(self, node_struct, ns);
+
+  int val = NUM2INT(value);
+
+  UA_Server_writeEventNotifier(ns->master->master, ns->id, val);
+  return self;
+} //}}}
+static VALUE node_notifier(VALUE self)
+{ //{{{
+  node_struct *ns;
+
+  Data_Get_Struct(self, node_struct, ns);
+
+  UA_Byte value;
+  UA_Byte_init(&value);
+  UA_StatusCode retval = UA_Server_readEventNotifier(ns->master->master, ns->id, &value);
+
+  VALUE ret = rb_to_int(-1);
+  if (retval == UA_STATUSCODE_GOOD)
+  {
+    ret = rb_to_int(value);
+  }
+
+  UA_Byte_clear(&value);
+  return ret;
+} //}}}
 
 static VALUE node_symmetric(VALUE self)
 { //{{{
@@ -1516,6 +1545,8 @@ void Init_server(void)
 
   rb_define_method(cObjectNode, "manifest", node_manifest, 2);
   rb_define_method(cObjectNode, "find", node_find, 1);
+  rb_define_method(cObjectNode, "notifier", node_notifier, 0);
+  rb_define_method(cObjectNode, "notifier=", node_notifier_set, 1);
 
   rb_define_method(cVarNode, "value", node_value, 0);
   rb_define_method(cVarNode, "value=", node_value_set, 1);
