@@ -115,3 +115,13 @@ class NodeIdType
   Numeric = 0
   String = 3
 end
+
+class ValueRank
+  ScalarOrOne = -3
+  Any = -2
+  Scalar = -1
+  OneOrMore = 0
+  One = 1
+  Two = 2
+  Three =3
+end

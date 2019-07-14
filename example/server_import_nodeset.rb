@@ -20,6 +20,7 @@ Daemonite.new do
     srv.add_nodeset File.read('Opc.Ua.AutoID.1.0.NodeSet2.xml'), :AutoId, :DI                  # https://opcfoundation.org/UA/schemas/AutoID/1.0/Opc.Ua.AutoID.NodeSet2.xml
     srv.add_nodeset File.read('Example.Reference.1.0.NodeSet2.xml'), :Testing, :DI, :Robotics  # Really weird local testing nodeset with references to DI and Robotics
 
+    puts "Server known Nodes: #{srv.nodes.length}"
 
     # TODO: currently add your current namespace as the last or it will be overridden
     ex = srv.add_namespace 'http://example.org/' # TODO: add_namespace should return namespace index
@@ -32,14 +33,25 @@ Daemonite.new do
     tt = srv.add_object_type(:TestComponentType, "ns=#{ex};i=77900", DI::ComponentType, UA::HasSubtype).tap{ |t|
       t.add_variable :TestVar1
     }
-
-    tt2 = srv.add_object_type(:TestComponent2Type, "ns=#{ex};i=77901", tt, UA::HasSubtype).tap{ |t|
-      t.add_variable :TestVar2
-      t.add_object :TestObject2, tt
-    }
-
     srv.objects.manifest(:Test1, tt)
-    srv.objects.manifest(:Test2, tt2)
+
+    def log(v)
+      puts "Rank: #{v.rank}"
+      puts "Dimension: #{v.dimension}"
+      puts "DataType: #{v.datatype.name}"
+    end
+
+    #log srv.get "ns=0;i=2258"
+    v0 = srv.get "ns=6;s=/Test1/TestVar1"
+    log v0
+
+    v0.rank = 2
+    v0.datatype = UA::Double
+    log v0
+
+    v0.dimension = [2, 2]
+    log v0
+
 
     raise "DI import Error" unless DI::ComponentType.follow_inverse(UA::HasSubtype).first.name == "TopologyElementType"
     raise "DI DeviceType not found" unless DI::ComponentType.follow(UA::HasSubtype).select{ |n| n.name == "DeviceType" }.length == 1
@@ -53,6 +65,7 @@ Daemonite.new do
     end
     puts path
 
+    
 
 
 
@@ -62,8 +75,7 @@ Daemonite.new do
 
 
 
-
-
+    puts "\e[32mDone\e[0m"
     
   rescue => e
     puts "=====================ERROR====================="

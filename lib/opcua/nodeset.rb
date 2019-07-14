@@ -75,8 +75,8 @@ module NodeSet
       end
 
       nodeset.find("//*[name()='UAVariable']").each do |x|
-        #bn = BaseNode.new(self, x)
-        #t = create_from_basenode(bn) # create Objects
+        bn = BaseNode.new(self, x)
+        t = create_from_basenode(bn) # create Objects
       end
 
       nodeset.find("//*[name()='UAMethod']").each do |x|

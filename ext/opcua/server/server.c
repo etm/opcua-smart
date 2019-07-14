@@ -335,9 +335,26 @@ static VALUE server_add_variable(VALUE self, VALUE name, VALUE nodeid, VALUE par
   UA_NodeId nid = nodeid_from_str(nodeid);
 
   //get type data
+  UA_UInt32 mask;
+  UA_UInt32_init(&mask);
+  UA_Server_readWriteMask(pss->master, pa->id, &mask);
+  UA_Int32 rank;
+  UA_Int32_init(&rank);
+  UA_Server_readValueRank(pss->master, pa->id, &rank);
+  //UA_Variant dim;
+  //UA_Variant_init(&dim);
+  //UA_Server_readArrayDimensions(pss->master, pa->id, &dim);
+  UA_NodeId datatype;
+  UA_NodeId_init(&datatype);
+  UA_Server_readDataType(pss->master, pa->id, &datatype);
 
   UA_VariableAttributes vAttr = UA_VariableAttributes_default;
   vAttr.displayName = UA_LOCALIZEDTEXT("en-US", nstr);
+  vAttr.writeMask = mask;
+  vAttr.valueRank = rank;
+  //vAttr.arrayDimensions = dim.arrayDimensions;
+  //vAttr.arrayDimensionsSize = dim.arrayDimensionsSize;
+  //vAttr.dataType = datatype;
   UA_Server_addVariableNode(pss->master,
                             nid,
                             pa->id,
@@ -348,6 +365,10 @@ static VALUE server_add_variable(VALUE self, VALUE name, VALUE nodeid, VALUE par
                             NULL,
                             NULL);
 
+  UA_UInt32_clear(&mask);
+  UA_Int32_clear(&rank);
+  //UA_Variant_clear(&dim);
+  UA_NodeId_clear(&datatype);
   return node_wrap(cVarNode, node_alloc(pss, nid));
 } //}}}
 static VALUE node_id(VALUE self)
@@ -1153,8 +1174,17 @@ static VALUE node_value_set(VALUE self, VALUE value)
     // printf("-----------------------------------------%ld\n",variant.arrayDimensionsSize);
     if (variant.arrayDimensionsSize > 0)
     {
+      // ERROR? is ValueRank same as DimensionSize?
       UA_Server_writeValueRank(ns->master->master, ns->id, variant.arrayDimensionsSize);
       UA_Variant uaArrayDimensions;
+      // ERROR? use variant.arrayLength instead of variant.arrayDimensionsSize
+      // Example:
+      /*
+        UA_VariableAttributes vAttr = UA_VariableAttributes_default;
+        UA_Int32* array = (UA_Int32*)UA_malloc(size * sizeof(UA_Int32));
+        memset(array, 0, size * sizeof(UA_Int32));
+        UA_Variant_setArray(&Attr.value, array, size, &UA_TYPES[UA_TYPES_INT32]);
+       */
       UA_Variant_setArray(&uaArrayDimensions, variant.arrayDimensions, variant.arrayDimensionsSize, &UA_TYPES[UA_TYPES_UINT32]);
       UA_Server_writeArrayDimensions(ns->master->master, ns->id, uaArrayDimensions);
     }
@@ -1267,7 +1297,6 @@ static VALUE node_inversename(VALUE self)
   UA_LocalizedText_clear(&value);
   return ret;
 } //}}}
-
 static VALUE node_abstract_set(VALUE self, VALUE value)
 { //{{{
   node_struct *ns;
@@ -1320,13 +1349,216 @@ static VALUE node_notifier(VALUE self)
   VALUE ret = rb_to_int(-1);
   if (retval == UA_STATUSCODE_GOOD)
   {
-    ret = rb_to_int(value);
+    ret = rb_to_int(INT2NUM(value));
   }
 
   UA_Byte_clear(&value);
   return ret;
 } //}}}
+static VALUE node_mask_set(VALUE self, VALUE value)
+{ //{{{
+  node_struct *ns;
+  Data_Get_Struct(self, node_struct, ns);
 
+  int val = NUM2INT(value);
+
+  UA_Server_writeWriteMask(ns->master->master, ns->id, val);
+  return self;
+} //}}}
+static VALUE node_mask(VALUE self)
+{ //{{{
+  node_struct *ns;
+
+  Data_Get_Struct(self, node_struct, ns);
+
+  UA_UInt32 value;
+  UA_UInt32_init(&value);
+  UA_StatusCode retval = UA_Server_readWriteMask(ns->master->master, ns->id, &value);
+
+  VALUE ret = rb_to_int(-2);
+  if (retval == UA_STATUSCODE_GOOD)
+  {
+    ret = rb_to_int(INT2NUM(value));
+  }
+
+  UA_UInt32_clear(&value);
+  return ret;
+} //}}}
+static VALUE node_datatype_set(VALUE self, VALUE value)
+{ //{{{
+  node_struct *ns;
+  Data_Get_Struct(self, node_struct, ns);
+  node_struct *val;
+  Data_Get_Struct(value, node_struct, val);
+
+  UA_Server_writeDataType(ns->master->master, ns->id, val->id);
+  return self;
+} //}}}
+static VALUE node_datatype(VALUE self)
+{ //{{{
+  node_struct *ns;
+  Data_Get_Struct(self, node_struct, ns);
+
+  UA_NodeId nid;
+  UA_NodeId_init(&nid);
+  UA_StatusCode retval = UA_Server_readDataType(ns->master->master, ns->id, &nid);
+
+  VALUE ret = Qnil;
+  if (retval == UA_STATUSCODE_GOOD)
+  {
+    UA_NodeClass nc;
+    UA_NodeClass_init(&nc);
+    UA_Server_readNodeClass(ns->master->master, nid, &nc);
+
+    if (nc == UA_NODECLASS_DATATYPE)
+    {
+      ret = node_wrap(cDataTypeNode, node_alloc(ns->master, nid));
+    }
+    UA_NodeClass_clear(&nc);
+  }
+
+  return ret;
+} //}}}
+static VALUE node_rank_set(VALUE self, VALUE value)
+{ //{{{
+  node_struct *ns;
+  Data_Get_Struct(self, node_struct, ns);
+
+  UA_Int32 val = NUM2INT(value);
+
+  UA_Server_writeValueRank(ns->master->master, ns->id, val);
+  return self;
+} //}}}
+static VALUE node_rank(VALUE self)
+{ //{{{
+  node_struct *ns;
+
+  Data_Get_Struct(self, node_struct, ns);
+
+  UA_Int32 value;
+  UA_Int32_init(&value);
+  UA_StatusCode retval = UA_Server_readValueRank(ns->master->master, ns->id, &value);
+
+  VALUE ret = rb_to_int(-2);
+  if (retval == UA_STATUSCODE_GOOD)
+  {
+    ret = rb_to_int(INT2NUM(value));
+  }
+
+  UA_Int32_clear(&value);
+  return ret;
+} //}}}
+static VALUE node_dimension_set(VALUE self, VALUE value)
+{ //{{{
+  // value is the dimensions array (i.e. [2, 3, 2]), dimensionsize is just the length of this array
+  //Examples for arrays/matrices :
+
+  // ["v1","v2","v3","v4"]
+  // - arraylength:   4
+  // - dimensionsize: 0 (always 0 when no matrix)
+  // - dimensions:   [0] (always 0 when no matrix)
+
+  // [ "v11", "v12", "v13",
+  //   "v21", "v22", "v23",
+  //   "v31", "v32", "v33" ]
+  // - arraylength:   9 (all values are in one array)
+  // - dimensionsize: 2 (has two dimensions)
+  // - dimensions:   [3, 3] (first dimension has length 3, second also length 3)
+
+  // [ "v11", "v12",
+  //   "v21", "v22",
+  //   "v31", "v32" ]
+  // - arraylength:   6 (all values are in one array)
+  // - dimensionsize: 2 (has two dimensions)
+  // - dimensions:   [2, 3] (first dimension has length 2, second also length 3)
+
+  // can also have 3 dimensions [2, 3, 2]
+  // [ "v111", "v121",
+  //   "v211", "v221",
+  //   "v311", "v321"
+  //   "v112", "v122",
+  //   "v212", "v222",
+  //   "v313", "v323" ]
+  // - arraylength:   12
+  // - dimensionsize: 3
+  // - dimensions:   [2, 3, 2] (first dimension has length 2, second also length 3)
+
+  node_struct *ns;
+  Data_Get_Struct(self, node_struct, ns);
+
+  int siz = RARRAY_LEN(value);
+  UA_UInt32 *val = (UA_UInt32 *)malloc(siz * sizeof(UA_UInt32));
+  for (long i = 0; i < siz; i++)
+  {
+    val[i] = NUM2UINT(rb_ary_entry(value, i));
+  }
+
+  UA_Variant v3;
+  UA_Double d[9] = {1.0, 2.0, 3.0,
+                    4.0, 5.0, 6.0,
+                    7.0, 8.0, 9.0};
+  UA_Variant_setArrayCopy(&v3, d, 9, &UA_TYPES[UA_TYPES_DOUBLE]);
+
+  /* Set array dimensions */
+  v3.arrayDimensions = (UA_UInt32 *)UA_Array_new(2, &UA_TYPES[UA_TYPES_UINT32]);
+  v3.arrayDimensionsSize = 2;
+  v3.arrayDimensions[0] = 3;
+  v3.arrayDimensions[1] = 3;
+  UA_Server_writeArrayDimensions(ns->master->master, ns->id, v3);
+  UA_Server_writeValue(ns->master->master, ns->id, v3);
+
+  UA_Variant_clear(&v3);
+
+  /*
+  UA_Variant dim;
+  UA_Variant_init(&dim);
+  UA_StatusCode retval = UA_Server_readArrayDimensions(ns->master->master, ns->id, &dim);
+
+  if (retval == UA_STATUSCODE_GOOD)
+  {
+    //dim.data = val;
+    //printf("size: %i, length: %ls\n", siz, val);
+    dim.arrayDimensions = val;
+    dim.arrayDimensionsSize = siz;
+    //dim.data = val;
+    //dim.arrayLength = siz;
+    //UA_Server_writeArrayDimensions(ns->master->master, ns->id, dim);
+  }
+*/
+  //UA_Variant_clear(&dim);
+  return self;
+} //}}}
+static VALUE node_dimension(VALUE self)
+{ //{{{
+  node_struct *ns;
+
+  Data_Get_Struct(self, node_struct, ns);
+
+  UA_Variant dim;
+  UA_Variant_init(&dim);
+  UA_StatusCode retval = UA_Server_readArrayDimensions(ns->master->master, ns->id, &dim);
+
+  VALUE ret = rb_ary_new();
+  if (retval == UA_STATUSCODE_GOOD)
+  {
+    printf("len: %li, size: %li, data: \n", dim.arrayLength, dim.arrayDimensionsSize);
+    for (long i = 0; i < dim.arrayLength; i++)
+    {
+      rb_ary_push(ret, UA_TYPES_UINT32_to_value(((UA_UInt32 *)dim.data)[i]));
+      rb_ary_push(ret, UA_TYPES_UINT32_to_value(((UA_UInt32 *)dim.arrayDimensions)[i]));
+    }
+    for (long i = 0; i < dim.arrayDimensionsSize; i++)
+    {
+      rb_ary_push(ret, UA_TYPES_UINT32_to_value(((UA_UInt32 *)dim.data)[i]));
+      rb_ary_push(ret, UA_TYPES_UINT32_to_value(((UA_UInt32 *)dim.arrayDimensions)[i]));
+    }
+    //rb_ary_push(ret, rb_to_int(UINT2NUM(dim.arrayDimensions)));
+    //rb_ary_push(ret, rb_to_int(INT2NUM(dim.arrayDimensionsSize)));
+  }
+
+  UA_Variant_clear(&dim);
+  return ret;
+} //}}}
 static VALUE node_symmetric(VALUE self)
 { //{{{
   node_struct *ns;
@@ -1568,6 +1800,14 @@ void Init_server(void)
 
   rb_define_method(cVariableTypeNode, "abstract", node_abstract, 0);
   rb_define_method(cVariableTypeNode, "abstract=", node_abstract_set, 1);
+  rb_define_method(cVariableTypeNode, "mask", node_mask, 0);
+  rb_define_method(cVariableTypeNode, "mask=", node_mask_set, 1);
+  rb_define_method(cVariableTypeNode, "rank", node_rank, 0);
+  rb_define_method(cVariableTypeNode, "rank=", node_rank_set, 1);
+  rb_define_method(cVariableTypeNode, "dimension", node_dimension, 0);
+  rb_define_method(cVariableTypeNode, "dimension=", node_dimension_set, 1);
+  rb_define_method(cVariableTypeNode, "datatype", node_datatype, 0);
+  rb_define_method(cVariableTypeNode, "datatype=", node_datatype_set, 1);
 
   rb_define_method(cReferenceTypeNode, "abstract", node_abstract, 0);
   rb_define_method(cReferenceTypeNode, "abstract=", node_abstract_set, 1);
@@ -1586,4 +1826,12 @@ void Init_server(void)
 
   rb_define_method(cVarNode, "value", node_value, 0);
   rb_define_method(cVarNode, "value=", node_value_set, 1);
+  rb_define_method(cVarNode, "mask", node_mask, 0);
+  rb_define_method(cVarNode, "mask=", node_mask_set, 1);
+  rb_define_method(cVarNode, "rank", node_rank, 0);
+  rb_define_method(cVarNode, "rank=", node_rank_set, 1);
+  rb_define_method(cVarNode, "dimension", node_dimension, 0);
+  rb_define_method(cVarNode, "dimension=", node_dimension_set, 1);
+  rb_define_method(cVarNode, "datatype", node_datatype, 0);
+  rb_define_method(cVarNode, "datatype=", node_datatype_set, 1);
 }
