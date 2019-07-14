@@ -20,7 +20,7 @@ Daemonite.new do
     srv.add_nodeset File.read('Opc.Ua.AutoID.1.0.NodeSet2.xml'), :AutoId, :DI                  # https://opcfoundation.org/UA/schemas/AutoID/1.0/Opc.Ua.AutoID.NodeSet2.xml
     srv.add_nodeset File.read('Example.Reference.1.0.NodeSet2.xml'), :Testing, :DI, :Robotics  # Really weird local testing nodeset with references to DI and Robotics
 
-    puts "Server known Nodes: #{srv.nodes.length}"
+    puts "\e[31mServer known Nodes: #{srv.nodes.length}\e[0m" unless srv.nodes.length == 597
 
     # TODO: currently add your current namespace as the last or it will be overridden
     ex = srv.add_namespace 'http://example.org/' # TODO: add_namespace should return namespace index
@@ -31,26 +31,25 @@ Daemonite.new do
     raise "add_object Error" unless srv.add_object("TestDevice", "ns=#{ex};i=31243", srv.objects, UA::Organizes, AutoId::OpticalReaderDeviceType).to_s == "ns=#{ex};i=31243"
 
     tt = srv.add_object_type(:TestComponentType, "ns=#{ex};i=77900", DI::ComponentType, UA::HasSubtype).tap{ |t|
+      t.add_variable :TestVar0
       t.add_variable :TestVar1
     }
     srv.objects.manifest(:Test1, tt)
 
-    def log(v)
-      puts "Rank: #{v.rank}"
-      puts "Dimension: #{v.dimension}"
-      puts "DataType: #{v.datatype.name}"
-    end
 
     #log srv.get "ns=0;i=2258"
-    v0 = srv.get "ns=6;s=/Test1/TestVar1"
-    log v0
+    v0 = srv.get "ns=6;s=/Test1/TestVar0"
+    v1 = srv.get "ns=6;s=/Test1/TestVar1"
 
-    v0.rank = 2
     v0.datatype = UA::Double
-    log v0
+    v0.rank = 2
+    #v0.value = [1, 2, 3, 4] #TODO: find solution to keep dimension
+    v1.dimension = [2, 3, 2]
 
-    v0.dimension = [2, 2]
-    #log v0
+    raise "v0 false DataType" unless v0.datatype.name == "Double"
+    raise "v0 false ValueRank" unless v0.rank == 2
+    raise "v1 false ValueRank" unless v1.rank == 3
+    raise "v1 false Dimension" unless v1.dimension == [2, 3, 2]
 
 
     raise "DI import Error" unless DI::ComponentType.follow_inverse(UA::HasSubtype).first.name == "TopologyElementType"
@@ -58,12 +57,12 @@ Daemonite.new do
     raise "UA HasChild references missing" unless UA::HasChild.follow_all(UA::HasSubtype).select{ |n| n.name == "Aggregates" || n.name == "HasSubtype" }.length == 2
 
     node = UA::HasComponent
-    path = "Find SuperTypes of #{node}"
+    path = ""
     until node.nil?
       path += "->#{node.name}"
       node = node.follow_inverse(UA::HasSubtype).first
     end
-    puts path
+    puts "\e[31m#{path}\e[0m" unless path == "->HasComponent->Aggregates->HasChild->HierarchicalReferences->References"
 
     
 
