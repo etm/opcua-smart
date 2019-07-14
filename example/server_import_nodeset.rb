@@ -50,7 +50,7 @@ Daemonite.new do
     log v0
 
     v0.dimension = [2, 2]
-    log v0
+    #log v0
 
 
     raise "DI import Error" unless DI::ComponentType.follow_inverse(UA::HasSubtype).first.name == "TopologyElementType"

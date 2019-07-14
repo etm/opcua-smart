@@ -1493,20 +1493,23 @@ static VALUE node_dimension_set(VALUE self, VALUE value)
     val[i] = NUM2UINT(rb_ary_entry(value, i));
   }
 
+  UA_Variant v2;
+  UA_UInt32 dim[2] = {3, 3};
+  UA_Variant_setArrayCopy(&v2, dim, 2, &UA_TYPES[UA_TYPES_UINT32]);
+  UA_Server_writeArrayDimensions(ns->master->master, ns->id, v2);
+
   UA_Variant v3;
   UA_Double d[9] = {1.0, 2.0, 3.0,
                     4.0, 5.0, 6.0,
                     7.0, 8.0, 9.0};
   UA_Variant_setArrayCopy(&v3, d, 9, &UA_TYPES[UA_TYPES_DOUBLE]);
-
-  /* Set array dimensions */
   v3.arrayDimensions = (UA_UInt32 *)UA_Array_new(2, &UA_TYPES[UA_TYPES_UINT32]);
   v3.arrayDimensionsSize = 2;
   v3.arrayDimensions[0] = 3;
   v3.arrayDimensions[1] = 3;
-  UA_Server_writeArrayDimensions(ns->master->master, ns->id, v3);
   UA_Server_writeValue(ns->master->master, ns->id, v3);
 
+  //UA_Variant_clear(&v2);
   UA_Variant_clear(&v3);
 
   /*
