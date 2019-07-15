@@ -255,7 +255,8 @@ static VALUE server_add_variable_type(VALUE self, VALUE name, VALUE nodeid, VALU
                                 pa->id,
                                 re->id,
                                 UA_QUALIFIEDNAME(nid.namespaceIndex, nstr),
-                                pa->id,
+                                //pa->id,
+                                UA_NODEID_NULL,
                                 vtAttr,
                                 NULL,
                                 NULL);
@@ -1458,7 +1459,7 @@ static VALUE node_rank(VALUE self)
   UA_Int32_clear(&value);
   return ret;
 } //}}}
-static VALUE node_dimension_set(VALUE self, VALUE value)
+static VALUE node_dimensions_set(VALUE self, VALUE value)
 { //{{{
   // value is the dimensions array (i.e. [2, 3, 2]), dimensionsize is just the length of this array
   //Examples for arrays/matrices :
@@ -1531,7 +1532,7 @@ static VALUE node_dimension_set(VALUE self, VALUE value)
   */
   return self;
 } //}}}
-static VALUE node_dimension(VALUE self)
+static VALUE node_dimensions(VALUE self)
 { //{{{
   node_struct *ns;
 
@@ -1798,8 +1799,8 @@ void Init_server(void)
   rb_define_method(cVariableTypeNode, "mask=", node_mask_set, 1);
   rb_define_method(cVariableTypeNode, "rank", node_rank, 0);
   rb_define_method(cVariableTypeNode, "rank=", node_rank_set, 1);
-  rb_define_method(cVariableTypeNode, "dimension", node_dimension, 0);
-  rb_define_method(cVariableTypeNode, "dimension=", node_dimension_set, 1);
+  rb_define_method(cVariableTypeNode, "dimensions", node_dimensions, 0);
+  rb_define_method(cVariableTypeNode, "dimensions=", node_dimensions_set, 1);
   rb_define_method(cVariableTypeNode, "datatype", node_datatype, 0);
   rb_define_method(cVariableTypeNode, "datatype=", node_datatype_set, 1);
 
@@ -1826,8 +1827,8 @@ void Init_server(void)
   rb_define_method(cVarNode, "mask=", node_mask_set, 1);
   rb_define_method(cVarNode, "rank", node_rank, 0);
   rb_define_method(cVarNode, "rank=", node_rank_set, 1);
-  rb_define_method(cVarNode, "dimension", node_dimension, 0);
-  rb_define_method(cVarNode, "dimension=", node_dimension_set, 1);
+  rb_define_method(cVarNode, "dimensions", node_dimensions, 0);
+  rb_define_method(cVarNode, "dimensions=", node_dimensions_set, 1);
   rb_define_method(cVarNode, "datatype", node_datatype, 0);
   rb_define_method(cVarNode, "datatype=", node_datatype_set, 1);
   rb_define_method(cVarNode, "delete!", node_delete, 0);

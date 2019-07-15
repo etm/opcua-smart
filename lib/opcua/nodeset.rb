@@ -121,6 +121,10 @@ module NodeSet
             node = server.add_variable_type(bn.Name, bn.NodeId.to_s, parent_node, reference_node, UA::BaseDataType) if datatype_node.nil?
             node = server.add_variable_type(bn.Name, bn.NodeId.to_s, parent_node, reference_node, datatype_node) unless datatype_node.nil?
             node.abstract = true if bn.Abstract
+            node.rank = bn.Rank unless bn.Rank.nil?
+            puts "Rank #{bn.Rank} for #{bn.Name}" unless bn.Rank.nil?
+            node.dimensions = bn.Dimensions unless bn.Dimensions.nil?
+            puts "Dimensions #{bn.Dimensions} for #{bn.Name}" unless bn.Dimensions.nil?
             #node.datatype = datatype_node unless bn.DataType.nil?
           when NodeClass::ObjectType
             node = server.add_object_type(bn.Name, bn.NodeId.to_s, parent_node, reference_node)
@@ -166,6 +170,8 @@ module NodeSet
       def Description() @description end
       def NodeClass() @nodeclass end
       def ParentNodeId() @parent_nodeid end
+      def Index() @index end
+      def References() @references end
       def ReferenceNodeId() @parent_reference_nodeid end
       def TypeNodeId() @type_nodeid end
       def Symmetric() @symmetric end
@@ -174,8 +180,9 @@ module NodeSet
       def DataType() @datatype end
       def SymbolicName() @symbolic_name end
       def EventNotifier() @eventnotifier end
-      def Index() @index end
-      def References() @references end
+      def Interval() @interval end
+      def Rank() @rank end
+      def Dimensions() @dimensions end
 
       def initialize(importer, xml)
         @xml = xml
@@ -215,7 +222,9 @@ module NodeSet
         @symbolic_name = xml.find('string(@SymbolicName)') if xml.find('@SymbolicName').first
         @inverse_name = LocalizedText.parse xml.find("*[name()='InverseName']").first
         @eventnotifier = xml.find('number(@EventNotifier)') if xml.find('@EventNotifier').first
-        # TODO: ValueRank="1" ArrayDimensions="0" MinimumSamplingInterval="1000" @UAVariable
+        @interval = xml.find('number(@MinimumSamplingInterval)') if xml.find('@MinimumSamplingInterval').first
+        @rank = xml.find('number(@ValueRank)') if xml.find('@ValueRank').first
+        @dimensions = xml.find('string(@ArrayDimensions)').split(",").map { |s| s.to_i } if xml.find('@ArrayDimensions').first
       end
     end
 
