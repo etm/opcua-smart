@@ -6,29 +6,26 @@ Daemonite.new do
   on startup do |opts|
     srv = opts['server'] = OPCUA::Server.new
 
-    # read nodesets from xml and load into server
-    # also create classes for objects, types, variables and put nodeid in class variables
-    srv.import_ua # imports standard OPC UA Namespace under UA module -> but takes some ms time to parse
-    # this is equal to:
-    # add_nodeset File.read("../lib/opcua/Opc.Ua.1.04.NodeSet2.xml")
-    # in this way you could also load a newer version of the opc ua standard nodeset
+    def err(message)
+      puts "\e[31m#{message}\e[0m"
+    end
 
-    raise "UA::HasSubtype not found" unless UA::HasSubtype.to_s == "ns=0;i=45"
-    raise "UA::LocalizedText not found" unless UA::LocalizedText.to_s == "ns=0;i=21"
+    srv.import_ua # imports the current OPC UA Namespace
+
+    # Tests:
+    err "UA::HasSubtype not found" unless UA::HasSubtype.to_s == "ns=0;i=45"
+    err "UA::LocalizedText not found" unless UA::LocalizedText.to_s == "ns=0;i=21"
 
     srv.add_nodeset File.read('Opc.Ua.Di.1.2.NodeSet2.xml'), :DI                               # https://opcfoundation.org/UA/schemas/DI/1.2/Opc.Ua.Di.NodeSet2.xml
     srv.add_nodeset File.read('Opc.Ua.AutoID.1.0.NodeSet2.xml'), :AutoId, :DI                  # https://opcfoundation.org/UA/schemas/AutoID/1.0/Opc.Ua.AutoID.NodeSet2.xml
     srv.add_nodeset File.read('Example.Reference.1.0.NodeSet2.xml'), :Testing, :DI, :Robotics  # Really weird local testing nodeset with references to DI and Robotics
-
-    puts "\e[31mServer known Nodes: #{srv.nodes.length}\e[0m" unless srv.nodes.length == 597
-
-    # TODO: currently add your current namespace as the last or it will be overridden
-    ex = srv.add_namespace 'http://example.org/' # TODO: add_namespace should return namespace index
-    ex = 6
+    ex = srv.add_namespace 'http://example.org/'
     
-    raise "add_object_type Error" unless srv.add_object_type("TestType","ns=#{ex};i=77777", UA::BaseObjectType, UA::HasSubtype).to_s == "ns=#{ex};i=77777"
-    raise "add_data_type Error" unless srv.add_data_type("TestDataType","ns=#{ex};i=77778", UA::Structure, UA::HasSubtype).to_s == "ns=#{ex};i=77778"
-    raise "add_object Error" unless srv.add_object("TestDevice", "ns=#{ex};i=31243", srv.objects, UA::Organizes, AutoId::OpticalReaderDeviceType).to_s == "ns=#{ex};i=31243"
+    # Tests:
+    err "Server known Nodes: #{srv.nodes.length}" unless srv.nodes.length == 597
+    err "add_object_type Error" unless srv.add_object_type("TestType","ns=#{ex};i=77777", UA::BaseObjectType, UA::HasSubtype).to_s == "ns=#{ex};i=77777"
+    err "add_data_type Error" unless srv.add_data_type("TestDataType","ns=#{ex};i=77778", UA::Structure, UA::HasSubtype).to_s == "ns=#{ex};i=77778"
+    err "add_object Error" unless srv.add_object("TestDevice", "ns=#{ex};i=31243", srv.objects, UA::Organizes, AutoId::OpticalReaderDeviceType).to_s == "ns=#{ex};i=31243"
 
     tt = srv.add_object_type(:TestComponentType, "ns=#{ex};i=77900", DI::ComponentType, UA::HasSubtype).tap{ |t|
       t.add_variable :TestVar0
@@ -36,25 +33,26 @@ Daemonite.new do
     }
     srv.objects.manifest(:Test1, tt)
 
-
-    #log srv.get "ns=0;i=2258"
     v0 = srv.get "ns=6;s=/Test1/TestVar0"
     v1 = srv.get "ns=6;s=/Test1/TestVar1"
 
     v0.datatype = UA::Double
     v0.rank = 2
-    #v0.value = [1, 2, 3, 4] #TODO: find solution to keep dimension
+    v0.dimension = [2, 2] # 2x2 Matrix
+    v0.value = [1, 2, 3, 4] 
     v1.dimension = [2, 3, 2]
 
-    raise "v0 false DataType" unless v0.datatype.name == "Double"
-    raise "v0 false ValueRank" unless v0.rank == 2
-    raise "v1 false ValueRank" unless v1.rank == 3
-    raise "v1 false Dimension" unless v1.dimension == [2, 3, 2]
+    err "v0 false DataType" unless v0.datatype.name == "Double"
+    err "v0 false ValueRank => overridden by node_value_set? (only override if current dimension < 2)" unless v0.rank == 2
+    err "v0 false Dimension" unless v0.dimension == [2, 2]
+    err "v0 false Value => error in node_value_set?" unless v0.value[0] == [1, 2, 3, 4]
+    err "v1 false ValueRank" unless v1.rank == 3
+    err "v1 false Dimension" unless v1.dimension == [2, 3, 2]
 
 
-    raise "DI import Error" unless DI::ComponentType.follow_inverse(UA::HasSubtype).first.name == "TopologyElementType"
-    raise "DI DeviceType not found" unless DI::ComponentType.follow(UA::HasSubtype).select{ |n| n.name == "DeviceType" }.length == 1
-    raise "UA HasChild references missing" unless UA::HasChild.follow_all(UA::HasSubtype).select{ |n| n.name == "Aggregates" || n.name == "HasSubtype" }.length == 2
+    err "DI import Error @TopologyElement->ComponentType" unless DI::ComponentType.follow_inverse(UA::HasSubtype).first.name == "TopologyElementType"
+    err "DI DeviceType not found" unless DI::ComponentType.follow(UA::HasSubtype).select{ |n| n.name == "DeviceType" }.length == 1
+    err "UA HasChild references missing or new added" unless UA::HasChild.follow_all(UA::HasSubtype).select{ |n| n.name == "Aggregates" || n.name == "HasSubtype" }.length == 2
 
     node = UA::HasComponent
     path = ""
@@ -62,9 +60,7 @@ Daemonite.new do
       path += "->#{node.name}"
       node = node.follow_inverse(UA::HasSubtype).first
     end
-    puts "\e[31m#{path}\e[0m" unless path == "->HasComponent->Aggregates->HasChild->HierarchicalReferences->References"
-
-    
+    err "Parents of UA::HasComponent false: #{path}" unless path == "->HasComponent->Aggregates->HasChild->HierarchicalReferences->References"
 
 
 

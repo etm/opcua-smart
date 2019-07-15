@@ -1635,7 +1635,7 @@ static VALUE server_add_namespace(VALUE self, VALUE name)
   char *nstr = (char *)StringValuePtr(str);
 
   pss->default_ns = UA_Server_addNamespace(pss->master, nstr);
-  return self;
+  return INT2NUM(pss->default_ns);
 } //}}}
 static VALUE server_types(VALUE self)
 { //{{{
