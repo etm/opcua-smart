@@ -118,13 +118,16 @@ module NodeSet
           when NodeClass::DataType
             node = server.add_data_type(bn.Name, bn.NodeId.to_s, parent_node, reference_node)
           when NodeClass::VariableType
-            node = server.add_variable_type(bn.Name, bn.NodeId.to_s, parent_node, reference_node, UA::BaseDataType) if datatype_node.nil?
-            node = server.add_variable_type(bn.Name, bn.NodeId.to_s, parent_node, reference_node, datatype_node) unless datatype_node.nil?
+            dimensions = bn.Dimensions
+            dimensions = [] if dimensions.nil?
+            puts "Dimensions!!! #{dimensions}" if bn.Name == "YArrayItemType"
+            node = server.add_variable_type(bn.Name, bn.NodeId.to_s, parent_node, reference_node, UA::BaseDataType, dimensions) if datatype_node.nil?
+            node = server.add_variable_type(bn.Name, bn.NodeId.to_s, parent_node, reference_node, datatype_node, dimensions) unless datatype_node.nil?
             node.abstract = true if bn.Abstract
             node.rank = bn.Rank unless bn.Rank.nil?
-            puts "Rank #{bn.Rank} for #{bn.Name}" unless bn.Rank.nil?
-            node.dimensions = bn.Dimensions unless bn.Dimensions.nil?
-            puts "Dimensions #{bn.Dimensions} for #{bn.Name}" unless bn.Dimensions.nil?
+            #puts "Rank #{bn.Rank} for #{bn.Name}" unless bn.Rank.nil?
+            #node.dimensions = bn.Dimensions unless bn.Dimensions == [0] unless bn.Dimensions.nil?
+            #puts "Dimensions #{bn.Dimensions} for #{bn.Name}" unless bn.Dimensions.nil?
             #node.datatype = datatype_node unless bn.DataType.nil?
           when NodeClass::ObjectType
             node = server.add_object_type(bn.Name, bn.NodeId.to_s, parent_node, reference_node)
@@ -221,9 +224,9 @@ module NodeSet
         @datatype = importer.nodeid_from_nodeset(xml.find('string(@DataType)')) if xml.find('@DataType').first
         @symbolic_name = xml.find('string(@SymbolicName)') if xml.find('@SymbolicName').first
         @inverse_name = LocalizedText.parse xml.find("*[name()='InverseName']").first
-        @eventnotifier = xml.find('number(@EventNotifier)') if xml.find('@EventNotifier').first
-        @interval = xml.find('number(@MinimumSamplingInterval)') if xml.find('@MinimumSamplingInterval').first
-        @rank = xml.find('number(@ValueRank)') if xml.find('@ValueRank').first
+        @eventnotifier = xml.find('number(@EventNotifier)').to_i if xml.find('@EventNotifier').first
+        @interval = xml.find('number(@MinimumSamplingInterval)').to_i if xml.find('@MinimumSamplingInterval').first
+        @rank = xml.find('number(@ValueRank)').to_i if xml.find('@ValueRank').first
         @dimensions = xml.find('string(@ArrayDimensions)').split(",").map { |s| s.to_i } if xml.find('@ArrayDimensions').first
       end
     end

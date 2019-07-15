@@ -229,7 +229,7 @@ static VALUE server_add_data_type(VALUE self, VALUE name, VALUE nodeid, VALUE pa
 
   return node_wrap(cDataTypeNode, node_alloc(pss, nid));
 } //}}}
-static VALUE server_add_variable_type(VALUE self, VALUE name, VALUE nodeid, VALUE parent, VALUE reference, VALUE datatype)
+static VALUE server_add_variable_type(VALUE self, VALUE name, VALUE nodeid, VALUE parent, VALUE reference, VALUE datatype, VALUE dimensions)
 { //{{{
   server_struct *pss;
   Data_Get_Struct(self, server_struct, pss);
@@ -239,6 +239,8 @@ static VALUE server_add_variable_type(VALUE self, VALUE name, VALUE nodeid, VALU
   Data_Get_Struct(reference, node_struct, re);
   node_struct *dt;
   Data_Get_Struct(datatype, node_struct, dt);
+
+  int size = RARRAY_LEN(dimensions);
 
   VALUE str = rb_obj_as_string(name);
   if (NIL_P(str) || TYPE(str) != T_STRING)
@@ -250,12 +252,23 @@ static VALUE server_add_variable_type(VALUE self, VALUE name, VALUE nodeid, VALU
   UA_VariableTypeAttributes vtAttr = UA_VariableTypeAttributes_default;
   vtAttr.displayName = UA_LOCALIZEDTEXT("en-US", nstr);
   vtAttr.dataType = dt->id;
+  if (size > 0)
+  {
+    UA_UInt32 *dims = (UA_UInt32 *)malloc(size * sizeof(UA_UInt32));
+    for (long i = 0; i < size; i++)
+    {
+      dims[i] = NUM2UINT(rb_ary_entry(dimensions, i));
+    }
+    vtAttr.valueRank = size; //possibly false if size > 3
+    vtAttr.arrayDimensions = dims;
+    vtAttr.arrayDimensionsSize = size;
+  }
+
   UA_Server_addVariableTypeNode(pss->master,
                                 nid,
                                 pa->id,
                                 re->id,
                                 UA_QUALIFIEDNAME(nid.namespaceIndex, nstr),
-                                //pa->id,
                                 UA_NODEID_NULL,
                                 vtAttr,
                                 NULL,
@@ -342,27 +355,33 @@ static VALUE server_add_variable(VALUE self, VALUE name, VALUE nodeid, VALUE par
 
   UA_NodeId nid = nodeid_from_str(nodeid);
 
-  //get type data
-  //UA_UInt32 mask;
-  //UA_UInt32_init(&mask);
-  //UA_Server_readWriteMask(pss->master, pa->id, &mask);
+  UA_UInt32 mask;
+  UA_UInt32_init(&mask);
+  UA_Server_readWriteMask(pss->master, ty->id, &mask);
   UA_Int32 rank;
   UA_Int32_init(&rank);
-  UA_Server_readValueRank(pss->master, pa->id, &rank);
-  //UA_Variant dim;
-  //UA_Variant_init(&dim);
-  //UA_Server_readArrayDimensions(pss->master, pa->id, &dim);
+  UA_Server_readValueRank(pss->master, ty->id, &rank);
+  UA_Variant dim;
+  UA_Variant_init(&dim);
+  UA_Server_readArrayDimensions(pss->master, ty->id, &dim);
   UA_NodeId datatype;
   UA_NodeId_init(&datatype);
-  UA_Server_readDataType(pss->master, pa->id, &datatype);
+  UA_Server_readDataType(pss->master, ty->id, &datatype);
 
   UA_VariableAttributes vAttr = UA_VariableAttributes_default;
   vAttr.displayName = UA_LOCALIZEDTEXT("en-US", nstr);
-  //vAttr.writeMask = mask;
+  vAttr.writeMask = mask;
   vAttr.valueRank = rank;
-  //vAttr.arrayDimensions = dim.arrayDimensions;
-  //vAttr.arrayDimensionsSize = dim.arrayDimensionsSize;
-  //vAttr.dataType = datatype;
+  vAttr.dataType = datatype;
+  if (nid.identifierType == UA_NODEIDTYPE_NUMERIC)
+  {
+    if (nid.identifier.numeric == 12029)
+    {
+      printf("Node Rank: %i\n", rank);
+    }
+  }
+  //vAttr.arrayDimensions = (UA_UInt32 *)dim.data;
+  //vAttr.arrayDimensionsSize = ((UA_UInt32 *)dim.data).length;
   UA_Server_addVariableNode(pss->master,
                             nid,
                             pa->id,
@@ -373,9 +392,9 @@ static VALUE server_add_variable(VALUE self, VALUE name, VALUE nodeid, VALUE par
                             NULL,
                             NULL);
 
-  //UA_UInt32_clear(&mask);
+  UA_UInt32_clear(&mask);
   UA_Int32_clear(&rank);
-  //UA_Variant_clear(&dim);
+  UA_Variant_clear(&dim);
   UA_NodeId_clear(&datatype);
   return node_wrap(cVarNode, node_alloc(pss, nid));
 } //}}}
@@ -1738,7 +1757,7 @@ void Init_server(void)
   rb_define_method(cServer, "namespaces", server_namespaces, 0);
   rb_define_method(cServer, "add_reference_type", server_add_reference_type, 5);
   rb_define_method(cServer, "add_data_type", server_add_data_type, 4);
-  rb_define_method(cServer, "add_variable_type", server_add_variable_type, 5);
+  rb_define_method(cServer, "add_variable_type", server_add_variable_type, 6);
   rb_define_method(cServer, "add_variable", server_add_variable, 5);
   rb_define_method(cServer, "add_object_type", server_add_object_type, 4);
   rb_define_method(cServer, "add_object", server_add_object, 5);

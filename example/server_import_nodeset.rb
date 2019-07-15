@@ -38,16 +38,16 @@ Daemonite.new do
 
     v0.datatype = UA::Double
     v0.rank = 2
-    v0.dimension = [2, 2] # 2x2 Matrix
+    v0.dimensions = [2, 2] # 2x2 Matrix
     v0.value = [1, 2, 3, 4] 
-    v1.dimension = [2, 3, 2]
+    v1.dimensions = [2, 3, 2]
 
     err "v0 false DataType" unless v0.datatype.name == "Double"
-    err "v0 false ValueRank => overridden by node_value_set? (only override if current dimension < 2)" unless v0.rank == 2
-    err "v0 false Dimension" unless v0.dimension == [2, 2]
+    err "v0 false ValueRank => overridden by node_value_set? (only override if current rank < 2)" unless v0.rank == 2
+    err "v0 false Dimensions" unless v0.dimensions == [2, 2]
     err "v0 false Value => error in node_value_set?" unless v0.value[0] == [1, 2, 3, 4]
     err "v1 false ValueRank" unless v1.rank == 3
-    err "v1 false Dimension" unless v1.dimension == [2, 3, 2]
+    err "v1 false Dimensions" unless v1.dimensions == [2, 3, 2]
 
 
     err "DI import Error @TopologyElement->ComponentType" unless DI::ComponentType.follow_inverse(UA::HasSubtype).first.name == "TopologyElementType"
