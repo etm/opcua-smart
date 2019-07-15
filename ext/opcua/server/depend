@@ -1,1 +1,5 @@
-server.o: server.h ../values.h ../strnautocat.h
+finders.o: finders.c finders.h
+log_none.o: log_none.c log_none.h
+server.o: server.c server.h log_none.h strnautocat.h finders.h values.h
+strnautocat.o: strnautocat.c strnautocat.h
+values.o: values.c values.h

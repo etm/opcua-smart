@@ -1,12 +1,13 @@
-/* -- */
-VALUE mTYPES = Qnil;
+#include "values.h"
+
+VALUE mOPCUA;
 
 /* -- */
-static void variant_set_one_dimension(UA_Variant *variant,UA_UInt32 len) {
+static void variant_set_one_dimension(UA_Variant *variant,UA_UInt32 len) { //{{{
   variant->arrayDimensions = (UA_UInt32 *)UA_Array_new(1, &UA_TYPES[UA_TYPES_UINT32]);
   variant->arrayDimensions[0] = len;
   variant->arrayDimensionsSize = 1;
-}
+} //}}}
 static bool value_to_array(VALUE value, UA_Variant *variant) {/*{{{*/
   int done = false;
 
@@ -92,7 +93,8 @@ static bool value_to_array(VALUE value, UA_Variant *variant) {/*{{{*/
   }
   return done;
 }/*}}}*/
-static bool value_to_variant(VALUE value, UA_Variant *variant) { //{{{
+
+bool value_to_variant(VALUE value, UA_Variant *variant, UA_UInt32 proposal) { //{{{
   bool done = false;
   if (rb_obj_is_kind_of(value,rb_cTime)) {
     UA_DateTime tmp = UA_DateTime_fromUnixTime(rb_time_timeval(value).tv_sec);
@@ -115,10 +117,36 @@ static bool value_to_variant(VALUE value, UA_Variant *variant) { //{{{
           break;
         }
       case T_FLOAT:
-      case T_FIXNUM:
         {
           UA_Double tmp = NUM2DBL(value);
           UA_Variant_setScalarCopy(variant, &tmp, &UA_TYPES[UA_TYPES_DOUBLE]);
+          done = true;
+          break;
+        }
+      case T_FIXNUM:
+        {
+          if (proposal == UA_TYPES_SBYTE) {
+            UA_SByte tmp = (UA_SByte)NUM2CHR(value);
+            UA_Variant_setScalarCopy(variant, &tmp, &UA_TYPES[UA_TYPES_SBYTE]);
+          } else if (proposal == UA_TYPES_BYTE) {
+            UA_SByte tmp = (UA_Byte)NUM2CHR(value);
+            UA_Variant_setScalarCopy(variant, &tmp, &UA_TYPES[UA_TYPES_BYTE]);
+          } else if (proposal == UA_TYPES_INT16) {
+            UA_Int16 tmp = NUM2INT(value);
+            UA_Variant_setScalarCopy(variant, &tmp, &UA_TYPES[UA_TYPES_INT16]);
+          } else if (proposal == UA_TYPES_UINT16) {
+            UA_UInt16 tmp = NUM2INT(value);
+            UA_Variant_setScalarCopy(variant, &tmp, &UA_TYPES[UA_TYPES_UINT16]);
+          } else if (proposal == UA_TYPES_INT32) {
+            UA_Int32 tmp = NUM2LONG(value);
+            UA_Variant_setScalarCopy(variant, &tmp, &UA_TYPES[UA_TYPES_INT32]);
+          } else if (proposal == UA_TYPES_UINT32) {
+            UA_UInt32 tmp = NUM2ULONG(value);
+            UA_Variant_setScalarCopy(variant, &tmp, &UA_TYPES[UA_TYPES_UINT32]);
+          } else {
+            UA_Int32 tmp = NUM2LONG(value);
+            UA_Variant_setScalarCopy(variant, &tmp, &UA_TYPES[UA_TYPES_INT32]);
+          }
           done = true;
           break;
         }
@@ -142,9 +170,8 @@ static bool value_to_variant(VALUE value, UA_Variant *variant) { //{{{
   }
   return done;
 } //}}}
-/* ++ */
 
-static void Init_types() {/*{{{*/
+void Init_types() {/*{{{*/
   mTYPES = rb_define_module_under(mOPCUA,"TYPES");
   rb_define_const(mTYPES, "DATETIME",            INT2NUM(UA_TYPES_DATETIME           ));
   rb_define_const(mTYPES, "BOOLEAN",             INT2NUM(UA_TYPES_BOOLEAN            ));
@@ -156,32 +183,38 @@ static void Init_types() {/*{{{*/
   rb_define_const(mTYPES, "STRING",              INT2NUM(UA_TYPES_STRING             ));
 }/*}}}*/
 
-static VALUE UA_TYPES_DATETIME_to_value(UA_DateTime data) {
+static VALUE UA_TYPES_DATETIME_to_value(UA_DateTime data) { //{{{
   return rb_time_new(UA_DateTime_toUnixTime(data),0);
-}
-static VALUE UA_TYPES_BOOLEAN_to_value(UA_Boolean data) {
+} //}}}
+static VALUE UA_TYPES_BOOLEAN_to_value(UA_Boolean data) { //{{{
   return data ? Qtrue : Qfalse;
-}
-static VALUE UA_TYPES_DOUBLE_to_value(UA_Double data) {
+} //}}}
+static VALUE UA_TYPES_DOUBLE_to_value(UA_Double data) { //{{{
   return DBL2NUM(data);
-}
-static VALUE UA_TYPES_INT32_to_value(UA_Int32 data) {
+} //}}}
+static VALUE UA_TYPES_SBYTE_to_value(UA_SByte data) { //{{{
+  return CHR2FIX((signed char)data);
+} //}}}
+static VALUE UA_TYPES_INT32_to_value(UA_Int32 data) { //{{{
   return INT2NUM(data);
-}
-static VALUE UA_TYPES_INT16_to_value(UA_Int16 data) {
+} //}}}
+static VALUE UA_TYPES_INT16_to_value(UA_Int16 data) { //{{{
   return INT2NUM(data);
-}
-static VALUE UA_TYPES_UINT32_to_value(UA_UInt32 data) {
+} //}}}
+static VALUE UA_TYPES_BYTE_to_value(UA_Byte data) { //{{{
+  return CHR2FIX((unsigned char)data);
+} //}}}
+static VALUE UA_TYPES_UINT32_to_value(UA_UInt32 data) { //{{{
   return UINT2NUM(data);
-}
-static VALUE UA_TYPES_UINT16_to_value(UA_UInt16 data) {
+} //}}}
+static VALUE UA_TYPES_UINT16_to_value(UA_UInt16 data) { //{{{
   return UINT2NUM(data);
-}
-static VALUE UA_TYPES_STRING_to_value(UA_String data) {
+} //}}}
+static VALUE UA_TYPES_STRING_to_value(UA_String data) { //{{{
   return rb_str_export_locale(rb_str_new((char *)(data.data),data.length));
-}
+} //}}}
 
-static VALUE extract_value(UA_Variant value) { //{{{
+VALUE extract_value(UA_Variant value) { //{{{
   VALUE ret = rb_ary_new2(2);
   rb_ary_store(ret,0,Qnil);
   rb_ary_store(ret,1,Qnil);
@@ -210,6 +243,12 @@ static VALUE extract_value(UA_Variant value) { //{{{
     } else if (UA_Variant_hasScalarType(&value, &UA_TYPES[UA_TYPES_UINT16])) {
       rb_ary_store(ret,0,UA_TYPES_UINT16_to_value(*(UA_UInt16 *)value.data));
       rb_ary_store(ret,1,ID2SYM(rb_intern("VariantType.UInt16")));
+    } else if (UA_Variant_hasScalarType(&value, &UA_TYPES[UA_TYPES_SBYTE])) {
+      rb_ary_store(ret,0,UA_TYPES_SBYTE_to_value(*(UA_SByte *)value.data));
+      rb_ary_store(ret,1,ID2SYM(rb_intern("VariantType.SByte")));
+    } else if (UA_Variant_hasScalarType(&value, &UA_TYPES[UA_TYPES_BYTE])) {
+      rb_ary_store(ret,0,UA_TYPES_BYTE_to_value(*(UA_Byte *)value.data));
+      rb_ary_store(ret,1,ID2SYM(rb_intern("VariantType.Byte")));
     } else if (UA_Variant_hasScalarType(&value, &UA_TYPES[UA_TYPES_STRING])) {
       rb_ary_store(ret,0,UA_TYPES_STRING_to_value(*(UA_String *)value.data));
       rb_ary_store(ret,1,ID2SYM(rb_intern("VariantType.String")));

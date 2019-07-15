@@ -48,12 +48,12 @@ Daemonite.new do
     opts[:tn].description = 'test test'
     opts[:tn].value = [0,1]
     p opts[:tn].description
+    p opts[:tn].to_s
+    p opts[:tn].name
 
     measurments_t1 = t1.find(:Measurements)
     measurments_t1.manifest(:M1,mt)
-    measurments_t1.manifest(:M2,mt)
-
-    p opts['server'].namespaces
+    m2 = measurments_t1.manifest(:M2,mt)
   rescue => e
     puts e.message
   end

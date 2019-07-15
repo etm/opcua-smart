@@ -1,3 +1,5 @@
+#include "strnautocat.h"
+
 char *strnautocat(char *str, char *s2, size_t num) {
   int len = 0;
   char *s;

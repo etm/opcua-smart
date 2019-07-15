@@ -17,7 +17,7 @@ VALUE cReferenceTypeNode = Qnil;
 VALUE cVariableTypeNode = Qnil;
 VALUE cDataTypeNode = Qnil;
 
-#include "../values.h"
+#include "values.h"
 
 int nodecounter = 2000;
 
@@ -32,7 +32,7 @@ static void node_free(node_struct *ns)
     }
     free(ns);
   }
-} //}}}
+} // }}}
 static node_struct *node_alloc(server_struct *server, UA_NodeId nodeid)
 { //{{{
   node_struct *ns;
@@ -43,6 +43,7 @@ static node_struct *node_alloc(server_struct *server, UA_NodeId nodeid)
   ns->master = server;
   ns->id = nodeid;
   ns->method = Qnil;
+  ns->exists = true;
 
   return ns;
 } //}}}
@@ -56,6 +57,8 @@ static VALUE node_type_folder(VALUE self)
 { //{{{
   node_struct *ns;
   Data_Get_Struct(self, node_struct, ns);
+  if (!ns->exists)
+    rb_raise(rb_eRuntimeError, "Node does not exist anymore.");
   return node_wrap(cTypeTopNode, node_alloc(ns->master, UA_NODEID_NUMERIC(0, UA_NS0ID_FOLDERTYPE)));
 } //}}}
 static VALUE node_add_object_type(VALUE self, VALUE name)
@@ -63,6 +66,8 @@ static VALUE node_add_object_type(VALUE self, VALUE name)
   node_struct *ns;
 
   Data_Get_Struct(self, node_struct, ns);
+  if (!ns->exists)
+    rb_raise(rb_eRuntimeError, "Node does not exist anymore.");
 
   VALUE str = rb_obj_as_string(name);
   if (NIL_P(str) || TYPE(str) != T_STRING)
@@ -89,6 +94,8 @@ static VALUE node_add_reference_type(VALUE self, VALUE name, VALUE type)
   node_struct *ns;
 
   Data_Get_Struct(self, node_struct, ns);
+  if (!ns->exists)
+    rb_raise(rb_eRuntimeError, "Node does not exist anymore.");
 
   VALUE str = rb_obj_as_string(name);
   if (NIL_P(str) || TYPE(str) != T_STRING)
@@ -376,6 +383,8 @@ static VALUE node_id(VALUE self)
   node_struct *ns;
 
   Data_Get_Struct(self, node_struct, ns);
+  if (!ns->exists)
+    rb_raise(rb_eRuntimeError, "Node does not exist anymore.");
 
   VALUE ret = rb_ary_new();
 
@@ -395,12 +404,28 @@ static VALUE node_id(VALUE self)
   }
   return ret;
 } //}}}
+static VALUE node_name(VALUE self)
+{ //{{{
+  node_struct *ns;
+
+  Data_Get_Struct(self, node_struct, ns);
+  if (!ns->exists)
+    rb_raise(rb_eRuntimeError, "Node does not exist anymore.");
+
+  UA_QualifiedName qn;
+  UA_QualifiedName_init(&qn);
+  UA_Server_readBrowseName(ns->master->master, ns->id, &qn);
+
+  return rb_sprintf("%.*s", (int)qn.name.length, qn.name.data);
+} //}}}
 static VALUE node_to_s(VALUE self)
 { //{{{
   node_struct *ns;
   VALUE ret;
 
   Data_Get_Struct(self, node_struct, ns);
+  if (!ns->exists)
+    rb_raise(rb_eRuntimeError, "Node does not exist anymore.");
 
   if (ns->id.identifierType == UA_NODEIDTYPE_NUMERIC)
   {
@@ -423,13 +448,19 @@ static VALUE node_add_reference(VALUE self, VALUE to, VALUE type)
   node_struct *tys;
 
   Data_Get_Struct(self, node_struct, ns);
+  if (!ns->exists)
+    rb_raise(rb_eRuntimeError, "Node does not exist anymore.");
 
   if (!(rb_obj_is_kind_of(type, cReferenceSubNode) || rb_obj_is_kind_of(to, cTypeSubNode)))
   {
     rb_raise(rb_eArgError, "arguments have to be NodeIDs.");
   }
   Data_Get_Struct(to, node_struct, tos);
+  if (!tos->exists)
+    rb_raise(rb_eRuntimeError, "To (arg 1) node does not exist anymore.");
   Data_Get_Struct(type, node_struct, tys);
+  if (!tys->exists)
+    rb_raise(rb_eRuntimeError, "Type (arg 2) node does not exist anymore.");
   UA_NodeId n = UA_NODEID_NUMERIC(ns->master->default_ns, nodecounter++);
 
   UA_ExpandedNodeId toNodeId;
@@ -559,6 +590,8 @@ static VALUE node_add_method(int argc, VALUE *argv, VALUE self)
     opts = rb_hash_new();
 
   Data_Get_Struct(self, node_struct, parent);
+  if (!parent->exists)
+    rb_raise(rb_eRuntimeError, "Node does not exist anymore.");
 
   VALUE str = rb_obj_as_string(name);
   if (NIL_P(str) || TYPE(str) != T_STRING)
@@ -622,6 +655,8 @@ static VALUE node_add_variable_wrap(int argc, VALUE *argv, VALUE self, UA_Byte a
   }
 
   Data_Get_Struct(self, node_struct, parent);
+  if (!parent->exists)
+    rb_raise(rb_eRuntimeError, "Node does not exist anymore.");
 
   VALUE str = rb_obj_as_string(argv[0]);
   if (NIL_P(str) || TYPE(str) != T_STRING)
@@ -729,7 +764,11 @@ static VALUE node_add_object(int argc, VALUE *argv, VALUE self)
   }
 
   Data_Get_Struct(self, node_struct, parent);
+  if (!parent->exists)
+    rb_raise(rb_eRuntimeError, "Parent node does not exist anymore.");
   Data_Get_Struct(argv[1], node_struct, datatype);
+  if (!datatype->exists)
+    rb_raise(rb_eRuntimeError, "Datatype node does not exist anymore.");
 
   VALUE str = rb_obj_as_string(argv[0]);
   if (NIL_P(str) || TYPE(str) != T_STRING)
@@ -737,56 +776,6 @@ static VALUE node_add_object(int argc, VALUE *argv, VALUE self)
   char *nstr = (char *)StringValuePtr(str);
 
   return node_wrap(CLASS_OF(self), node_alloc(parent->master, node_add_object_ua_simple(type, nstr, parent, datatype, argv[2])));
-} //}}}
-
-static UA_BrowsePathResult node_browse_path(UA_Server *server, UA_NodeId relative, UA_NodeId ref, UA_QualifiedName mqn)
-{ //{{{
-  UA_RelativePathElement rpe;
-  UA_RelativePathElement_init(&rpe);
-  rpe.referenceTypeId = ref;
-  rpe.isInverse = false;
-  rpe.includeSubtypes = false;
-  rpe.targetName = mqn;
-
-  UA_BrowsePath bp;
-  UA_BrowsePath_init(&bp);
-  bp.startingNode = relative;
-  bp.relativePath.elementsSize = 1;
-  bp.relativePath.elements = &rpe;
-
-  return UA_Server_translateBrowsePathToNodeIds(server, &bp);
-} //}}}
-
-static bool node_get_reference(UA_Server *server, UA_NodeId parent, UA_NodeId *result)
-{ //{{{
-  UA_BrowseDescription bDes;
-  UA_BrowseDescription_init(&bDes);
-  bDes.nodeId = parent;
-  bDes.resultMask = UA_BROWSERESULTMASK_ALL;
-  UA_BrowseResult bRes = UA_Server_browse(server, 999, &bDes);
-
-  if (bRes.referencesSize > 0)
-  {
-    UA_ReferenceDescription *ref = &(bRes.references[0]);
-
-    UA_NodeId_copy(&ref->nodeId.nodeId, result);
-
-    UA_QualifiedName qn;
-    UA_QualifiedName_init(&qn);
-    UA_Server_readBrowseName(server, ref->nodeId.nodeId, &qn);
-
-    // printf("NS: %d ---> NodeId %u; %-16.*s\n",
-    // 			 ref->nodeId.nodeId.namespaceIndex,
-    // 			 ref->nodeId.nodeId.identifier.numeric,
-    // 			 (int)qn.name.length,
-    // 			 qn.name.data
-    // );
-
-    UA_BrowseResult_deleteMembers(&bRes);
-    UA_BrowseResult_clear(&bRes);
-    return true;
-  }
-  return false;
 } //}}}
 
 static VALUE node_follow(VALUE self, VALUE reference_type, VALUE direction)
@@ -856,7 +845,6 @@ static VALUE node_follow(VALUE self, VALUE reference_type, VALUE direction)
     UA_NodeClass_clear(&nc);
     rb_ary_push(nodes, node);
   }
-
   UA_BrowseResult_deleteMembers(&bRes);
   UA_BrowseResult_clear(&bRes);
 
@@ -912,8 +900,8 @@ static UA_StatusCode node_manifest_iter(UA_NodeId child_id, UA_Boolean is_invers
       UA_QualifiedName mqn;
       UA_QualifiedName_init(&mqn);
       UA_Server_readBrowseName(parent->master->master, UA_NODEID_NUMERIC(0, UA_NS0ID_MODELLINGRULE_MANDATORY), &mqn);
-
-      UA_BrowsePathResult mandatory = node_browse_path(parent->master->master, child_id, UA_NODEID_NUMERIC(0, UA_NS0ID_HASMODELLINGRULE), mqn);
+      UA_BrowsePathResult mandatory = node_browse_path(parent->master->master, child_id, UA_NODEID_NUMERIC(0, UA_NS0ID_HASMODELLINGRULE), mqn, false);
+      UA_QualifiedName_clear(&mqn);
 
       if (mandatory.statusCode == UA_STATUSCODE_GOOD && (nc == UA_NODECLASS_OBJECT || nc == UA_NODECLASS_VARIABLE || nc == UA_NODECLASS_METHOD))
       {
@@ -928,7 +916,7 @@ static UA_StatusCode node_manifest_iter(UA_NodeId child_id, UA_Boolean is_invers
         if (nc == UA_NODECLASS_OBJECT)
         {
           UA_NodeId typeid;
-          node_get_reference(parent->master->master, child_id, &typeid);
+          server_node_get_reference(parent->master->master, child_id, &typeid, false);
 
           node_struct *thetype = node_alloc(parent->master, typeid);
 
@@ -948,7 +936,8 @@ static UA_StatusCode node_manifest_iter(UA_NodeId child_id, UA_Boolean is_invers
           UA_QualifiedName pqn;
           UA_QualifiedName_init(&pqn);
           UA_Server_readBrowseName(parent->master->master, UA_NODEID_NUMERIC(0, UA_NS0ID_PROPERTYTYPE), &pqn);
-          UA_BrowsePathResult property = node_browse_path(parent->master->master, child_id, UA_NODEID_NUMERIC(0, UA_NS0ID_HASTYPEDEFINITION), pqn);
+          UA_BrowsePathResult property = node_browse_path(parent->master->master, child_id, UA_NODEID_NUMERIC(0, UA_NS0ID_HASTYPEDEFINITION), pqn, false);
+          UA_QualifiedName_clear(&pqn);
 
           if (property.statusCode == UA_STATUSCODE_GOOD)
           {
@@ -960,13 +949,12 @@ static UA_StatusCode node_manifest_iter(UA_NodeId child_id, UA_Boolean is_invers
           }
 
           UA_BrowsePathResult_clear(&property);
-          UA_QualifiedName_clear(&pqn);
         }
         if (nc == UA_NODECLASS_METHOD)
         {
           UA_NodeId ttt;
           VALUE blk = rb_hash_aref(parent->master->methods, INT2NUM(child_id.identifier.numeric));
-          if (node_get_reference(parent->master->master, child_id, &ttt))
+          if (server_node_get_reference(parent->master->master, child_id, &ttt, false))
           {
             UA_Variant arv;
             UA_Variant_init(&arv);
@@ -982,7 +970,6 @@ static UA_StatusCode node_manifest_iter(UA_NodeId child_id, UA_Boolean is_invers
         }
       }
       UA_BrowsePathResult_clear(&mandatory);
-      UA_QualifiedName_clear(&mqn);
     }
 
     UA_NodeClass_clear(&nc);
@@ -1004,7 +991,11 @@ static VALUE node_manifest(VALUE self, VALUE name, VALUE parent)
   }
 
   Data_Get_Struct(self, node_struct, ns);
+  if (!ns->exists)
+    rb_raise(rb_eRuntimeError, "Node does not exist anymore.");
   Data_Get_Struct(parent, node_struct, ts);
+  if (!ns->exists)
+    rb_raise(rb_eRuntimeError, "Target node does not exist anymore.");
 
   VALUE str = rb_obj_as_string(name);
   if (NIL_P(str) || TYPE(str) != T_STRING)
@@ -1033,13 +1024,15 @@ static VALUE node_find(VALUE self, VALUE qname)
   node_struct *ns;
 
   Data_Get_Struct(self, node_struct, ns);
+  if (!ns->exists)
+    rb_raise(rb_eRuntimeError, "Node does not exist anymore.");
 
   VALUE str = rb_obj_as_string(qname);
   if (NIL_P(str) || TYPE(str) != T_STRING)
     rb_raise(rb_eTypeError, "cannot convert obj to string");
   char *nstr = (char *)StringValuePtr(str);
 
-  UA_BrowsePathResult bpr = node_browse_path(ns->master->master, ns->id, UA_NODEID_NUMERIC(0, UA_NS0ID_HASCOMPONENT), UA_QUALIFIEDNAME(ns->master->default_ns, nstr));
+  UA_BrowsePathResult bpr = node_browse_path(ns->master->master, ns->id, UA_NODEID_NUMERIC(0, UA_NS0ID_HASCOMPONENT), UA_QUALIFIEDNAME(ns->master->default_ns, nstr), false);
 
   if (bpr.statusCode != UA_STATUSCODE_GOOD || bpr.targetsSize < 1)
   {
@@ -1167,9 +1160,11 @@ static VALUE node_value_set(VALUE self, VALUE value)
 { //{{{
   node_struct *ns;
   Data_Get_Struct(self, node_struct, ns);
+  if (!ns->exists)
+    rb_raise(rb_eRuntimeError, "Node does not exist anymore.");
 
   UA_Variant variant;
-  if (value_to_variant(value, &variant))
+  if (value_to_variant(value, &variant, -1))
   {
     // printf("-----------------------------------------%ld\n",variant.arrayDimensionsSize);
     if (variant.arrayDimensionsSize > 0)
@@ -1198,6 +1193,8 @@ static VALUE node_value(VALUE self)
   node_struct *ns;
 
   Data_Get_Struct(self, node_struct, ns);
+  if (!ns->exists)
+    rb_raise(rb_eRuntimeError, "Node does not exist anymore.");
 
   UA_Variant value;
   UA_Variant_init(&value);
@@ -1212,10 +1209,40 @@ static VALUE node_value(VALUE self)
   UA_Variant_clear(&value);
   return ret;
 } //}}}
+static VALUE node_delete(VALUE self)
+{ //{{{
+  node_struct *ns;
+
+  Data_Get_Struct(self, node_struct, ns);
+  if (!ns->exists)
+    rb_raise(rb_eRuntimeError, "Node does not exist anymore.");
+
+  UA_StatusCode retval = UA_Server_deleteNode(ns->master->master, ns->id, true);
+
+  if (retval == UA_STATUSCODE_GOOD)
+  {
+    ns->exists = false;
+    return Qtrue;
+  }
+
+  return Qfalse;
+} //}}}
+static VALUE node_exists(VALUE self)
+{ //{{{
+  node_struct *ns;
+
+  Data_Get_Struct(self, node_struct, ns);
+  if (ns->exists)
+    return Qtrue;
+  else
+    return Qfalse;
+} //}}}
 static VALUE node_description_set(VALUE self, VALUE value)
 { //{{{
   node_struct *ns;
   Data_Get_Struct(self, node_struct, ns);
+  if (!ns->exists)
+    rb_raise(rb_eRuntimeError, "Node does not exist anymore.");
 
   VALUE str = rb_obj_as_string(value);
   if (NIL_P(str) || TYPE(str) != T_STRING)
@@ -1231,6 +1258,8 @@ static VALUE node_description(VALUE self)
   node_struct *ns;
 
   Data_Get_Struct(self, node_struct, ns);
+  if (!ns->exists)
+    rb_raise(rb_eRuntimeError, "Node does not exist anymore.");
 
   UA_LocalizedText value;
   UA_LocalizedText_init(&value);
@@ -1243,25 +1272,6 @@ static VALUE node_description(VALUE self)
   }
 
   UA_LocalizedText_clear(&value);
-  return ret;
-} //}}}
-static VALUE node_name(VALUE self)
-{ //{{{
-  node_struct *ns;
-
-  Data_Get_Struct(self, node_struct, ns);
-
-  UA_QualifiedName qn;
-  UA_QualifiedName_init(&qn);
-  UA_StatusCode retval = UA_Server_readBrowseName(ns->master->master, ns->id, &qn);
-
-  VALUE ret = Qnil;
-  if (retval == UA_STATUSCODE_GOOD)
-  {
-    ret = rb_str_export_locale(rb_str_new((char *)(qn.name.data), qn.name.length));
-  }
-
-  UA_QualifiedName_clear(&qn);
   return ret;
 } //}}}
 static VALUE node_inversename_set(VALUE self, VALUE value)
@@ -1536,7 +1546,7 @@ static VALUE node_dimension(VALUE self)
   {
     for (long i = 0; i < dim.arrayLength; i++)
     {
-      rb_ary_push(ret, UA_TYPES_UINT32_to_value(((UA_UInt32 *)dim.data)[i]));
+      rb_ary_push(ret, INT2NUM(((UA_UInt32 *)dim.data)[i]));
     }
   }
   UA_Variant_clear(&dim);
@@ -1753,9 +1763,9 @@ void Init_server(void)
 
   rb_define_method(cNode, "to_s", node_to_s, 0);
   rb_define_method(cNode, "id", node_id, 0);
+  rb_define_method(cNode, "name", node_name, 0);
   rb_define_method(cNode, "description", node_description, 0);
   rb_define_method(cNode, "description=", node_description_set, 1);
-  rb_define_method(cNode, "name", node_name, 0);
   rb_define_method(cNode, "follow_reference", node_follow, 2);
 
   // TODO: use link or add_reference
@@ -1766,6 +1776,7 @@ void Init_server(void)
 
   // TODO: use follow to follow a specific reference
   // node.follow(ref_id)
+  rb_define_method(cNode, "exists?", node_exists, 0);
 
   rb_define_method(cTypeTopNode, "add_object_type", node_add_object_type, 1);
   rb_define_method(cTypeTopNode, "add_reference_type", node_add_reference_type, 1);
@@ -1801,11 +1812,13 @@ void Init_server(void)
   // see: https://github.com/open62541/open62541/blob/d871105cc2bf1c01b36018d2dd9de551c1a621d5/include/open62541/server.h#L307
   // rb_define_method(cNode, "symmetric=", node_symmetric_set, 1);
   rb_define_method(cTypeSubNode, "add_reference", node_add_reference, 2);
+  rb_define_method(cTypeSubNode, "delete!", node_delete, 0);
 
   rb_define_method(cObjectNode, "manifest", node_manifest, 2);
   rb_define_method(cObjectNode, "find", node_find, 1);
   rb_define_method(cObjectNode, "notifier", node_notifier, 0);
   rb_define_method(cObjectNode, "notifier=", node_notifier_set, 1);
+  rb_define_method(cObjectNode, "delete!", node_delete, 0);
 
   rb_define_method(cVarNode, "value", node_value, 0);
   rb_define_method(cVarNode, "value=", node_value_set, 1);
@@ -1817,4 +1830,5 @@ void Init_server(void)
   rb_define_method(cVarNode, "dimension=", node_dimension_set, 1);
   rb_define_method(cVarNode, "datatype", node_datatype, 0);
   rb_define_method(cVarNode, "datatype=", node_datatype_set, 1);
+  rb_define_method(cVarNode, "delete!", node_delete, 0);
 }

@@ -10,6 +10,9 @@ The development of OPC UA applications takes currently a lot of effort. This is 
     1. [Server](#Server)
         1. [Create Server and Namespace](#Create-Server-and-Namespace)
         2. [Create ObjectTypes](#Create-ObjectTypes)
+            1.[Add Variable](#add-variable)
+            2.[Add Object](#add-object)
+            3.[Add Method](#add-method)
         3. [Manifest Objects](#Manifest-Objects)
         4. [Find Nodes in the Addressspace](#Find-Nodes-in-the-Addressspace)
         5. [Loop for getting Real Life Data](#Loop-for-getting-Real-Life-Data)
@@ -87,12 +90,31 @@ require_relative '../lib/opcua/server'
 
 ### Server
 
-The server has following steps:
+The server has following functions:
 * Create the server and add_namespace
 * Create ObjectTypes
 * Manifest ObjectTypes
+* Delete Objects
 * Find nodes in the adress space
 * Loop for getting real life data
+
+Every server application uses the Demonite gem, which allows to run the server as service.
+```ruby
+Daemonite.new do
+  on startup do |opts|
+    ...
+  end
+  run do |opts|
+    ...
+  end
+  on exit do
+    ...
+  end
+end.loop!
+```
+Each server has 3 sections the __startup__, __run__, and __exit__.
+In the __startup__ we create the server and the namespace, define all nodes and typically manifest the adress space. The __run__ section loops and therefore  updates the values of the nodes in the server.
+On __exit__ we can d additionally things e.g. close the connection to another interface.
 
 #### Create Server and Namespace
 
@@ -119,9 +141,24 @@ to = server.types.add_object_type(:TestObjectType).tap{ |t|
 ```
 In this example the _TestObjectType_ is defined. It consits of _TestVariable_ of the _BaseVariableType_ an _TestObject_ of the _FolderType_ and a _TestMethod_.
 
+##### Add Variable
+
 The ``` .add_variable :TestVariable ``` command adds a variable with the name _TestVariable_.
+Multible variables can be defined at once with the ```.add_variables``` command.
+```ruby
+t.add_variables :TestVar1, :TestVar2
+```
+By default variables are read-only.
+If you want to add a variable with read/write support you must use the ```.add_Varable_rw``` method.
+```ruby
+t.add_variable_rw :TestVar1
+```
+
+##### Add Object
 
 With ```.add_object(:TestObject)``` a new object named _TestObject_ is added. The second parameter is optional and definies of which type the new object is. Default the object is from _BaseObjectType_. In this example the created object is from _FolderType_. All child nodes of the object can be definded in the ```tap{}``` area.
+
+##### Add Method
 
 Methods are added with the ```.add_method(:TestMethod)``` function. Per default the method has no input and output arguments. By adding additional arguments you can define input arguments. The code for defining a method with input arguments looks like 
 ```ruby
@@ -137,16 +174,46 @@ in the ```do...end```section you write the code which should be executed by call
 ObjectTypes can be instiantiated with the ```.manifest``` method. 
 
 ```ruby
-    testobject =server.objects.manifest(:TestObjectType, to)
+testobject =server.objects.manifest(:TestObjectType, to)
+```
+
+#### Delete Objects
+Objects can be deleted witch the ```.delete!``` function.
+
+```ruby
+testobject =server.objects.manifest(:TestObjectType, to)
+testobject.delete!
 ```
 
 #### Find Nodes in the Addressspace
 
-To get a specific node u should use th ```.find``` method. 
+To get a specific node you should use the ```.find``` method. 
 ```ruby
-tv = to.find(:TestVariable)
+tv = to.find :TestVariable
 ```
 _tv_ is now the _TestVariable_ node.
+
+You can also find several nodes at the same time.
+```ruby
+tva = to.find :TestVariable1, :TestVariable2
+```
+_tva_ is now a array containing the requested nodes.
+
+```ruby
+tv1, tv2 = to.find :TestVariable1, :TestVariable2
+```
+You can also request several nodes with one _find_ statement.
+
+#### Access the value of a node
+
+To get the value of a specific node use the ```.value``` method.
+```ruby
+tv.value = 10
+tv.value = 'ten'
+puts tv.value
+```
+
+You can assign vlaues without definig a datatype. The correct _DataType_ will be used. Default we use _UA::STRING, UA::DOUBLE and _UA::INT_. Additional Datatypes can be added by request.
 
 #### Loop for getting Real Life Data
 The server loop looks like follows:
