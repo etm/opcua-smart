@@ -328,7 +328,7 @@ VALUE extract_value(UA_Variant value)
       rb_ary_store(ret, 1, ID2SYM(rb_intern("VariantType.String")));
     }
   }
-  else if (value.arrayDimensionsSize == 1 || (value.arrayDimensionsSize == 0 && value.arrayLength > 0))
+  else if (value.arrayDimensionsSize >= 1 || (value.arrayDimensionsSize == 0 && value.arrayLength > 0))
   {
     if (UA_Variant_hasArrayType(&value, &UA_TYPES[UA_TYPES_DATETIME]))
     {

@@ -1179,18 +1179,15 @@ static VALUE node_value_set(VALUE self, VALUE value)
   UA_Variant variant;
   if (value_to_variant(value, &variant, -1))
   {
-    // printf("-----------------------------------------%ld\n",variant.arrayDimensionsSize);
     if (variant.arrayDimensionsSize > 0)
     {
       UA_Variant dim;
       UA_Variant_init(&dim);
       UA_Server_readArrayDimensions(ns->master->master, ns->id, &dim);
-      printf("Dimensions-----%ld\n", variant.arrayDimensionsSize);
-      printf("ArrayLength----%ld\n", dim.arrayLength);
 
-      if (dim.arrayLength <= 1)
+      if (dim.arrayLength < 1)
       {
-        printf("Set Dimensions-%ld\n", dim.arrayLength);
+        //printf("Array (<=1): %ld\n", dim.arrayLength);
         UA_Server_writeValueRank(ns->master->master, ns->id, 1);
         uint d[1] = {0};
 
@@ -1201,13 +1198,13 @@ static VALUE node_value_set(VALUE self, VALUE value)
         variant.arrayDimensionsSize = 1;
         //UA_Variant_clear(&uaArrayDimensions);
       }
-      else
+      else if (dim.arrayLength > 1)
       {
+        //printf("Matrix (>1): %ld\n", dim.arrayLength);
         variant.arrayDimensions = (UA_UInt32 *)dim.data;
         variant.arrayDimensionsSize = dim.arrayLength;
       }
 
-      printf("Write----------%ld\n", dim.arrayLength);
       UA_Server_writeValue(ns->master->master, ns->id, variant);
 
       UA_Variant_clear(&dim);
