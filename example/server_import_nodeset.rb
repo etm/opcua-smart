@@ -30,17 +30,23 @@ Daemonite.new do
     tt = srv.add_object_type(:TestComponentType, "ns=#{ex};i=77900", DI::ComponentType, UA::HasSubtype).tap{ |t|
       t.add_variable :TestVar0
       t.add_variable :TestVar1
+      t.add_variable :TestVar2
     }
     srv.objects.manifest(:Test1, tt)
 
     v0 = srv.get "ns=6;s=/Test1/TestVar0"
     v1 = srv.get "ns=6;s=/Test1/TestVar1"
+    v2 = srv.get "ns=6;s=/Test1/TestVar2"
 
     v0.datatype = UA::Double
-    v0.rank = 2
+    #v0.rank = 2
     v0.dimensions = [2, 2] # 2x2 Matrix
     v0.value = [1, 2, 3, 4] 
+    err v0.value
     v1.dimensions = [2, 3, 2]
+
+    v2.value = [1, 2, 3, 4]
+    err v2.value
 
     err "v0 false DataType" unless v0.datatype.name == "Double"
     err "v0 false ValueRank => overridden by node_value_set? (only override if current rank < 2)" unless v0.rank == 2

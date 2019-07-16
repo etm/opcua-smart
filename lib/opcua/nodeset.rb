@@ -120,15 +120,9 @@ module NodeSet
           when NodeClass::VariableType
             dimensions = bn.Dimensions
             dimensions = [] if dimensions.nil?
-            puts "Dimensions!!! #{dimensions}" if bn.Name == "YArrayItemType"
             node = server.add_variable_type(bn.Name, bn.NodeId.to_s, parent_node, reference_node, UA::BaseDataType, dimensions) if datatype_node.nil?
             node = server.add_variable_type(bn.Name, bn.NodeId.to_s, parent_node, reference_node, datatype_node, dimensions) unless datatype_node.nil?
             node.abstract = true if bn.Abstract
-            node.rank = bn.Rank unless bn.Rank.nil?
-            #puts "Rank #{bn.Rank} for #{bn.Name}" unless bn.Rank.nil?
-            #node.dimensions = bn.Dimensions unless bn.Dimensions == [0] unless bn.Dimensions.nil?
-            #puts "Dimensions #{bn.Dimensions} for #{bn.Name}" unless bn.Dimensions.nil?
-            #node.datatype = datatype_node unless bn.DataType.nil?
           when NodeClass::ObjectType
             node = server.add_object_type(bn.Name, bn.NodeId.to_s, parent_node, reference_node)
             node.abstract = true if bn.Abstract
@@ -139,9 +133,6 @@ module NodeSet
           when NodeClass::Variable
             datatype_node = type_node.datatype unless type_node.datatype.nil? if datatype_node.nil?
             puts "\e[31m#{bn.Name} DataType is nil\e[0m" if datatype_node.nil?
-            #puts "\e[35m#{datatype_node.name}\e[0m"
-            #node.datatype = datatype_node unless bn.DataType.nil?
-            #puts "#{bn.Name} type: #{type_node.datatype.name} type: #{datatype_node.name}"
             node = server.add_variable(bn.Name, bn.NodeId.to_s, parent_node, reference_node, type_node)
           when NodeClass::Method
             return nil

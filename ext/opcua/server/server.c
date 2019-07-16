@@ -373,15 +373,8 @@ static VALUE server_add_variable(VALUE self, VALUE name, VALUE nodeid, VALUE par
   vAttr.writeMask = mask;
   vAttr.valueRank = rank;
   vAttr.dataType = datatype;
-  if (nid.identifierType == UA_NODEIDTYPE_NUMERIC)
-  {
-    if (nid.identifier.numeric == 12029)
-    {
-      printf("Node Rank: %i\n", rank);
-    }
-  }
-  //vAttr.arrayDimensions = (UA_UInt32 *)dim.data;
-  //vAttr.arrayDimensionsSize = ((UA_UInt32 *)dim.data).length;
+  vAttr.arrayDimensions = (UA_UInt32 *)dim.data;
+  vAttr.arrayDimensionsSize = dim.arrayLength;
   UA_Server_addVariableNode(pss->master,
                             nid,
                             pa->id,
@@ -1189,22 +1182,40 @@ static VALUE node_value_set(VALUE self, VALUE value)
     // printf("-----------------------------------------%ld\n",variant.arrayDimensionsSize);
     if (variant.arrayDimensionsSize > 0)
     {
-      // ERROR? is ValueRank same as DimensionSize?
-      UA_Server_writeValueRank(ns->master->master, ns->id, variant.arrayDimensionsSize);
-      UA_Variant uaArrayDimensions;
-      // ERROR? use variant.arrayLength instead of variant.arrayDimensionsSize
-      // Example:
-      /*
-        UA_VariableAttributes vAttr = UA_VariableAttributes_default;
-        UA_Int32* array = (UA_Int32*)UA_malloc(size * sizeof(UA_Int32));
-        memset(array, 0, size * sizeof(UA_Int32));
-        UA_Variant_setArray(&Attr.value, array, size, &UA_TYPES[UA_TYPES_INT32]);
-       */
-      UA_Variant_setArray(&uaArrayDimensions, variant.arrayDimensions, variant.arrayDimensionsSize, &UA_TYPES[UA_TYPES_UINT32]);
-      UA_Server_writeArrayDimensions(ns->master->master, ns->id, uaArrayDimensions);
-    }
+      UA_Variant dim;
+      UA_Variant_init(&dim);
+      UA_Server_readArrayDimensions(ns->master->master, ns->id, &dim);
+      printf("Dimensions-----%ld\n", variant.arrayDimensionsSize);
+      printf("ArrayLength----%ld\n", dim.arrayLength);
 
-    UA_Server_writeValue(ns->master->master, ns->id, variant);
+      if (dim.arrayLength <= 1)
+      {
+        printf("Set Dimensions-%ld\n", dim.arrayLength);
+        UA_Server_writeValueRank(ns->master->master, ns->id, 1);
+        uint d[1] = {0};
+
+        UA_Variant uaArrayDimensions;
+        UA_Variant_setArray(&uaArrayDimensions, d, 1, &UA_TYPES[UA_TYPES_UINT32]);
+        UA_Server_writeArrayDimensions(ns->master->master, ns->id, uaArrayDimensions);
+        variant.arrayDimensions = d;
+        variant.arrayDimensionsSize = 1;
+        //UA_Variant_clear(&uaArrayDimensions);
+      }
+      else
+      {
+        variant.arrayDimensions = (UA_UInt32 *)dim.data;
+        variant.arrayDimensionsSize = dim.arrayLength;
+      }
+
+      printf("Write----------%ld\n", dim.arrayLength);
+      UA_Server_writeValue(ns->master->master, ns->id, variant);
+
+      UA_Variant_clear(&dim);
+    }
+    else
+    {
+      UA_Server_writeValue(ns->master->master, ns->id, variant);
+    }
   }
   return self;
 } //}}}
@@ -1485,8 +1496,8 @@ static VALUE node_dimensions_set(VALUE self, VALUE value)
 
   // ["v1","v2","v3","v4"]
   // - arraylength:   4
-  // - dimensionsize: 0 (always 0 when no matrix)
-  // - dimensions:   [0] (always 0 when no matrix)
+  // - dimensionsize: 1
+  // - dimensions:   [4] (dimensions is an array with all the single sizes in each dimension)
 
   // [ "v11", "v12", "v13",
   //   "v21", "v22", "v23",
@@ -1500,18 +1511,26 @@ static VALUE node_dimensions_set(VALUE self, VALUE value)
   //   "v31", "v32" ]
   // - arraylength:   6 (all values are in one array)
   // - dimensionsize: 2 (has two dimensions)
-  // - dimensions:   [2, 3] (first dimension has length 2, second also length 3)
+  // - dimensions:   [3, 2] (first dimension has length 3, second length 2)
 
-  // can also have 3 dimensions [2, 3, 2]
+  // can also have 3 dimensions [3, 2, 2]
   // [ "v111", "v121",
   //   "v211", "v221",
   //   "v311", "v321"
+
   //   "v112", "v122",
   //   "v212", "v222",
-  //   "v313", "v323" ]
+  //   "v312", "v322" ]
   // - arraylength:   12
   // - dimensionsize: 3
-  // - dimensions:   [2, 3, 2] (first dimension has length 2, second also length 3)
+  // - dimensions:   [3, 2, 2] (first dimension has length 3, second  and third length 2)
+  /* 
+  UA_Variant v;
+  UA_UInt32 dim[2] = {3, 3}; // 3x3
+  UA_Variant_setArrayCopy(&v, dim, dim.length, &UA_TYPES[UA_TYPES_UINT32]);
+  UA_Server_writeArrayDimensions(ns->master->master, ns->id, v);
+  UA_Variant_clear(&v);
+  */
   /*
   UA_Variant v;
   UA_Double arr[9] = {1.0, 2.0, 3.0,
@@ -1540,15 +1559,6 @@ static VALUE node_dimensions_set(VALUE self, VALUE value)
   UA_Server_writeValueRank(ns->master->master, ns->id, size);
   UA_Server_writeArrayDimensions(ns->master->master, ns->id, v);
   UA_Variant_clear(&v);
-  //free(val);
-  // Ex: 3x3 Matrix
-  /* 
-  UA_Variant v;
-  UA_UInt32 dim[2] = {3, 3};
-  UA_Variant_setArrayCopy(&v, dim, dim.length, &UA_TYPES[UA_TYPES_UINT32]);
-  UA_Server_writeArrayDimensions(ns->master->master, ns->id, v);
-  UA_Variant_clear(&v);
-  */
   return self;
 } //}}}
 static VALUE node_dimensions(VALUE self)
