@@ -48,20 +48,32 @@ Daemonite.new do
     v2 = srv.get "ns=6;s=/Test1/TestVar2"
 
     v0.datatype = UA::Double
-    v0.rank = 2
+    v0.rank = 2 # just as example, will be automatically set when defining a matrix
     v0.dimensions = [2, 2] # 2x2 Matrix
-    v0.value = [1, 2, 3, 4]
-    v1.dimensions = [2, 3, 2]
-    v2.value = [1, 2, 3, 4]
+    v0.value = [
+      11, 12, 
+      21, 22
+    ]
+    v1.dimensions = [2, 3, 2] # 2x3x2 Matrix
+    v1.value = [
+      111, 121, 131,
+      211, 221, 231,
+
+      112, 122, 132,
+      212, 222, 232
+    ]
+    v2.value = [1, 2, 3, 4] # just an array
 
     err "v0 false DataType" unless v0.datatype.name == "Double"
     err "v0 false ValueRank" unless v0.rank == 2
     err "v0 false Dimensions" unless v0.dimensions == [2, 2]
-    err "v0 false Value" unless v0.value[0] == [1, 2, 3, 4]
+    err "v0 false Value" unless v0.value[0] == [11, 12, 21, 22]
     err "v1 false ValueRank" unless v1.rank == 3
     err "v1 false Dimensions" unless v1.dimensions == [2, 3, 2]
-    err "v2 false Value" unless v2.value[0] == [1, 2, 3, 4]
+    err "v1 false Value" unless v1.value[0] == [111, 121, 131, 211, 221, 231, 112, 122, 132, 212, 222, 232]
     err "v2 false ValueRank" unless v2.rank == 1
+    err "v2 false Dimensions -> still a TODO" unless v2.dimensions == [4]
+    err "v2 false Value" unless v2.value[0] == [1, 2, 3, 4]
 
 
     err "DI import Error @TopologyElement->ComponentType" unless DI::ComponentType.follow_inverse(UA::HasSubtype).first.name == "TopologyElementType"

@@ -64,11 +64,6 @@ module NodeSet
         t = create_from_basenode(bn) # create ObjectTypes
       end
 
-      # TODO: create all References of VariableTypes
-      # TODO: create all References of ObjectTypes
-      # TODO: create all References of Objects
-      # TODO: create all References of Variables
-
       nodeset.find("//*[name()='UAObject']").each do |x|
         bn = BaseNode.new(self, x)
         t = create_from_basenode(bn) # create Objects
@@ -83,6 +78,11 @@ module NodeSet
         bn = BaseNode.new(self, x)
         t = create_from_basenode(bn) # create Variables
       end
+
+      # TODO: create all References of VariableTypes
+      # TODO: create all References of ObjectTypes
+      # TODO: create all References of Objects
+      # TODO: create all References of Variables
     end
 
     def check_supertypes(node, supertype)
@@ -136,8 +136,8 @@ module NodeSet
             datatype_node = type_node.datatype unless type_node.datatype.nil? if datatype_node.nil?
             puts "\e[31m#{bn.Name} DataType is nil\e[0m" if datatype_node.nil?
             node = server.add_variable(bn.Name, bn.NodeId.to_s, parent_node, reference_node, type_node)
+            # TODO: Set Value (necessary for e.g. Method Arguments)
           when NodeClass::Method
-            puts "Method: #{bn.Name}"
             node = server.add_method(bn.Name, bn.NodeId.to_s, parent_node, reference_node)
           else
             return nil
@@ -222,6 +222,25 @@ module NodeSet
         @interval = xml.find('number(@MinimumSamplingInterval)').to_i if xml.find('@MinimumSamplingInterval').first
         @rank = xml.find('number(@ValueRank)').to_i if xml.find('@ValueRank').first
         @dimensions = xml.find('string(@ArrayDimensions)').split(",").map { |s| s.to_i } if xml.find('@ArrayDimensions').first
+        
+        if @nodeclass == NodeClass::Variable && xml.find("*[name()='Value']").first
+          # TODO: get Value
+          # Format: ListOfextensionObject, uax:ListOfextensionObject, ListOfDouble,String, Double...
+          puts "#{@name} = #{xml.find("*[name()='Value']/*").first.qname}"
+        end
+      end
+    end
+
+    class ExtensionObject
+      def NodeId() @nodeid end
+      def TypeNodeId() @type_nodeid end
+      def Forward() @forward end
+      def initialize(importer, xml)
+        @type_nodeid = importer.nodeid_from_nodeset(xml.find('string(@ReferenceType)'))
+        @forward = true
+        @forward = false unless xml.find('@IsForward').first.nil?
+        # BUG in XML::Smart ? puts "#{xml.find('boolean(@IsForward)')} - #{xml.find('@IsForward').first}"
+        @nodeid = importer.nodeid_from_nodeset(xml.find('string(text())'))
       end
     end
 
