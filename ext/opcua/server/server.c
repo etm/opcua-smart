@@ -337,6 +337,42 @@ static VALUE server_add_object(VALUE self, VALUE name, VALUE nodeid, VALUE paren
 
   return node_wrap(cObjectNode, node_alloc(pss, nid));
 } //}}}
+static VALUE server_add_method(VALUE self, VALUE name, VALUE nodeid, VALUE parent, VALUE reference)
+{ //{{{
+  server_struct *pss;
+  Data_Get_Struct(self, server_struct, pss);
+  node_struct *pa;
+  Data_Get_Struct(parent, node_struct, pa);
+  node_struct *re;
+  Data_Get_Struct(reference, node_struct, re);
+
+  VALUE str = rb_obj_as_string(name);
+  if (NIL_P(str) || TYPE(str) != T_STRING)
+    rb_raise(rb_eTypeError, "cannot convert obj to string");
+  char *nstr = (char *)StringValuePtr(str);
+
+  UA_NodeId nid = nodeid_from_str(nodeid);
+
+  UA_MethodAttributes mAttr = UA_MethodAttributes_default;
+  mAttr.displayName = UA_LOCALIZEDTEXT("en-US", nstr);
+  mAttr.executable = true;
+  mAttr.userExecutable = true;
+  UA_Server_addMethodNode(pss->master,
+                          nid,
+                          pa->id,
+                          re->id,
+                          UA_QUALIFIEDNAME(nid.namespaceIndex, nstr),
+                          mAttr,
+                          NULL,
+                          0,
+                          NULL,
+                          0,
+                          NULL,
+                          NULL,
+                          NULL);
+
+  return node_wrap(cMethodNode, node_alloc(pss, nid));
+} //}}}
 static VALUE server_add_variable(VALUE self, VALUE name, VALUE nodeid, VALUE parent, VALUE reference, VALUE type)
 { //{{{
   server_struct *pss;
@@ -1768,6 +1804,7 @@ void Init_server(void)
   rb_define_method(cServer, "add_variable", server_add_variable, 5);
   rb_define_method(cServer, "add_object_type", server_add_object_type, 4);
   rb_define_method(cServer, "add_object", server_add_object, 5);
+  rb_define_method(cServer, "add_method", server_add_method, 4);
   // TODO:
   // server methods to add in server address space:
   // server.add_type(name, id, parent_id, ref_id, nodeclass)

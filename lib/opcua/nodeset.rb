@@ -74,12 +74,14 @@ module NodeSet
         t = create_from_basenode(bn) # create Objects
       end
 
-      nodeset.find("//*[name()='UAVariable']").each do |x|
+      nodeset.find("//*[name()='UAMethod']").each do |x|
         bn = BaseNode.new(self, x)
-        t = create_from_basenode(bn) # create Objects
+        t = create_from_basenode(bn) # create Methods
       end
 
-      nodeset.find("//*[name()='UAMethod']").each do |x|
+      nodeset.find("//*[name()='UAVariable']").each do |x|
+        bn = BaseNode.new(self, x)
+        t = create_from_basenode(bn) # create Variables
       end
     end
 
@@ -135,7 +137,8 @@ module NodeSet
             puts "\e[31m#{bn.Name} DataType is nil\e[0m" if datatype_node.nil?
             node = server.add_variable(bn.Name, bn.NodeId.to_s, parent_node, reference_node, type_node)
           when NodeClass::Method
-            return nil
+            puts "Method: #{bn.Name}"
+            node = server.add_method(bn.Name, bn.NodeId.to_s, parent_node, reference_node)
           else
             return nil
           end
