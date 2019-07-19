@@ -226,7 +226,7 @@ module NodeSet
         if @nodeclass == NodeClass::Variable && xml.find("*[name()='Value']").first
           # TODO: get Value
           # Format: ListOfextensionObject, uax:ListOfextensionObject, ListOfDouble,String, Double...
-          puts "#{@name} = #{xml.find("*[name()='Value']/*").first.qname}"
+          # puts "#{@name} = #{xml.find("*[name()='Value']/*").first.qname}"
         end
       end
     end
