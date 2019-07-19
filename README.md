@@ -35,8 +35,9 @@ Copyright (C) 2019-* Jürgen "eTM" Mangler <juergen.mangler@gmail.com>. opcua-sm
 
 On Fedora:
 ```sh
-dnf install ruby ruby-devel cmake mbedtls
-yum install python-sphinx
+dnf install ruby ruby-devel cmake mbedtls mbedtls-devel
+yum install python-sphinx gcc-c++
+dnf install @development-tools @rpm-development-tools
 ```
 
 ### open62541 dependency
