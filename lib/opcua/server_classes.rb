@@ -27,15 +27,18 @@ class NodeId
     if nodeid.nil?
       return nil
     end
-    if nodeid.start_with? "ns="#/ns=(.*?);/
-      ns = nodeid.match(/ns=(.*?);/)[1].to_i
-      type = nodeid.match(/;(.)=/)[1]
-      id = nodeid.match(/;.=(.*)/)[1]
-    else
+    if nodeid =~ /ns=(\d+);(.)=(.*)/
+      ns = $1.to_i
+      type = $2
+      id = $3
+    elsif nodeid =~ /(.)=(.*)/
       ns = 0
-      type = nodeid.match(/(.)=/)[1]
-      id = nodeid.match(/.=(.*)/)[1]
+      type =  $1
+      id =  $2
+    else
+      return nil
     end
+
     if type.eql? "i"
       nodeid_type = NodeIdType::Numeric
     elsif type.eql? "s"

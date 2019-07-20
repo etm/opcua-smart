@@ -223,24 +223,21 @@ module NodeSet
         @rank = xml.find('number(@ValueRank)').to_i if xml.find('@ValueRank').first
         @dimensions = xml.find('string(@ArrayDimensions)').split(",").map { |s| s.to_i } if xml.find('@ArrayDimensions').first
         
-        if @nodeclass == NodeClass::Variable && xml.find("*[name()='Value']").first
+        value = xml.find("*[name()='Value']/*").first
+        if @nodeclass == NodeClass::Variable && value
+          #if value =~ "uax:ListOfExtensionObject"
+          #end
           # TODO: get Value
           # Format: ListOfextensionObject, uax:ListOfextensionObject, ListOfDouble,String, Double...
-          # puts "#{@name} = #{xml.find("*[name()='Value']/*").first.qname}"
+          puts "#{@name} = #{value.qname}"
         end
       end
     end
 
     class ExtensionObject
-      def NodeId() @nodeid end
       def TypeNodeId() @type_nodeid end
-      def Forward() @forward end
       def initialize(importer, xml)
-        @type_nodeid = importer.nodeid_from_nodeset(xml.find('string(@ReferenceType)'))
-        @forward = true
-        @forward = false unless xml.find('@IsForward').first.nil?
-        # BUG in XML::Smart ? puts "#{xml.find('boolean(@IsForward)')} - #{xml.find('@IsForward').first}"
-        @nodeid = importer.nodeid_from_nodeset(xml.find('string(text())'))
+        @type_nodeid = importer.nodeid_from_nodeset(xml.find("*[name()='TypeId']"))
       end
     end
 
