@@ -1258,10 +1258,6 @@ static VALUE node_value_set(VALUE self, VALUE value)
     }
     else
     {
-      if (datatype_proposal == 14)
-      {
-        printf("DataType: Byteststring\n");
-      }
       UA_Server_writeValue(ns->master->master, ns->id, variant);
     }
   }
