@@ -226,10 +226,10 @@ module NodeSet
         value = xml.find("*[name()='Value']/*").first
         if @nodeclass == NodeClass::Variable && value
           if value.qname.to_s =~ /(.*)ListOf(.*)/
+            val = []
             #puts "#{@name} = Array of #{$2}"
           elsif value.qname.to_s =~ /(.*):(.*)/
-            #puts "#{@name} = #{$2} with ns #{$1}"
-            puts "#{$2} @#{@name} #{@nodeid}"
+            #puts "#{$2} @#{@name} #{@nodeid}"
             val = ValueObject.new($2.to_s, importer, value)
           else
             val = ValueObject.new(value.qname.to_s, importer, value)
