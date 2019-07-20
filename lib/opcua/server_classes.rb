@@ -43,7 +43,7 @@ class NodeId
       nodeid_type = NodeIdType::Numeric
     elsif type.eql? "s"
       nodeid_type = NodeIdType::String
-    else
+    else # TODO: GUID, etc. not implemented yet
       return nil
     end
     NodeId.new(ns, id, nodeid_type)

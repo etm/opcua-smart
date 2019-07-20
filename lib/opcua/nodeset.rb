@@ -206,7 +206,7 @@ module NodeSet
           end
         end
         raise "Not the correct parent found: #{@nodeid}" unless parent_reference.NodeId.to_s == @parent_nodeid.to_s if parent_reference && @parent_nodeid
-        # puts "No parent found: #{@name} - #{@nodeid}" unless parent_reference
+        # puts "No parent found: #{@name} - #{@nodeid}" unless parent_reference # just a warning, e.g. top nodes don't have parents
         @parent_reference_nodeid = parent_reference.TypeNodeId if parent_reference
         @parent_nodeid = parent_reference.NodeId if parent_reference
 
@@ -225,11 +225,44 @@ module NodeSet
         
         value = xml.find("*[name()='Value']/*").first
         if @nodeclass == NodeClass::Variable && value
-          #if value =~ "uax:ListOfExtensionObject"
-          #end
-          # TODO: get Value
-          # Format: ListOfextensionObject, uax:ListOfextensionObject, ListOfDouble,String, Double...
-          puts "#{@name} = #{value.qname}"
+          if value.qname.to_s =~ /(.*)ListOf(.*)/
+            #puts "#{@name} = Array of #{$2}"
+          elsif value.qname.to_s =~ /(.*):(.*)/
+            #puts "#{@name} = #{$2} with ns #{$1}"
+            puts "#{$2} @#{@name} #{@nodeid}"
+            val = ValueObject.new($2.to_s, importer, value)
+          else
+            val = ValueObject.new(value.qname.to_s, importer, value)
+          end
+        end
+      end
+    end
+
+    class ValueObject
+      def ExtensionObject() @extensionobject end
+      def DataType() @datatype end
+      def Value() @value end
+      def initialize(name, importer, xml)
+        if name == "ExtensionObject"
+          @extensionobject = ExtensionObject.new(importer, xml)
+        else
+          @datatype = importer.nodeid_from_nodeset(name)
+          case name
+          when "Int32"
+            @value = xml.find("number(text())")
+          when "Double"
+            @value = xml.find("number(text())")
+          when "String"
+            @value = xml.find("string(text())")
+          when "ByteString"
+            @value = xml.find("string(text())")
+          when "Boolean"
+            @value = xml.find("boolean(text())")
+          when "DateTime"
+            @value = xml.find("string(text())")
+          else
+            puts "Value #{name} not implemented yet."
+          end
         end
       end
     end
@@ -237,8 +270,51 @@ module NodeSet
     class ExtensionObject
       def TypeNodeId() @type_nodeid end
       def initialize(importer, xml)
-        @type_nodeid = importer.nodeid_from_nodeset(xml.find("*[name()='TypeId']"))
+        @type_nodeid = importer.nodeid_from_nodeset(xml.find("string(*[local-name()='TypeId']/*[local-name()='Identifier']/text())"))
       end
+=begin
+          <Body>
+            <EnumValueType>
+              <Value>5</Value>
+              <DisplayName>
+                <Locale>
+                </Locale>
+                <Text>Anonymous</Text>
+              </DisplayName>
+            </EnumValueType>
+          </Body>
+
+          or
+
+          <Body>
+            <Argument>
+              <Name>Rule</Name>
+              <DataType>
+                <Identifier>i=15634</Identifier>
+              </DataType>
+              <ValueRank>-1</ValueRank>
+              <ArrayDimensions />
+            </Argument>
+          </Body>
+
+          or
+
+          <Body>
+            <Argument>
+              <Name>Comment</Name>
+              <DataType>
+                <Identifier>i=21</Identifier>
+              </DataType>
+              <ValueRank>-1</ValueRank>
+              <ArrayDimensions />
+              <Description>
+                <Locale>
+                </Locale>
+                <Text>The comment to add to the condition.</Text>
+              </Description>
+            </Argument>
+          </Body>
+=end
     end
 
     class Reference
