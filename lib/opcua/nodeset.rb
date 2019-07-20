@@ -232,7 +232,14 @@ module NodeSet
         if @nodeclass == NodeClass::Variable && value
           if value.qname.to_s =~ /(.*)ListOf(.*)/
             @value = []
-            #puts "#{@name} = Array of #{$2}"
+            value.children.each do |v|
+              if v.qname.to_s =~ /(.*):(.*)/
+                @value = ValueObject.new($2.to_s, importer, v)
+              else
+                @value = ValueObject.new(v.qname.to_s, importer, v)
+              end
+              #puts "#{@name}: #{v.qname} (#{$2})"
+            end
           elsif value.qname.to_s =~ /(.*):(.*)/
             #puts "#{$2} @#{@name} #{@nodeid}"
             @value = ValueObject.new($2.to_s, importer, value)
@@ -265,6 +272,9 @@ module NodeSet
             @value = xml.find("boolean(text())")
           when "DateTime"
             @value = xml.find("string(text())")
+          when "LocalizedText"
+            @value = xml.find("string(*[local-name()='Text']/text())")
+            # @locale = xml.find("string(*[local-name()='Locale']/text())")
           else
             puts "Value #{name} not implemented yet."
           end

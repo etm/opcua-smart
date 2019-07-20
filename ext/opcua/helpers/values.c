@@ -200,6 +200,14 @@ bool value_to_variant(VALUE value, UA_Variant *variant, UA_UInt32 proposal)
         done = true;
         break;
       }
+      else if (proposal == UA_TYPES_LOCALIZEDTEXT)
+      {
+        VALUE str = rb_obj_as_string(value);
+        UA_LocalizedText tmp = UA_LOCALIZEDTEXT("en", StringValuePtr(str));
+        UA_Variant_setScalarCopy(variant, &tmp, &UA_TYPES[UA_TYPES_LOCALIZEDTEXT]);
+        done = true;
+        break;
+      }
     }
     case T_SYMBOL:
     {
