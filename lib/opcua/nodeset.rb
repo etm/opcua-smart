@@ -13,7 +13,7 @@ module NodeSet
       namespace_indices.unshift(:UA)
 
       local_namespaces = ["http://opcfoundation.org/UA/"]
-      for i in nodeset.find("//*[name()='NamespaceUris']/*[name()='Uri']") do
+      for i in nodeset.find("//*[local-name()='NamespaceUris']/*[local-name()='Uri']") do
         ns = i.find('string(text())')
         local_namespaces.push(ns)
         server.add_namespace ns unless server.namespaces.include? ns
@@ -22,7 +22,7 @@ module NodeSet
       raise "Need #{local_namespaces.length - 1} namespace indices for:\n#{local_namespaces[1,local_namespaces.length - 1].join("\n")}" unless local_namespaces.length == namespace_indices.length
       
       aliases = Hash.new # get Aliases from Nodeset and use like: aliases['HasSubtype'] ... = i=45
-      nodeset.find("//*[name()='Aliases']/*[name()='Alias']").each do |x|
+      nodeset.find("//*[local-name()='Aliases']/*[local-name()='Alias']").each do |x|
         aliases[x.find("@Alias").first.to_s] = x.find('string(text())')
       end
 
@@ -37,44 +37,45 @@ module NodeSet
       # split into creation of BaseNode from xml and creation of ua node:
       # possibly allow hierarchical sorting of BaseNodes in the future
       # until then provided NodeSets should have been sorted hierachically
-      nodeset.find("//*[name()='UAReferenceType' and @NodeId='i=45']").each do |x|
+      # possibly also later import from xsd
+      nodeset.find("//*[local-name()='UAReferenceType' and @NodeId='i=45']").each do |x|
         bn = BaseNode.new(self, x)
         t = create_from_basenode(bn) # create HasSubtype Reference First
       end
 
-      nodeset.find("//*[name()='UAReferenceType']").each do |x|
+      nodeset.find("//*[local-name()='UAReferenceType']").each do |x|
         bn = BaseNode.new(self, x)
         t = create_from_basenode(bn) # create ReferenceTypes
       end
 
-      nodeset.find("//*[name()='UADataType']").each do |x|
+      nodeset.find("//*[local-name()='UADataType']").each do |x|
         bn = BaseNode.new(self, x)
         t = create_from_basenode(bn) # create DataTypes
         # TODO: not completely implemented yet -> a lot of work to create actual structure dynamically in c
         # Definition, Fields, etc.
       end
 
-      nodeset.find("//*[name()='UAVariableType']").each do |x|
+      nodeset.find("//*[local-name()='UAVariableType']").each do |x|
         bn = BaseNode.new(self, x)
         t = create_from_basenode(bn) # create VariableTypes
       end
 
-      nodeset.find("//*[name()='UAObjectType']").each do |x|
+      nodeset.find("//*[local-name()='UAObjectType']").each do |x|
         bn = BaseNode.new(self, x)
         t = create_from_basenode(bn) # create ObjectTypes
       end
 
-      nodeset.find("//*[name()='UAObject']").each do |x|
+      nodeset.find("//*[local-name()='UAObject']").each do |x|
         bn = BaseNode.new(self, x)
         t = create_from_basenode(bn) # create Objects
       end
 
-      nodeset.find("//*[name()='UAMethod']").each do |x|
+      nodeset.find("//*[local-name()='UAMethod']").each do |x|
         bn = BaseNode.new(self, x)
         t = create_from_basenode(bn) # create Methods
       end
 
-      nodeset.find("//*[name()='UAVariable']").each do |x|
+      nodeset.find("//*[local-name()='UAVariable']").each do |x|
         bn = BaseNode.new(self, x)
         t = create_from_basenode(bn) # create Variables
       end
@@ -188,12 +189,12 @@ module NodeSet
         @index = importer.namespace_indices[local_nodeid.ns]
         # namespace = importer.local_namespaces[local_nodeid.ns]
         @nodeid = importer.nodeid_to_server(local_nodeid)
-        @name = LocalizedText.parse(xml.find("*[name()='DisplayName']").first).text
-        @description = LocalizedText.parse xml.find("*[name()='Description']").first
+        @name = LocalizedText.parse(xml.find("*[local-name()='DisplayName']").first).text
+        @description = LocalizedText.parse xml.find("*[local-name()='Description']").first
         @nodeclass = NodeClass.const_get(xml.find("name()")[2..-1])
 
         @references = []
-        xml.find("*[name()='References']/*[name()='Reference']").each do |r|
+        xml.find("*[local-name()='References']/*[local-name()='Reference']").each do |r|
           @references.push(Reference.new(importer, r))
         end
 
@@ -217,13 +218,13 @@ module NodeSet
         @abstract = false unless @abstract = xml.find('boolean(@IsAbstract)')
         @datatype = importer.nodeid_from_nodeset(xml.find('string(@DataType)')) if xml.find('@DataType').first
         @symbolic_name = xml.find('string(@SymbolicName)') if xml.find('@SymbolicName').first
-        @inverse_name = LocalizedText.parse xml.find("*[name()='InverseName']").first
+        @inverse_name = LocalizedText.parse xml.find("*[local-name()='InverseName']").first
         @eventnotifier = xml.find('number(@EventNotifier)').to_i if xml.find('@EventNotifier').first
         @interval = xml.find('number(@MinimumSamplingInterval)').to_i if xml.find('@MinimumSamplingInterval').first
         @rank = xml.find('number(@ValueRank)').to_i if xml.find('@ValueRank').first
         @dimensions = xml.find('string(@ArrayDimensions)').split(",").map { |s| s.to_i } if xml.find('@ArrayDimensions').first
         
-        value = xml.find("*[name()='Value']/*").first
+        value = xml.find("*[local-name()='Value']/*").first
         if @nodeclass == NodeClass::Variable && value
           if value.qname.to_s =~ /(.*)ListOf(.*)/
             val = []
@@ -236,6 +237,7 @@ module NodeSet
           end
         end
       end
+            #puts "#{@name} = #{$2} with ns #{$1}"
     end
 
     class ValueObject
