@@ -137,7 +137,12 @@ module NodeSet
             datatype_node = type_node.datatype unless type_node.datatype.nil? if datatype_node.nil?
             puts "\e[31m#{bn.Name} DataType is nil\e[0m" if datatype_node.nil?
             node = server.add_variable(bn.Name, bn.NodeId.to_s, parent_node, reference_node, type_node)
+            node.datatype = datatype_node unless datatype_node.nil?
             # TODO: Set Value (necessary for e.g. Method Arguments)
+            # if datatype is set before => do not choose automatically and overwrite in server.c->values.c
+            # puts "#{bn.Name} = (#{datatype_node}) #{bn.Value.Value}" unless bn.Value.kind_of?(Array) if bn.Value
+            node.value = bn.Value.Value unless bn.Value.kind_of?(Array) if bn.Value
+            #puts "#{bn.Name} = #{node.value}" unless bn.Value.kind_of?(Array) if bn.Value
           when NodeClass::Method
             node = server.add_method(bn.Name, bn.NodeId.to_s, parent_node, reference_node)
           else
@@ -181,6 +186,7 @@ module NodeSet
       def Interval() @interval end
       def Rank() @rank end
       def Dimensions() @dimensions end
+      def Value() @value end
 
       def initialize(importer, xml)
         @xml = xml
@@ -227,17 +233,16 @@ module NodeSet
         value = xml.find("*[local-name()='Value']/*").first
         if @nodeclass == NodeClass::Variable && value
           if value.qname.to_s =~ /(.*)ListOf(.*)/
-            val = []
+            @value = []
             #puts "#{@name} = Array of #{$2}"
           elsif value.qname.to_s =~ /(.*):(.*)/
             #puts "#{$2} @#{@name} #{@nodeid}"
-            val = ValueObject.new($2.to_s, importer, value)
+            @value = ValueObject.new($2.to_s, importer, value)
           else
-            val = ValueObject.new(value.qname.to_s, importer, value)
+            @value = ValueObject.new(value.qname.to_s, importer, value)
           end
         end
       end
-            #puts "#{@name} = #{$2} with ns #{$1}"
     end
 
     class ValueObject

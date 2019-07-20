@@ -1212,8 +1212,19 @@ static VALUE node_value_set(VALUE self, VALUE value)
   if (!ns->exists)
     rb_raise(rb_eRuntimeError, "Node does not exist anymore.");
 
+  UA_NodeId datatype_nid;
+  UA_NodeId_init(&datatype_nid);
+  UA_StatusCode retval = UA_Server_readDataType(ns->master->master, ns->id, &datatype_nid);
+
+  int datatype_proposal = -1;
+  if (retval == UA_STATUSCODE_GOOD && datatype_nid.identifierType == UA_NODEIDTYPE_NUMERIC)
+  {
+    datatype_proposal = datatype_nid.identifier.numeric;
+  }
+  UA_NodeId_clear(&datatype_nid);
+
   UA_Variant variant;
-  if (value_to_variant(value, &variant, -1))
+  if (value_to_variant(value, &variant, datatype_proposal))
   {
     if (variant.arrayDimensionsSize > 0)
     {
