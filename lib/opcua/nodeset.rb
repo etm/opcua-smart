@@ -138,10 +138,8 @@ module NodeSet
             puts "\e[31m#{bn.Name} DataType is nil\e[0m" if datatype_node.nil?
             node = server.add_variable(bn.Name, bn.NodeId.to_s, parent_node, reference_node, type_node)
             node.datatype = datatype_node unless datatype_node.nil?
-            # TODO: Set Value (necessary for e.g. Method Arguments)
-            # if datatype is set before => do not choose automatically and overwrite in server.c->values.c
-            # puts "#{bn.Name} = (#{datatype_node}) #{bn.Value.Value}" unless bn.Value.kind_of?(Array) if bn.Value
             node.value = bn.Value.Value unless bn.Value.kind_of?(Array) if bn.Value
+            # TODO: set array Values and extension objects
             #puts "#{bn.Name} = #{node.value}" unless bn.Value.kind_of?(Array) if bn.Value
           when NodeClass::Method
             node = server.add_method(bn.Name, bn.NodeId.to_s, parent_node, reference_node)

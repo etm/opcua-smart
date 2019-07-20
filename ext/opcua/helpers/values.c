@@ -191,6 +191,16 @@ bool value_to_variant(VALUE value, UA_Variant *variant, UA_UInt32 proposal)
       break;
     }
     case T_STRING:
+    {
+      if (proposal == UA_TYPES_BYTESTRING)
+      {
+        VALUE str = rb_obj_as_string(value);
+        UA_ByteString tmp = UA_BYTESTRING(StringValuePtr(str));
+        UA_Variant_setScalarCopy(variant, &tmp, &UA_TYPES[UA_TYPES_BYTESTRING]);
+        done = true;
+        break;
+      }
+    }
     case T_SYMBOL:
     {
       VALUE str = rb_obj_as_string(value);

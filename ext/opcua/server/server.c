@@ -1219,7 +1219,7 @@ static VALUE node_value_set(VALUE self, VALUE value)
   int datatype_proposal = -1;
   if (retval == UA_STATUSCODE_GOOD && datatype_nid.identifierType == UA_NODEIDTYPE_NUMERIC)
   {
-    datatype_proposal = datatype_nid.identifier.numeric;
+    datatype_proposal = datatype_nid.identifier.numeric - 1; // -1 because open62541 datatype enum starts at 0, ua datatype nodeids at 1
   }
   UA_NodeId_clear(&datatype_nid);
 
@@ -1258,6 +1258,10 @@ static VALUE node_value_set(VALUE self, VALUE value)
     }
     else
     {
+      if (datatype_proposal == 14)
+      {
+        printf("DataType: Byteststring\n");
+      }
       UA_Server_writeValue(ns->master->master, ns->id, variant);
     }
   }
