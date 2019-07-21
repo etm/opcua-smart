@@ -101,7 +101,14 @@ module NodeSet
     end
 
     def nodeid_to_server(nodeid)
+      if nodeid.nil?
+        return nil
+      end
       NodeId.new(server.namespaces.index(local_namespaces[nodeid.ns]), nodeid.id, nodeid.type)
+    end
+
+    def err(message)
+      puts "\e[31m#{message}\e[0m"
     end
 
     def create_from_basenode(bn)
@@ -120,6 +127,9 @@ module NodeSet
             node.inverse = bn.InverseName.text unless bn.InverseName.nil?
           when NodeClass::DataType
             node = server.add_data_type(bn.Name, bn.NodeId.to_s, parent_node, reference_node)
+            bn.Fields.each do |f|
+              # puts "#{f.Name}: (#{f.DataType}) #{f.Value} -- #{f.Rank}"
+            end
           when NodeClass::VariableType
             dimensions = bn.Dimensions
             dimensions = [] if dimensions.nil?
@@ -138,9 +148,15 @@ module NodeSet
             puts "\e[31m#{bn.Name} DataType is nil\e[0m" if datatype_node.nil?
             node = server.add_variable(bn.Name, bn.NodeId.to_s, parent_node, reference_node, type_node)
             node.datatype = datatype_node unless datatype_node.nil?
-            node.value = bn.Value.Value unless bn.Value.kind_of?(Array) if bn.Value
-            # TODO: set array Values and extension objects
-            #puts "#{bn.Name} = #{node.value}" unless bn.Value.kind_of?(Array) if bn.Value
+=begin
+            unless bn.Value.nil? || datatype_node.nil?
+              if bn.Value.kind_of?(Array)
+                err "is array"
+              else
+                err "#{bn.Name} @#{bn.NodeId} is #{bn.Value.DataType} equal? #{datatype_node}"
+              end
+            end
+=end
           when NodeClass::Method
             node = server.add_method(bn.Name, bn.NodeId.to_s, parent_node, reference_node)
           else
@@ -185,6 +201,7 @@ module NodeSet
       def Rank() @rank end
       def Dimensions() @dimensions end
       def Value() @value end
+      def Fields() @fields end
 
       def initialize(importer, xml)
         @xml = xml
@@ -228,15 +245,20 @@ module NodeSet
         @rank = xml.find('number(@ValueRank)').to_i if xml.find('@ValueRank').first
         @dimensions = xml.find('string(@ArrayDimensions)').split(",").map { |s| s.to_i } if xml.find('@ArrayDimensions').first
         
+        @fields = []
+        xml.find("*[local-name()='Definition']/*").each do |f|
+          @fields.push(Field.new(importer, f))
+        end
+=begin
         value = xml.find("*[local-name()='Value']/*").first
         if @nodeclass == NodeClass::Variable && value
           if value.qname.to_s =~ /(.*)ListOf(.*)/
             @value = []
             value.children.each do |v|
               if v.qname.to_s =~ /(.*):(.*)/
-                @value = ValueObject.new($2.to_s, importer, v)
+                @value.push(ValueObject.new($2.to_s, importer, v))
               else
-                @value = ValueObject.new(v.qname.to_s, importer, v)
+                @value.push(ValueObject.new(v.qname.to_s, importer, v))
               end
               #puts "#{@name}: #{v.qname} (#{$2})"
             end
@@ -244,9 +266,11 @@ module NodeSet
             #puts "#{$2} @#{@name} #{@nodeid}"
             @value = ValueObject.new($2.to_s, importer, value)
           else
+            #puts "#{value.qname.to_s} @#{@name} #{@nodeid}"
             @value = ValueObject.new(value.qname.to_s, importer, value)
           end
         end
+=end
       end
     end
 
@@ -259,33 +283,54 @@ module NodeSet
           @extensionobject = ExtensionObject.new(importer, xml)
         else
           @datatype = importer.nodeid_from_nodeset(name)
-          case name
-          when "Int32"
-            @value = xml.find("number(text())")
-          when "Double"
-            @value = xml.find("number(text())")
-          when "String"
-            @value = xml.find("string(text())")
-          when "ByteString"
-            @value = xml.find("string(text())")
-          when "Boolean"
-            @value = xml.find("boolean(text())")
-          when "DateTime"
-            @value = xml.find("string(text())")
-          when "LocalizedText"
-            @value = xml.find("string(*[local-name()='Text']/text())")
-            # @locale = xml.find("string(*[local-name()='Locale']/text())")
-          else
-            puts "Value #{name} not implemented yet."
-          end
+          @value = xml.find("number(text())") if name == "Int32" || name == "Int16" || name == "UInt32" || name == "UInt16" || name == "Double"
+          @value = xml.find("string(text())") if name == "String" || name == "ByteString" || name == "DateTime"
+          @value = xml.find("boolean(text())") if name == "Boolean"
+          @value = xml.find("string(*[local-name()='Text']/text())") if name == "LocalizedText"
+          
+          puts "Value #{name} not implemented yet." if @value.nil?
         end
+      end
+    end
+
+    class Field
+      def Name() @name end
+      def DataType() @datatype end
+      def Rank() @rank end
+      def Dimensions() @dimensions end
+      def Value() @value end
+      def initialize(importer, xml)
+        @name = xml.find("string(@Name)")
+        @datatype = importer.nodeid_from_nodeset(xml.find("string(@DataType)"))
+        @rank = xml.find("number(@ValueRank)")
+        @dimensions = xml.find("string(@ArrayDimensions)")
+        @value = xml.find("string(@Value)")
       end
     end
 
     class ExtensionObject
       def TypeNodeId() @type_nodeid end
+      def Name() @name end
+      def DataType() @datattype end
+      def Value() @value end
       def initialize(importer, xml)
-        @type_nodeid = importer.nodeid_from_nodeset(xml.find("string(*[local-name()='TypeId']/*[local-name()='Identifier']/text())"))
+        #@type_nodeid = importer.nodeid_from_nodeset(xml.find("string(*[local-name()='TypeId']/*[local-name()='Identifier']/text())"))
+        body = xml.find("*[local-name()='Body']/*").first
+        type = body.find("string(local-name())")
+        if type == "EnumValueType"
+          @type_nodeid = importer.nodeid_from_nodeset("i=7594")
+          @name = body.find("string(*[local-name()='DisplayName']/*[local-name()='Text'])")
+          @value = body.find("number(*[local-name()='Value'])")
+          puts "#{@name} = #{@value}"
+        elsif type == "Argument"
+          @type_nodeid = importer.nodeid_from_nodeset("i=296")
+          @name = body.find("string(*[local-name()='Name'])")
+          @datattype = importer.nodeid_from_nodeset(body.find("string(*[local-name()='DataType']/*[local-name()='Identifier'])"))
+          @value = body.find("number(*[local-name()='Value'])")
+          puts "#{@name} = (#{@datattype}) #{@value}"
+        else
+          puts "ExpandedNodeId Type Unknown: #{type}"
+        end
       end
 =begin
           <Body>
