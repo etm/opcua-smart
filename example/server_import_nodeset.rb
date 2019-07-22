@@ -40,9 +40,9 @@ Daemonite.new do
       t.add_variable :TestVar0
       t.add_variable :TestVar1
       t.add_variable :TestVar2
-      t.add_method :Puts, input1: OPCUA::TYPES::STRING do |node, input1|
-        highlight input1
-      end
+      #t.add_method :Puts, input1: OPCUA::TYPES::STRING do |node, input1|
+      #  highlight input1
+      #end
     }
 
     srv.objects.manifest(:Test1, tt)

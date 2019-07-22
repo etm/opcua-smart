@@ -34,10 +34,6 @@ module NodeSet
     end
 
     def import
-      # split into creation of BaseNode from xml and creation of ua node:
-      # possibly allow hierarchical sorting of BaseNodes in the future
-      # until then provided NodeSets should have been sorted hierachically
-      # possibly also later import from xsd
       nodeset.find("//*[local-name()='UAReferenceType' and @NodeId='i=45']").each do |x|
         bn = BaseNode.new(self, x)
         t = create_from_basenode(bn) # create HasSubtype Reference First
@@ -107,10 +103,6 @@ module NodeSet
       NodeId.new(server.namespaces.index(local_namespaces[nodeid.ns]), nodeid.id, nodeid.type)
     end
 
-    def err(message)
-      puts "\e[31m#{message}\e[0m"
-    end
-
     def create_from_basenode(bn)
       node = server.get(bn.NodeId.to_s)
       if node.nil?
@@ -127,9 +119,6 @@ module NodeSet
             node.inverse = bn.InverseName.text unless bn.InverseName.nil?
           when NodeClass::DataType
             node = server.add_data_type(bn.Name, bn.NodeId.to_s, parent_node, reference_node)
-            bn.Fields.each do |f|
-              # puts "#{f.Name}: (#{f.DataType}) #{f.Value} -- #{f.Rank}"
-            end
           when NodeClass::VariableType
             dimensions = bn.Dimensions
             dimensions = [] if dimensions.nil?
@@ -145,18 +134,8 @@ module NodeSet
             node.notifier = bn.EventNotifier unless bn.EventNotifier.nil?
           when NodeClass::Variable
             datatype_node = type_node.datatype unless type_node.datatype.nil? if datatype_node.nil?
-            puts "\e[31m#{bn.Name} DataType is nil\e[0m" if datatype_node.nil?
             node = server.add_variable(bn.Name, bn.NodeId.to_s, parent_node, reference_node, type_node)
             node.datatype = datatype_node unless datatype_node.nil?
-=begin
-            unless bn.Value.nil? || datatype_node.nil?
-              if bn.Value.kind_of?(Array)
-                err "is array"
-              else
-                err "#{bn.Name} @#{bn.NodeId} is #{bn.Value.DataType} equal? #{datatype_node}"
-              end
-            end
-=end
           when NodeClass::Method
             node = server.add_method(bn.Name, bn.NodeId.to_s, parent_node, reference_node)
           else
@@ -249,28 +228,6 @@ module NodeSet
         xml.find("*[local-name()='Definition']/*").each do |f|
           @fields.push(Field.new(importer, f))
         end
-=begin
-        value = xml.find("*[local-name()='Value']/*").first
-        if @nodeclass == NodeClass::Variable && value
-          if value.qname.to_s =~ /(.*)ListOf(.*)/
-            @value = []
-            value.children.each do |v|
-              if v.qname.to_s =~ /(.*):(.*)/
-                @value.push(ValueObject.new($2.to_s, importer, v))
-              else
-                @value.push(ValueObject.new(v.qname.to_s, importer, v))
-              end
-              #puts "#{@name}: #{v.qname} (#{$2})"
-            end
-          elsif value.qname.to_s =~ /(.*):(.*)/
-            #puts "#{$2} @#{@name} #{@nodeid}"
-            @value = ValueObject.new($2.to_s, importer, value)
-          else
-            #puts "#{value.qname.to_s} @#{@name} #{@nodeid}"
-            @value = ValueObject.new(value.qname.to_s, importer, value)
-          end
-        end
-=end
       end
     end
 
@@ -288,7 +245,7 @@ module NodeSet
           @value = xml.find("boolean(text())") if name == "Boolean"
           @value = xml.find("string(*[local-name()='Text']/text())") if name == "LocalizedText"
           
-          puts "Value #{name} not implemented yet." if @value.nil?
+          # puts "Value #{name} not implemented yet." if @value.nil?
         end
       end
     end
@@ -321,60 +278,17 @@ module NodeSet
           @type_nodeid = importer.nodeid_from_nodeset("i=7594")
           @name = body.find("string(*[local-name()='DisplayName']/*[local-name()='Text'])")
           @value = body.find("number(*[local-name()='Value'])")
-          puts "#{@name} = #{@value}"
+          # puts "#{@name} = #{@value}"
         elsif type == "Argument"
           @type_nodeid = importer.nodeid_from_nodeset("i=296")
           @name = body.find("string(*[local-name()='Name'])")
           @datattype = importer.nodeid_from_nodeset(body.find("string(*[local-name()='DataType']/*[local-name()='Identifier'])"))
           @value = body.find("number(*[local-name()='Value'])")
-          puts "#{@name} = (#{@datattype}) #{@value}"
+          # puts "#{@name} = (#{@datattype}) #{@value}"
         else
-          puts "ExpandedNodeId Type Unknown: #{type}"
+          # puts "ExpandedNodeId Type Unknown: #{type}"
         end
       end
-=begin
-          <Body>
-            <EnumValueType>
-              <Value>5</Value>
-              <DisplayName>
-                <Locale>
-                </Locale>
-                <Text>Anonymous</Text>
-              </DisplayName>
-            </EnumValueType>
-          </Body>
-
-          or
-
-          <Body>
-            <Argument>
-              <Name>Rule</Name>
-              <DataType>
-                <Identifier>i=15634</Identifier>
-              </DataType>
-              <ValueRank>-1</ValueRank>
-              <ArrayDimensions />
-            </Argument>
-          </Body>
-
-          or
-
-          <Body>
-            <Argument>
-              <Name>Comment</Name>
-              <DataType>
-                <Identifier>i=21</Identifier>
-              </DataType>
-              <ValueRank>-1</ValueRank>
-              <ArrayDimensions />
-              <Description>
-                <Locale>
-                </Locale>
-                <Text>The comment to add to the condition.</Text>
-              </Description>
-            </Argument>
-          </Body>
-=end
     end
 
     class Reference
