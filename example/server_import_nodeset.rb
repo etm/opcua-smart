@@ -31,25 +31,25 @@ Daemonite.new do
     ex = srv.add_namespace 'http://example.org/'
     
     # Tests:
-    err "Server known Nodes: #{srv.nodes.length}" unless srv.nodes.length == 597 || srv.nodes.length == 218 # depends on UA full or tiny
+    err "Server known Nodes: #{srv.nodes.length} changed?" unless srv.nodes.length == 597 || srv.nodes.length == 218 # depends on UA full or tiny
     err "add_object_type Error" unless srv.add_object_type("TestType","ns=#{ex};i=77777", UA::BaseObjectType, UA::HasSubtype).to_s == "ns=#{ex};i=77777"
     err "add_data_type Error" unless srv.add_data_type("TestDataType","ns=#{ex};i=77778", UA::Structure, UA::HasSubtype).to_s == "ns=#{ex};i=77778"
     err "add_object Error" unless srv.add_object("TestDevice", "ns=#{ex};i=31243", srv.objects, UA::Organizes, AutoId::OpticalReaderDeviceType).to_s == "ns=#{ex};i=31243"
 
     tt = srv.add_object_type(:TestComponentType, "ns=#{ex};i=77900", DI::ComponentType, UA::HasSubtype).tap{ |t|
-      t.add_variable :TestVar0
-      t.add_variable :TestVar1
-      t.add_variable :TestVar2
+      t.add_variable :Matrix_2x2
+      t.add_variable :Matrix_2x3x2
+      t.add_variable :Array
       #t.add_method :Puts, input1: OPCUA::TYPES::STRING do |node, input1|
       #  highlight input1
       #end
     }
 
-    srv.objects.manifest(:Test1, tt)
+    srv.objects.manifest(:MatrixTest, tt)
 
-    v0 = srv.get "ns=6;s=/Test1/TestVar0"
-    v1 = srv.get "ns=6;s=/Test1/TestVar1"
-    v2 = srv.get "ns=6;s=/Test1/TestVar2"
+    v0 = srv.get "ns=#{ex};s=/MatrixTest/Matrix_2x2"
+    v1 = srv.get "ns=#{ex};s=/MatrixTest/Matrix_2x3x2"
+    v2 = srv.get "ns=#{ex};s=/MatrixTest/Array"
 
     v0.datatype = UA::Double
     v0.rank = 2 # just as example, will be automatically set when defining a matrix
@@ -58,15 +58,17 @@ Daemonite.new do
       11, 12, 
       21, 22
     ]
+    v1.datatype = UA::Double
+    v1.rank = 2
     v1.dimensions = [2, 3, 2] # 2x3x2 Matrix
     v1.value = [
-      111, 121, 131,
-      211, 221, 231,
-
-      112, 122, 132,
-      212, 222, 232
-    ]
-    v2.value = [1, 2, 3, 4] # just an array
+      0, 1, 10, 11, 20, 21,
+      100, 101, 110, 111, 120, 121
+    ] # filling upward from low to high
+    #v2.datatype = UA::Double
+    #v2.rank = 1
+    #v2.dimensions = [4] # don't set this stuff, because it is already defined in the array:
+    v2.value = [1, 2, 3, 4]
 
     err "v0 false DataType" unless v0.datatype.name == "Double"
     err "v0 false ValueRank" unless v0.rank == 2
@@ -74,10 +76,13 @@ Daemonite.new do
     err "v0 false Value" unless v0.value[0] == [11, 12, 21, 22]
     err "v1 false ValueRank" unless v1.rank == 3
     err "v1 false Dimensions" unless v1.dimensions == [2, 3, 2]
-    err "v1 false Value" unless v1.value[0] == [111, 121, 131, 211, 221, 231, 112, 122, 132, 212, 222, 232]
+    err "v1 false Value" unless v1.value[0] == [0, 1, 10, 11, 20, 21, 100, 101, 110, 111, 120, 121]
+    err "v2 false DataType at the node itself is not automatically set: #{v2.datatype.name}" unless v2.datatype.name == "Double"
     err "v2 false ValueRank" unless v2.rank == 1
-    err "v2 false Dimensions -> still a TODO" unless v2.dimensions == [4]
+    err "v2 false Dimensions" unless v2.dimensions == [4]
     err "v2 false Value" unless v2.value[0] == [1, 2, 3, 4]
+    v2.value = [1, 2, 3, 4, 5, 6, 7, 8, 9]
+    err "v2 false Value when changing array size" unless v2.value[0] == [1, 2, 3, 4, 5, 6, 7, 8, 9]
 
 
     err "DI import Error @TopologyElement->ComponentType" unless DI::ComponentType.follow_inverse(UA::HasSubtype).first.name == "TopologyElementType"

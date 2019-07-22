@@ -1217,7 +1217,7 @@ static VALUE node_value_set(VALUE self, VALUE value)
   UA_StatusCode retval = UA_Server_readDataType(ns->master->master, ns->id, &datatype_nid);
 
   int datatype_proposal = -1;
-  if (retval == UA_STATUSCODE_GOOD && datatype_nid.identifierType == UA_NODEIDTYPE_NUMERIC)
+  if (retval == UA_STATUSCODE_GOOD && datatype_nid.namespaceIndex == 0 && datatype_nid.identifierType == UA_NODEIDTYPE_NUMERIC)
   {
     datatype_proposal = datatype_nid.identifier.numeric - 1; // -1 because open62541 datatype enum starts at 0, ua datatype nodeids at 1
   }
@@ -1234,27 +1234,34 @@ static VALUE node_value_set(VALUE self, VALUE value)
 
       if (dim.arrayLength < 1)
       {
-        //printf("Array (<=1): %ld\n", dim.arrayLength);
+        //printf("Array dim <=1: %ld; Length: %ld\n", dim.arrayLength, variant.arrayLength);
         UA_Server_writeValueRank(ns->master->master, ns->id, 1);
-        uint d[1] = {0};
 
+        uint d[1] = {variant.arrayLength};
         UA_Variant uaArrayDimensions;
         UA_Variant_setArray(&uaArrayDimensions, d, 1, &UA_TYPES[UA_TYPES_UINT32]);
         UA_Server_writeArrayDimensions(ns->master->master, ns->id, uaArrayDimensions);
-        variant.arrayDimensions = d;
-        variant.arrayDimensionsSize = 1;
-        //UA_Variant_clear(&uaArrayDimensions);
+        //variant.arrayDimensions = d; //seems unnecessary and somehow creates matrix in uaexpert
+        //variant.arrayDimensionsSize = 1;
+      }
+      else if (dim.arrayLength == 1)
+      {
+        //printf("Array dim =1: %ld; Length: %ld\n", dim.arrayLength, variant.arrayLength);
+        uint d[1] = {variant.arrayLength};
+        UA_Variant uaArrayDimensions;
+        UA_Variant_setArray(&uaArrayDimensions, d, 1, &UA_TYPES[UA_TYPES_UINT32]);
+        UA_Server_writeArrayDimensions(ns->master->master, ns->id, uaArrayDimensions);
       }
       else if (dim.arrayLength > 1)
       {
-        //printf("Matrix (>1): %ld\n", dim.arrayLength);
+        //printf("Matrix  dim >1: %ld\n", dim.arrayLength);
         variant.arrayDimensions = (UA_UInt32 *)dim.data;
         variant.arrayDimensionsSize = dim.arrayLength;
       }
 
       UA_Server_writeValue(ns->master->master, ns->id, variant);
 
-      UA_Variant_clear(&dim);
+      //UA_Variant_clear(&dim); //do not clear here
     }
     else
     {
