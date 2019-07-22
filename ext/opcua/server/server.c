@@ -1542,60 +1542,6 @@ static VALUE node_rank(VALUE self)
 } //}}}
 static VALUE node_dimensions_set(VALUE self, VALUE value)
 { //{{{
-  // value is the dimensions array (i.e. [2, 3, 2]), dimensionsize is just the length of this array
-  //Examples for arrays/matrices :
-
-  // ["v1","v2","v3","v4"]
-  // - arraylength:   4
-  // - dimensionsize: 1
-  // - dimensions:   [4] (dimensions is an array with all the single sizes in each dimension)
-
-  // [ "v11", "v12", "v13",
-  //   "v21", "v22", "v23",
-  //   "v31", "v32", "v33" ]
-  // - arraylength:   9 (all values are in one array)
-  // - dimensionsize: 2 (has two dimensions)
-  // - dimensions:   [3, 3] (first dimension has length 3, second also length 3)
-
-  // [ "v11", "v12",
-  //   "v21", "v22",
-  //   "v31", "v32" ]
-  // - arraylength:   6 (all values are in one array)
-  // - dimensionsize: 2 (has two dimensions)
-  // - dimensions:   [3, 2] (first dimension has length 3, second length 2)
-
-  // can also have 3 dimensions [3, 2, 2]
-  // [ "v111", "v121",
-  //   "v211", "v221",
-  //   "v311", "v321"
-
-  //   "v112", "v122",
-  //   "v212", "v222",
-  //   "v312", "v322" ]
-  // - arraylength:   12
-  // - dimensionsize: 3
-  // - dimensions:   [3, 2, 2] (first dimension has length 3, second  and third length 2)
-  /* 
-  UA_Variant v;
-  UA_UInt32 dim[2] = {3, 3}; // 3x3
-  UA_Variant_setArrayCopy(&v, dim, dim.length, &UA_TYPES[UA_TYPES_UINT32]);
-  UA_Server_writeArrayDimensions(ns->master->master, ns->id, v);
-  UA_Variant_clear(&v);
-  */
-  /*
-  UA_Variant v;
-  UA_Double arr[9] = {1.0, 2.0, 3.0,
-                    4.0, 5.0, 6.0,
-                    7.0, 8.0, 9.0};
-  UA_Variant_setArrayCopy(&v, arr, 9, &UA_TYPES[UA_TYPES_DOUBLE]);
-  v.arrayDimensions = (UA_UInt32 *)UA_Array_new(2, &UA_TYPES[UA_TYPES_UINT32]);
-  v.arrayDimensionsSize = 2;
-  v.arrayDimensions[0] = 3;
-  v.arrayDimensions[1] = 3;
-  UA_Server_writeValue(ns->master->master, ns->id, v);
-  UA_Variant_clear(&v);
-   */
-
   node_struct *ns;
   Data_Get_Struct(self, node_struct, ns);
 

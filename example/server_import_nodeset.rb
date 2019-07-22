@@ -40,10 +40,16 @@ Daemonite.new do
       t.add_variable :Matrix_2x2
       t.add_variable :Matrix_2x3x2
       t.add_variable :Array
+      # ERROR almost always: (Error should have something to do with server_add_object_type)
       #t.add_method :Puts, input1: OPCUA::TYPES::STRING do |node, input1|
       #  highlight input1
       #end
     }
+    
+    # ERROR sometimes:
+    #tt.add_method :Puts, input1: OPCUA::TYPES::STRING do |node, input1|
+    #  highlight input1
+    #end
 
     srv.objects.manifest(:MatrixTest, tt)
 
