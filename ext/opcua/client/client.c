@@ -64,7 +64,14 @@ static VALUE node_value_set(VALUE self, VALUE value) { //{{{
   if (!ns->master->started) rb_raise(rb_eRuntimeError, "Client disconnected.");
 
   UA_Variant variant;
-  if (value_to_variant(value,&variant)) {
+  UA_NodeId pdt;
+  UA_Client_readDataTypeAttribute(ns->master->master, ns->id, &pdt);
+  UA_UInt32 proposal = -1;
+  if (pdt.namespaceIndex == 0) {
+    proposal = pdt.identifier.numeric - 1; // what a dirty hack TODO, translate node to value
+  }
+
+  if (value_to_variant(value,&variant,proposal)) {
     // printf("-----------------------------------------%ld\n",variant.arrayDimensionsSize);
     if (variant.arrayDimensionsSize > 0) {
        UA_Int32 ads = (UA_Int32) variant.arrayDimensionsSize;
@@ -96,7 +103,8 @@ static VALUE node_on_change(VALUE self) { //{{{
 
   return self;
 } //}}}
-static void node_on_value_change_handler(UA_Client *client, UA_UInt32 subId, void *subContext, UA_UInt32 monId, void *monContext, UA_DataValue *value) {
+
+static void node_on_value_change_handler(UA_Client *client, UA_UInt32 subId, void *subContext, UA_UInt32 monId, void *monContext, UA_DataValue *value) { // {{{
   VALUE ins = (VALUE)monContext;
   VALUE blk = RARRAY_AREF(ins,1);
 
@@ -120,8 +128,8 @@ static void node_on_value_change_handler(UA_Client *client, UA_UInt32 subId, voi
     rb_ary_store(args,2,rb_ary_entry(ret,1));
     rb_proc_call(blk,args);
   }
-}
-static VALUE node_on_value_change(VALUE self) {
+} // }}}
+static VALUE node_on_value_change(VALUE self) { // {{{
   node_struct *ns;
   Data_Get_Struct(self, node_struct, ns);
   if (!ns->master->started) rb_raise(rb_eRuntimeError, "Client disconnected.");
@@ -171,7 +179,7 @@ static VALUE node_on_value_change(VALUE self) {
   UA_CreateSubscriptionRequest_clear(&sreq);
 
   return self;
-}
+} // }}}
 
 /* -- */
 static void  client_free(client_struct *pss) { //{{{
@@ -502,19 +510,19 @@ static VALUE node_call(int argc, VALUE* argv, VALUE self) { //{{{
   UA_Variant_init(&iaval);
   UA_Client_readValueAttribute(ns->master->master, ia, &iaval);
 
-  printf("al %ld\n",iaval.arrayLength);
+  UA_UInt32 proposal[RARRAY_LEN(splat)];
   for (int i=0; i < iaval.arrayLength; i++) {
-    UA_Argument arg = ((UA_Argument *)iaval.data)[i];
-		printf("NS: %d ---> NodeId %u\n",
-					 arg.dataType.namespaceIndex,
-					 arg.dataType.identifier.numeric
-		);
-  }
+    UA_ExtensionObject* eoarg= (UA_ExtensionObject *)(iaval.data);
+    UA_Argument* arg = (UA_Argument *)(eoarg[i].content.decoded.data);
 
+    if (arg->dataType.namespaceIndex == 0) {
+		  proposal[i] = arg->dataType.identifier.numeric - 1; // what a dirty hack TODO, translate node to value
+    }
+  }
 
   UA_Variant inputArguments[RARRAY_LEN(splat)];
   for (long i=0; i<RARRAY_LEN(splat); i++) {
-    value_to_variant(RARRAY_AREF(splat, i),&inputArguments[i]);
+    value_to_variant(RARRAY_AREF(splat, i),&inputArguments[i],proposal[i]);
   }
 
   retval = UA_Client_call(

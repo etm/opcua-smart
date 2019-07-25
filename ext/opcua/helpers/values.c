@@ -94,7 +94,7 @@ static bool value_to_array(VALUE value, UA_Variant *variant) {/*{{{*/
   return done;
 }/*}}}*/
 
-bool value_to_variant(VALUE value, UA_Variant *variant) { //{{{
+bool value_to_variant(VALUE value, UA_Variant *variant, UA_UInt32 proposal) { //{{{
   bool done = false;
   if (rb_obj_is_kind_of(value,rb_cTime)) {
     UA_DateTime tmp = UA_DateTime_fromUnixTime(rb_time_timeval(value).tv_sec);
@@ -117,10 +117,36 @@ bool value_to_variant(VALUE value, UA_Variant *variant) { //{{{
           break;
         }
       case T_FLOAT:
-      case T_FIXNUM:
         {
           UA_Double tmp = NUM2DBL(value);
           UA_Variant_setScalarCopy(variant, &tmp, &UA_TYPES[UA_TYPES_DOUBLE]);
+          done = true;
+          break;
+        }
+      case T_FIXNUM:
+        {
+          if (proposal == UA_TYPES_SBYTE) {
+            UA_SByte tmp = (UA_SByte)NUM2CHR(value);
+            UA_Variant_setScalarCopy(variant, &tmp, &UA_TYPES[UA_TYPES_SBYTE]);
+          } else if (proposal == UA_TYPES_BYTE) {
+            UA_SByte tmp = (UA_Byte)NUM2CHR(value);
+            UA_Variant_setScalarCopy(variant, &tmp, &UA_TYPES[UA_TYPES_BYTE]);
+          } else if (proposal == UA_TYPES_INT16) {
+            UA_Int16 tmp = NUM2INT(value);
+            UA_Variant_setScalarCopy(variant, &tmp, &UA_TYPES[UA_TYPES_INT16]);
+          } else if (proposal == UA_TYPES_UINT16) {
+            UA_UInt16 tmp = NUM2INT(value);
+            UA_Variant_setScalarCopy(variant, &tmp, &UA_TYPES[UA_TYPES_UINT16]);
+          } else if (proposal == UA_TYPES_INT32) {
+            UA_Int32 tmp = NUM2LONG(value);
+            UA_Variant_setScalarCopy(variant, &tmp, &UA_TYPES[UA_TYPES_INT32]);
+          } else if (proposal == UA_TYPES_UINT32) {
+            UA_UInt32 tmp = NUM2ULONG(value);
+            UA_Variant_setScalarCopy(variant, &tmp, &UA_TYPES[UA_TYPES_UINT32]);
+          } else {
+            UA_Int32 tmp = NUM2LONG(value);
+            UA_Variant_setScalarCopy(variant, &tmp, &UA_TYPES[UA_TYPES_INT32]);
+          }
           done = true;
           break;
         }
@@ -166,11 +192,17 @@ static VALUE UA_TYPES_BOOLEAN_to_value(UA_Boolean data) { //{{{
 static VALUE UA_TYPES_DOUBLE_to_value(UA_Double data) { //{{{
   return DBL2NUM(data);
 } //}}}
+static VALUE UA_TYPES_SBYTE_to_value(UA_SByte data) { //{{{
+  return CHR2FIX((signed char)data);
+} //}}}
 static VALUE UA_TYPES_INT32_to_value(UA_Int32 data) { //{{{
   return INT2NUM(data);
 } //}}}
 static VALUE UA_TYPES_INT16_to_value(UA_Int16 data) { //{{{
   return INT2NUM(data);
+} //}}}
+static VALUE UA_TYPES_BYTE_to_value(UA_Byte data) { //{{{
+  return CHR2FIX((unsigned char)data);
 } //}}}
 static VALUE UA_TYPES_UINT32_to_value(UA_UInt32 data) { //{{{
   return UINT2NUM(data);
@@ -211,6 +243,12 @@ VALUE extract_value(UA_Variant value) { //{{{
     } else if (UA_Variant_hasScalarType(&value, &UA_TYPES[UA_TYPES_UINT16])) {
       rb_ary_store(ret,0,UA_TYPES_UINT16_to_value(*(UA_UInt16 *)value.data));
       rb_ary_store(ret,1,ID2SYM(rb_intern("VariantType.UInt16")));
+    } else if (UA_Variant_hasScalarType(&value, &UA_TYPES[UA_TYPES_SBYTE])) {
+      rb_ary_store(ret,0,UA_TYPES_SBYTE_to_value(*(UA_SByte *)value.data));
+      rb_ary_store(ret,1,ID2SYM(rb_intern("VariantType.SByte")));
+    } else if (UA_Variant_hasScalarType(&value, &UA_TYPES[UA_TYPES_BYTE])) {
+      rb_ary_store(ret,0,UA_TYPES_BYTE_to_value(*(UA_Byte *)value.data));
+      rb_ary_store(ret,1,ID2SYM(rb_intern("VariantType.Byte")));
     } else if (UA_Variant_hasScalarType(&value, &UA_TYPES[UA_TYPES_STRING])) {
       rb_ary_store(ret,0,UA_TYPES_STRING_to_value(*(UA_String *)value.data));
       rb_ary_store(ret,1,ID2SYM(rb_intern("VariantType.String")));
