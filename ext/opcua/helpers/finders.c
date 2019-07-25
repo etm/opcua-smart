@@ -23,7 +23,7 @@ bool server_node_get_reference(UA_Server *server, UA_NodeId parent, UA_NodeId *r
   bDes.nodeId = parent;
   bDes.resultMask = UA_BROWSERESULTMASK_ALL;
   bDes.browseDirection = inverse ? 1 : 0;
-  UA_BrowseResult bRes = UA_Server_browse(server, 2, &bDes);
+  UA_BrowseResult bRes = UA_Server_browse(server, 999, &bDes);
 
   if (bRes.referencesSize > 0) {
     UA_ReferenceDescription *ref = &(bRes.references[0]);
