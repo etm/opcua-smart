@@ -719,6 +719,7 @@ static VALUE node_value_set(VALUE self, VALUE value) { //{{{
     }
 
     UA_Server_writeValue(ns->master->master, ns->id, variant);
+    UA_Variant_deleteMembers(&variant);
   }
   return self;
 } //}}}
