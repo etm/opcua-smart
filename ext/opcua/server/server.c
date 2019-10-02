@@ -861,7 +861,7 @@ static VALUE server_add_namespace(VALUE self, VALUE name) { //{{{
   char *nstr = (char *)StringValuePtr(str);
 
   pss->default_ns = UA_Server_addNamespace(pss->master, nstr);
-  return self;
+  return INT2NUM(pss->default_ns);
 } //}}}
 static VALUE server_types(VALUE self) { //{{{
   server_struct *pss;
@@ -914,6 +914,21 @@ static VALUE server_namespaces(VALUE self) { //{{{
   RB_OBJ_FREEZE(ret);
   return rb_ary_entry(ret,0);
 } //}}}
+static VALUE server_active_namespace(VALUE self) { //{{{
+  server_struct *pss;
+  Data_Get_Struct(self, server_struct, pss);
+  return UINT2NUM(pss->default_ns);
+} //}}}
+static VALUE server_active_namespace_set(VALUE self, VALUE val) { //{{{
+  server_struct *pss;
+  Data_Get_Struct(self, server_struct, pss);
+
+  if (NIL_P(val) || TYPE(val) != T_FIXNUM)
+    rb_raise(rb_eTypeError, "namespace is not an integer");
+
+  pss->default_ns = NUM2UINT(val);
+  return self;
+} //}}}
 
 void Init_server(void) {
   mOPCUA = rb_define_module("OPCUA");
@@ -941,6 +956,8 @@ void Init_server(void) {
   rb_define_method(cServer, "initialize", server_init, 0);
   rb_define_method(cServer, "run", server_run, 0);
   rb_define_method(cServer, "add_namespace", server_add_namespace, 1);
+  rb_define_method(cServer, "active_namespace", server_active_namespace, 0);
+  rb_define_method(cServer, "active_namespace=", server_active_namespace_set, 1);
   rb_define_method(cServer, "types", server_types, 0);
   rb_define_method(cServer, "references", server_references, 0);
   rb_define_method(cServer, "objects", server_objects, 0);
