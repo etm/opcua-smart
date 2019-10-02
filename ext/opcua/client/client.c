@@ -502,7 +502,11 @@ static VALUE node_call(int argc, VALUE* argv, VALUE self) { //{{{
   Data_Get_Struct(self, node_struct, ns);
 
   UA_NodeId parent;
-  client_node_get_reference_by_type(ns->master->master, ns->id, UA_NODEID_NUMERIC(0,UA_NS0ID_HASCOMPONENT), &parent, true);
+  if (!client_node_get_reference_by_type(ns->master->master, ns->id, UA_NODEID_NUMERIC(0,UA_NS0ID_HASCOMPONENT), &parent, true)) {
+    if (!client_node_get_reference_by_type(ns->master->master, ns->id, UA_NODEID_NUMERIC(0,UA_NS0ID_HASORDEREDCOMPONENT), &parent, true)) {
+      rb_raise(rb_eRuntimeError, "Cant find parent node, neither hascomponent nor hasorderedcomponent is there!");
+    }
+  }
 
   UA_NodeId ia;
   client_node_get_reference_by_name(ns->master->master, ns->id, UA_QUALIFIEDNAME(0,"InputArguments"), &ia, false);
@@ -525,21 +529,27 @@ static VALUE node_call(int argc, VALUE* argv, VALUE self) { //{{{
     value_to_variant(RARRAY_AREF(splat, i),&inputArguments[i],proposal[i]);
   }
 
+  size_t outputSize;
+  UA_Variant *output;
+
   retval = UA_Client_call(
     ns->master->master,
     parent,
     ns->id,
     RARRAY_LEN(splat),
     (UA_Variant *)&inputArguments,
-    0,
-    NULL
+    &outputSize,
+    &output
   );
 
-
-  if(retval == UA_STATUSCODE_GOOD) {
-    return Qtrue;
+  if (retval == UA_STATUSCODE_GOOD && outputSize > 0) {
+    VALUE ret = rb_ary_new2(outputSize);
+    for (int i=0; i<outputSize; i++) {
+      rb_ary_store(ret,i,rb_ary_entry(extract_value(output[i]),0));
+    }
+    return rb_ary_entry(ret,0);
   } else {
-    return Qfalse;
+    return Qnil;
   }
 } //}}}
 
