@@ -17,8 +17,27 @@ VALUE cMethodNode = Qnil;
 int nodecounter = 2000;
 
 /* -- */
+static void  node_mark(node_struct *ns) { //{{{
+  if (ns == NULL) return;
+  // if (ns->id.identifierType == UA_NODEIDTYPE_NUMERIC) {
+  //   printf("mark ns=%d;i=%d\n", ns->id.namespaceIndex, ns->id.identifier.numeric);
+  // } else if(ns->id.identifierType == UA_NODEIDTYPE_STRING) {
+  //   printf("mark ns=%d;s=%.*s\n", ns->id.namespaceIndex, (int)ns->id.identifier.string.length, ns->id.identifier.string.data);
+  // } else {
+  //   printf("mark ns=%d;unsupported\n",ns->id.namespaceIndex);
+  // }
+  if (!NIL_P(ns->method)) rb_gc_mark(ns->method);
+} // }}}
 static void  node_free(node_struct *ns) { //{{{
   if (ns != NULL) {
+    // if (!ns->exists) rb_raise(rb_eRuntimeError, "Node does not exist anymore.");
+    // if (ns->id.identifierType == UA_NODEIDTYPE_NUMERIC) {
+    //   printf("delete ns=%d;i=%d\n", ns->id.namespaceIndex, ns->id.identifier.numeric);
+    // } else if(ns->id.identifierType == UA_NODEIDTYPE_STRING) {
+    //   printf("delete ns=%d;s=%.*s\n", ns->id.namespaceIndex, (int)ns->id.identifier.string.length, ns->id.identifier.string.data);
+    // } else {
+    //   printf("delete ns=%d;unsupported\n",ns->id.namespaceIndex);
+    // }
     if (!NIL_P(ns->method)) {
       rb_gc_unregister_address(&ns->method);
     }
@@ -39,7 +58,7 @@ static node_struct * node_alloc(server_struct *server, UA_NodeId nodeid) { //{{{
 	return ns;
 } //}}}
 static VALUE node_wrap(VALUE klass, node_struct *ns) { //{{{
-	return Data_Wrap_Struct(klass, NULL, node_free, ns);
+	return Data_Wrap_Struct(klass, node_mark, node_free, ns);
 } //}}}
 /* ++ */
 
@@ -592,7 +611,7 @@ static VALUE node_manifest(VALUE self, VALUE name, VALUE parent) { //{{{
 
   node_add_object_ua_rec(n,UA_LOCALIZEDTEXT("en-US", nstr),UA_QUALIFIEDNAME(ns->master->default_ns, nstr),ns,ts,ts->id,node_manifest_iter,(void *)handle);
 
-  return Data_Wrap_Struct(CLASS_OF(self), NULL, node_free, ret);
+  return Data_Wrap_Struct(CLASS_OF(self), node_mark, node_free, ret);
 } //}}}
 
 static VALUE node_find(VALUE self, VALUE qname) { //{{{
@@ -700,6 +719,7 @@ static VALUE node_value_set(VALUE self, VALUE value) { //{{{
     }
 
     UA_Server_writeValue(ns->master->master, ns->id, variant);
+    UA_Variant_deleteMembers(&variant);
   }
   return self;
 } //}}}
@@ -782,6 +802,9 @@ static VALUE node_description(VALUE self) { //{{{
 /* -- */
 static void  server_free(server_struct *pss) { //{{{
   if (pss != NULL) {
+    if (!NIL_P(pss->methods)) {
+      rb_gc_unregister_address(&pss->methods);
+    }
     UA_Server_delete(pss->master);
     free(pss);
   }
@@ -797,6 +820,8 @@ static VALUE server_alloc(VALUE self) { //{{{
   pss->default_ns = 1;
   pss->debug = true;
   pss->methods = rb_hash_new();
+
+  rb_gc_register_address(&pss->methods);
 
   UA_ServerConfig_setDefault(pss->config);
 
