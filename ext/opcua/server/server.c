@@ -142,7 +142,7 @@ static UA_NodeId nodeid_from_str(VALUE nodeid)
     char *nsi = (char *)calloc(index - 3, sizeof(char));
     strncpy(nsi, nstr + 3, index - 3);
     nid_index = atoi(nsi);
-    free(nsi);
+    //free(nsi);
     nid_type = nstr[index + 1];
     nid_id = calloc(strlen(nstr) - index - 3, sizeof(char));
     strncpy(nid_id, nstr + index + 3, strlen(nstr) - index - 3);
@@ -152,7 +152,7 @@ static UA_NodeId nodeid_from_str(VALUE nodeid)
   {
     //printf("'%s' to 'ns=%d;i=%i'\n", nstr, nid_index, atoi(nid_id));
     UA_NodeId id = UA_NODEID_NUMERIC(nid_index, atoi(nid_id));
-    free(nid_id);
+    //free(nid_id);
     return id;
   }
   else if (nid_type == 's')
@@ -500,7 +500,7 @@ static VALUE node_add_reference(VALUE self, VALUE to, VALUE type)
   if (!ns->exists)
     rb_raise(rb_eRuntimeError, "Node does not exist anymore.");
 
-  if (!(rb_obj_is_kind_of(type, cReferenceSubNode) || rb_obj_is_kind_of(to, cTypeSubNode)))
+  if (!(rb_obj_is_kind_of(type, cReferenceSubNode) || rb_obj_is_kind_of(to, cTypeSubNode) || rb_obj_is_kind_of(to, cObjectNode)))
   {
     rb_raise(rb_eArgError, "arguments have to be NodeIDs.");
   }
@@ -513,12 +513,13 @@ static VALUE node_add_reference(VALUE self, VALUE to, VALUE type)
   UA_NodeId n = UA_NODEID_NUMERIC(ns->master->default_ns, nodecounter++);
 
   UA_ExpandedNodeId toNodeId;
+  UA_ExpandedNodeId_init(&toNodeId);
   toNodeId.serverIndex = 0;
   toNodeId.namespaceUri = UA_STRING_NULL;
   toNodeId.nodeId = tos->id;
 
   UA_Server_addReference(ns->master->master,
-                         n,
+                         ns->id,
                          tys->id,
                          toNodeId,
                          true);
@@ -853,6 +854,7 @@ static VALUE node_follow(VALUE self, VALUE reference_type, VALUE direction)
     UA_NodeClass nc;
     UA_NodeClass_init(&nc);
     UA_Server_readNodeClass(ns->master->master, ref->nodeId.nodeId, &nc);
+    //printf("NodeId: %x %lx %d", ref->nodeId.serverIndex, ref->nodeId.namespaceUri.length, ref->nodeId.namespaceUri.data);
 
     VALUE node;
     if (nc == UA_NODECLASS_VARIABLE)
@@ -894,8 +896,8 @@ static VALUE node_follow(VALUE self, VALUE reference_type, VALUE direction)
     UA_NodeClass_clear(&nc);
     rb_ary_push(nodes, node);
   }
-  UA_BrowseResult_deleteMembers(&bRes);
-  UA_BrowseResult_clear(&bRes);
+  //UA_BrowseResult_deleteMembers(&bRes);
+  //UA_BrowseResult_clear(&bRes);
 
   return nodes;
 } //}}}
@@ -1608,6 +1610,12 @@ static void server_free(server_struct *pss)
     free(pss);
   }
 } //}}}
+static VALUE node_server(VALUE self)
+{ //{{{
+  node_struct *ns;
+  Data_Get_Struct(self, node_struct, ns);
+  return Data_Wrap_Struct(cServer, NULL, NULL, ns->master);//->master);
+} //}}}
 static VALUE server_alloc(VALUE self)
 { //{{{
   server_struct *pss;
@@ -1789,6 +1797,7 @@ void Init_server(void)
   // server.follow(nodeid, ref_id)
   rb_define_method(cServer, "get", server_get, -1);
 
+  rb_define_method(cNode, "server", node_server, 0);
   rb_define_method(cNode, "to_s", node_to_s, 0);
   rb_define_method(cNode, "id", node_id, 0);
   rb_define_method(cNode, "name", node_name, 0);
@@ -1847,6 +1856,8 @@ void Init_server(void)
   rb_define_method(cObjectNode, "notifier", node_notifier, 0);
   rb_define_method(cObjectNode, "notifier=", node_notifier_set, 1);
   rb_define_method(cObjectNode, "delete!", node_delete, 0);
+  rb_define_method(cObjectNode, "add_object", node_add_object, -1);
+  rb_define_method(cObjectNode, "add_reference", node_add_reference, 2);
 
   rb_define_method(cVarNode, "value", node_value, 0);
   rb_define_method(cVarNode, "value=", node_value_set, 1);
