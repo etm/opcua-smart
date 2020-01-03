@@ -329,6 +329,29 @@ static VALUE client_init(VALUE self,VALUE url,VALUE user,VALUE pass) { //{{{
 
   return self;
 } //}}}
+static VALUE client_get_node(VALUE self, UA_NodeId nodeid)
+{ //{{{
+  client_struct *pss;
+  Data_Get_Struct(self, client_struct, pss);
+  if (!pss->started) rb_raise(rb_eRuntimeError, "Client disconnected.");
+
+  UA_NodeClass nc;UA_NodeClass_init(&nc);
+  UA_Client_readNodeClassAttribute(pss->master, nodeid, &nc);
+
+  VALUE node;
+  if (nc == UA_NODECLASS_VARIABLE) {
+    node = node_wrap(cVarNode,node_alloc(pss, nodeid));
+  } else if (nc == UA_NODECLASS_METHOD) {
+    node = node_wrap(cMethodNode,node_alloc(pss, nodeid));
+  } else if (nc == UA_NODECLASS_UNSPECIFIED) {
+    node = Qnil;
+  } else {
+    node = node_wrap(cNode,node_alloc(pss, nodeid));
+  }
+  UA_NodeClass_clear(&nc);
+
+  return node;
+} //}}}
 static VALUE client_get(int argc, VALUE* argv, VALUE self) { //{{{
   if (argc > 2 || argc < 1) { // there should only be 1 or 2 arguments
     rb_raise(rb_eArgError, "wrong number of arguments");
@@ -364,22 +387,19 @@ static VALUE client_get(int argc, VALUE* argv, VALUE self) { //{{{
     it = UA_NODEID_STRING(NUM2INT(ns), nstr);
   }
 
-  UA_NodeClass nc;UA_NodeClass_init(&nc);
-  UA_Client_readNodeClassAttribute(pss->master, it, &nc);
-
-  VALUE node;
-  if (nc == UA_NODECLASS_VARIABLE) {
-    node = node_wrap(cVarNode,node_alloc(pss, it));
-  } else if (nc == UA_NODECLASS_METHOD) {
-    node = node_wrap(cMethodNode,node_alloc(pss, it));
-  } else if (nc == UA_NODECLASS_UNSPECIFIED) {
-    node = Qnil;
-  } else {
-    node = node_wrap(cNode,node_alloc(pss, it));
-  }
-  UA_NodeClass_clear(&nc);
-
-  return node;
+  return client_get_node(self, it);
+} //}}}
+static VALUE client_types(VALUE self)
+{ //{{{
+  return client_get_node(self, UA_NODEID_NUMERIC(0, UA_NS0ID_BASEOBJECTTYPE));
+} //}}}
+static VALUE client_references(VALUE self)
+{ //{{{
+  return client_get_node(self, UA_NODEID_NUMERIC(0, UA_NS0ID_NONHIERARCHICALREFERENCES));
+} //}}}
+static VALUE client_objects(VALUE self)
+{ //{{{
+  return client_get_node(self, UA_NODEID_NUMERIC(0, UA_NS0ID_OBJECTSFOLDER));
 } //}}}
 static VALUE client_subscription_interval(VALUE self) { //{{{
   client_struct *pss;
@@ -633,6 +653,9 @@ void Init_client(void) {
   rb_define_method(cClient, "default_ns", client_default_ns, 0);
   rb_define_method(cClient, "default_ns=", client_default_ns_set, 1);
   rb_define_method(cClient, "namespaces", client_namespaces, 0);
+  rb_define_method(cClient, "types", client_types, 0);
+  rb_define_method(cClient, "references", client_references, 0);
+  rb_define_method(cClient, "objects", client_objects, 0);
   rb_define_method(cClient, "debug", client_debug, 0);
   rb_define_method(cClient, "debug=", client_debug_set, 1);
 
