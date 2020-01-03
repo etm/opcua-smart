@@ -1,6 +1,6 @@
 Gem::Specification.new do |s|
   s.name             = "opcua"
-  s.version          = "0.13"
+  s.version          = "0.16"
   s.platform         = Gem::Platform::RUBY
   s.license          = "LGPL-3.0"
   s.summary          = "Preliminary release of opcua (open62541) ruby bindings. C performance, Ruby elegance, simplicity, and productivity."

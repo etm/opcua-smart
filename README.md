@@ -31,17 +31,14 @@ Copyright (C) 2019-* Jürgen "eTM" Mangler <juergen.mangler@gmail.com>. opcua-sm
 ## Installation
 
 
-### Development dependencies
-
-On Fedora:
 ```sh
-dnf install ruby ruby-devel cmake mbedtls mbedtls-devel
-yum install python-sphinx gcc-c++
-dnf install @development-tools @rpm-development-tools
+# Debian/Ubuntu
+apt install build-essential cmake-curses-gui libmbedtls-dev libxml2-dev libxslt-dev libz-dev libssl-dev libicu-dev 
+# Fedora/Redhat
+dnf install @buildsys-build @development-tools cmake libxml2-devel libxslt-devel zlib-devel libicu-devel mbedtls-devel
 ```
 
-### open62541 dependency
-Build open62541 and install on the system: https://github.com/open62541/open62541 > 0.4 (master branch as of 2019-04-26)
+Dependency: https://github.com/open62541/open62541 > 0.4 (master branch as of 2019-04-26)
 
 ```sh
 git clone https://github.com/open62541/open62541.git
