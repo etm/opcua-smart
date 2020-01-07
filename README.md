@@ -63,6 +63,14 @@ sudo ldconfig # update libs
 sudo ldconfig -p | grep libopen62541 # check if its there
 ```
 
+or on 64-bit systems:
+
+```sh
+sudo echo "/usr/local/lib64" > /etc/ld.so.conf.d/local.conf # add to libs path
+sudo ldconfig # update libs
+sudo ldconfig -p | grep libopen62541 # check if its there
+```
+
 ## Development
 
 Use rake to build c bindings:

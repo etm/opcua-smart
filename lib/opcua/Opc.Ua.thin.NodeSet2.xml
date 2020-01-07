@@ -328,7 +328,13 @@
     </References>
     <InverseName>GeneratedBy</InverseName>
   </UAReferenceType>
-  
+  <UAReferenceType NodeId="i=3065" BrowseName="AlwaysGeneratesEvent">
+    <DisplayName>AlwaysGeneratesEvent</DisplayName>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=41</Reference>
+    </References>
+    <InverseName>AlwaysGeneratedBy</InverseName>
+  </UAReferenceType>
   <UAReferenceType NodeId="i=44" BrowseName="Aggregates" IsAbstract="true">
     <DisplayName>Aggregates</DisplayName>
     <References>
@@ -1497,6 +1503,13 @@
   
   
   
+  <UAReferenceType NodeId="i=15112" BrowseName="HasGuard">
+    <DisplayName>HasGuard</DisplayName>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=47</Reference>
+    </References>
+    <InverseName>GuardOf</InverseName>
+  </UAReferenceType>
   
   
   
@@ -1839,10 +1852,31 @@
   
   
   
+  <UAReferenceType NodeId="i=17597" BrowseName="HasDictionaryEntry">
+    <DisplayName>HasDictionaryEntry</DisplayName>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=32</Reference>
+    </References>
+    <InverseName>DictionaryEntryOf</InverseName>
+  </UAReferenceType>
   
   
   
   
+  <UAReferenceType NodeId="i=17603" BrowseName="HasInterface">
+    <DisplayName>HasInterface</DisplayName>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=32</Reference>
+    </References>
+    <InverseName>InterfaceOf</InverseName>
+  </UAReferenceType>
+  <UAReferenceType NodeId="i=17604" BrowseName="HasAddIn">
+    <DisplayName>HasAddIn</DisplayName>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=32</Reference>
+    </References>
+    <InverseName>AddInOf</InverseName>
+  </UAReferenceType>
   
   
   
@@ -1892,6 +1926,34 @@
   
   
   
+  <UAReferenceType NodeId="i=9004" BrowseName="HasTrueSubState">
+    <DisplayName>HasTrueSubState</DisplayName>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=32</Reference>
+    </References>
+    <InverseName>IsTrueSubStateOf</InverseName>
+  </UAReferenceType>
+  <UAReferenceType NodeId="i=9005" BrowseName="HasFalseSubState">
+    <DisplayName>HasFalseSubState</DisplayName>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=32</Reference>
+    </References>
+    <InverseName>IsFalseSubStateOf</InverseName>
+  </UAReferenceType>
+  <UAReferenceType NodeId="i=16361" BrowseName="HasAlarmSuppressionGroup">
+    <DisplayName>HasAlarmSuppressionGroup</DisplayName>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=47</Reference>
+    </References>
+    <InverseName>IsAlarmSuppressionGroupOf</InverseName>
+  </UAReferenceType>
+  <UAReferenceType NodeId="i=16362" BrowseName="AlarmGroupMember">
+    <DisplayName>AlarmGroupMember</DisplayName>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=35</Reference>
+    </References>
+    <InverseName>MemberOfAlarmGroup</InverseName>
+  </UAReferenceType>
   
   
   
@@ -2191,6 +2253,41 @@
   
   
   
+  <UAReferenceType NodeId="i=9006" BrowseName="HasCondition">
+    <DisplayName>HasCondition</DisplayName>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=32</Reference>
+    </References>
+    <InverseName>IsConditionOf</InverseName>
+  </UAReferenceType>
+  <UAReferenceType NodeId="i=17276" BrowseName="HasEffectDisable">
+    <DisplayName>HasEffectDisable</DisplayName>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=54</Reference>
+    </References>
+    <InverseName>MayBeDisabledBy</InverseName>
+  </UAReferenceType>
+  <UAReferenceType NodeId="i=17983" BrowseName="HasEffectEnable">
+    <DisplayName>HasEffectEnable</DisplayName>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=54</Reference>
+    </References>
+    <InverseName>MayBeEnabledBy</InverseName>
+  </UAReferenceType>
+  <UAReferenceType NodeId="i=17984" BrowseName="HasEffectSuppressed">
+    <DisplayName>HasEffectSuppressed</DisplayName>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=54</Reference>
+    </References>
+    <InverseName>MayBeSuppressedBy</InverseName>
+  </UAReferenceType>
+  <UAReferenceType NodeId="i=17985" BrowseName="HasEffectUnsuppressed">
+    <DisplayName>HasEffectUnsuppressed</DisplayName>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=54</Reference>
+    </References>
+    <InverseName>MayBeUnsuppressedBy</InverseName>
+  </UAReferenceType>
   
   
   
@@ -2983,6 +3080,13 @@
   
   
   
+  <UAReferenceType NodeId="i=14476" BrowseName="HasPubSubConnection">
+    <DisplayName>HasPubSubConnection</DisplayName>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=47</Reference>
+    </References>
+    <InverseName>PubSubConnectionOf</InverseName>
+  </UAReferenceType>
   
   
   
@@ -3006,6 +3110,13 @@
   
   
   
+  <UAReferenceType NodeId="i=14936" BrowseName="DataSetToWriter">
+    <DisplayName>DataSetToWriter</DisplayName>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=33</Reference>
+    </References>
+    <InverseName>WriterToDataSet</InverseName>
+  </UAReferenceType>
   
   
   
@@ -3224,6 +3335,13 @@
   
   
   
+  <UAReferenceType NodeId="i=15296" BrowseName="HasDataSetWriter">
+    <DisplayName>HasDataSetWriter</DisplayName>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=47</Reference>
+    </References>
+    <InverseName>IsWriterInGroup</InverseName>
+  </UAReferenceType>
   
   
   
@@ -3293,23 +3411,13 @@
   
   
   
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
+  <UAReferenceType NodeId="i=15297" BrowseName="HasDataSetReader">
+    <DisplayName>HasDataSetReader</DisplayName>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=47</Reference>
+    </References>
+    <InverseName>IsReaderInGroup</InverseName>
+  </UAReferenceType>
   
   
   

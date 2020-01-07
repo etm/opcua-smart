@@ -1,5 +1,5 @@
 #!/usr/bin/ruby
-require_relative '../lib/opcua/client'
+require_relative '../../lib/opcua/client'
 #require 'opcua/client'
 
 ### username & pass in url (e.g. siemens)

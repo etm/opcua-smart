@@ -1,6 +1,6 @@
 #!/usr/bin/ruby
 # require 'opcua/server'
-require_relative '../lib/opcua/server'
+require_relative '../../lib/opcua/server'
 
 Daemonite.new do
   on startup do |opts|
