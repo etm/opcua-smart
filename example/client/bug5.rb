@@ -1,5 +1,5 @@
 #!/usr/bin/ruby
-require_relative '../lib/opcua/server'
+require_relative '../../lib/opcua/server'
 
 Daemonite.new do
   server = OPCUA::Server.new
@@ -14,7 +14,7 @@ Daemonite.new do
     t.add_object :M, mt, OPCUA::MANDATORY
   }
 
-  tools = server.objects.manifest(:KalimatC34, tt)
+  tools = server.objects.instantiate(:KalimatC34, tt)
 
   run do
     sleep server.run
