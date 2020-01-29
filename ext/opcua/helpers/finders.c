@@ -46,6 +46,34 @@ bool server_node_get_reference(UA_Server *server, UA_NodeId parent, UA_NodeId *r
   return false;
 }
 
+bool server_node_get_reference_by_name(UA_Server *server, UA_NodeId parent, UA_QualifiedName name, UA_NodeId *result, bool inverse) {
+	UA_BrowseDescription bDes;
+  UA_BrowseDescription_init(&bDes);
+  bDes.nodeId = parent;
+  bDes.resultMask = UA_BROWSERESULTMASK_ALL;
+  bDes.browseDirection = inverse ? 1 : 0;
+  UA_BrowseResult bRes = UA_Server_browse(server, 999, &bDes);
+
+  for (int i=0; i < bRes.referencesSize; i++) {
+    UA_ReferenceDescription *ref = &(bRes.references[i]);
+
+    UA_QualifiedName qn;  UA_QualifiedName_init(&qn);
+    UA_Server_readBrowseName(server, ref->nodeId.nodeId, &qn);
+
+    if (UA_QualifiedName_equal(&qn,&name)) {
+      UA_NodeId_copy(&ref->nodeId.nodeId,result);
+
+      UA_BrowseResult_deleteMembers(&bRes);
+      UA_BrowseResult_clear(&bRes);
+      return true;
+    }
+  }
+
+  UA_BrowseResult_deleteMembers(&bRes);
+  UA_BrowseResult_clear(&bRes);
+  return false;
+}
+
 bool client_node_get_reference_by_name(UA_Client *client, UA_NodeId parent, UA_QualifiedName name, UA_NodeId *result, bool inverse) {
   UA_BrowseRequest bReq;
   UA_BrowseRequest_init(&bReq);

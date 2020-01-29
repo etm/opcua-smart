@@ -224,7 +224,11 @@ static UA_StatusCode node_add_method_callback( //{{{
     rb_ary_push(args,rb_ary_entry(ret,0));
   }
 
-  rb_proc_call(me->method,args);
+  VALUE ret = rb_proc_call(me->method,args);
+
+  if (outputSize == 1) {
+    value_to_variant(ret,output,-1);
+  }
 
   return UA_STATUSCODE_GOOD;
 } //}}}
@@ -269,7 +273,6 @@ static UA_NodeId node_add_method_ua_simple(char* nstr, node_struct *parent, VALU
 
   VALUE ary = rb_funcall(opts, rb_intern("to_a"), 0);
   for (long i=0; i<RARRAY_LEN(ary); i++) {
-    counter++;
 	  VALUE item = RARRAY_AREF(ary, i);
     VALUE str = rb_obj_as_string(RARRAY_AREF(item, 0));
     if (NIL_P(str) || TYPE(str) != T_STRING)
@@ -281,6 +284,7 @@ static UA_NodeId node_add_method_ua_simple(char* nstr, node_struct *parent, VALU
       inputArguments[counter].name = UA_STRING(nstr);
       inputArguments[counter].dataType = UA_TYPES[NUM2INT(RARRAY_AREF(item, 1))].typeId;
       inputArguments[counter].valueRank = UA_VALUERANK_SCALAR;
+      counter++;
     } else {
       UA_Argument_init(&outputArguments[0]);
       outputArguments[0].description = UA_LOCALIZEDTEXT("en-US", nstr);
@@ -569,14 +573,35 @@ static UA_StatusCode node_manifest_iter(UA_NodeId child_id, UA_Boolean is_invers
             UA_BrowsePathResult_clear(&property);
           }
           if(nc == UA_NODECLASS_METHOD) {
-            UA_NodeId ttt;
+            UA_NodeId ia;
+            UA_NodeId oa;
             VALUE blk = rb_hash_aref(parent->master->methods,INT2NUM(child_id.identifier.numeric));
-            if (server_node_get_reference(parent->master->master, child_id, &ttt, false)) {
+
+            bool iacheck = server_node_get_reference_by_name(parent->master->master, child_id, UA_QUALIFIEDNAME(0,"InputArguments"), &ia, false);
+            bool oacheck = server_node_get_reference_by_name(parent->master->master, child_id, UA_QUALIFIEDNAME(0,"OutputArguments"), &oa, false);
+            if (iacheck && oacheck) {
+              UA_Variant arv1; UA_Variant_init(&arv1);
+              UA_Variant arv2; UA_Variant_init(&arv2);
+              UA_Server_readValue(parent->master->master, ia, &arv1);
+              UA_Server_readValue(parent->master->master, oa, &arv2);
+
+              // todo differentiate between input and output reference
+              node_add_method_ua(UA_NODEID_STRING(parent->master->default_ns,buffer),dn,qn,newnode,arv1.arrayLength,(UA_Argument *)arv1.data,arv2.arrayLength,(UA_Argument *)arv2.data,blk);
+              UA_Variant_clear(&arv1);
+              UA_Variant_clear(&arv2);
+            } else if (iacheck) {
               UA_Variant arv; UA_Variant_init(&arv);
-              UA_Server_readValue(parent->master->master, ttt, &arv);
+              UA_Server_readValue(parent->master->master, ia, &arv);
 
               // todo differentiate between input and output reference
               node_add_method_ua(UA_NODEID_STRING(parent->master->default_ns,buffer),dn,qn,newnode,arv.arrayLength,(UA_Argument *)arv.data,0,NULL,blk);
+              UA_Variant_clear(&arv);
+            } else if (oacheck) {
+              UA_Variant arv; UA_Variant_init(&arv);
+              UA_Server_readValue(parent->master->master, oa, &arv);
+
+              // todo differentiate between input and output reference
+              node_add_method_ua(UA_NODEID_STRING(parent->master->default_ns,buffer),dn,qn,newnode,0,NULL,arv.arrayLength,(UA_Argument *)arv.data,blk);
               UA_Variant_clear(&arv);
             } else {
               node_add_method_ua(UA_NODEID_STRING(parent->master->default_ns,buffer),dn,qn,newnode,0,NULL,0,NULL,blk);

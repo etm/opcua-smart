@@ -27,6 +27,14 @@ Daemonite.new do
         p test2
         puts '-' * 10
       end
+      t.add_method :testRetMethod, test1: OPCUA::TYPES::STRING, return: OPCUA::TYPES::STRING do |node, test1|
+        ns, nid = node.id
+        puts '-' * 10
+        p nid
+        p test1
+        puts '-' * 10
+        "hello world"
+      end
       t.add_object(:Measurements, opts['server'].types.folder).tap{ |u|
         u.add_object :M, mt, OPCUA::OPTIONAL
       }
