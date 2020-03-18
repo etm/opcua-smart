@@ -631,7 +631,7 @@ void Init_client(void) {
   cMethodNode = rb_define_class_under(cClient, "cMethodNode", cNode);
   cVarNode    = rb_define_class_under(cClient, "cVarNode", cNode);
 
-  Init_types();
+  Init_types(mOPCUA);
 
   rb_define_alloc_func(cClient, client_alloc);
   rb_define_method(cClient, "initialize", client_init, 3);

@@ -978,7 +978,7 @@ void Init_server(void) {
   rb_define_const(mOPCUA, "BASEDATAVARIABLETYPE", INT2NUM(UA_NS0ID_BASEDATAVARIABLETYPE));
   rb_define_const(mOPCUA, "PROPERTYTYPE", INT2NUM(UA_NS0ID_PROPERTYTYPE));
 
-  Init_types();
+  Init_types(mOPCUA);
 
   cServer            = rb_define_class_under(mOPCUA, "Server", rb_cObject);
   cNode              = rb_define_class_under(cServer, "Node", rb_cObject);
@@ -1013,7 +1013,7 @@ void Init_server(void) {
   rb_define_method(cNode, "exists?", node_exists, 0);
 
   rb_define_method(cTypeTopNode, "add_object_type", node_add_object_type, 1);
-  rb_define_method(cTypeTopNode, "add_reference_type", node_add_reference_type, 1);
+  rb_define_method(cTypeTopNode, "add_reference_type", node_add_reference_type, 2);
   rb_define_method(cTypeTopNode, "folder", node_type_folder, 0);
 
   rb_define_method(cTypeSubNode, "add_object_type", node_add_object_type, 1);

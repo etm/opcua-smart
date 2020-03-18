@@ -1,6 +1,6 @@
 #include "values.h"
 
-VALUE mOPCUA;
+VALUE mTYPES;
 
 /* -- */
 static void variant_set_one_dimension(UA_Variant *variant,UA_UInt32 len) { //{{{
@@ -171,7 +171,7 @@ bool value_to_variant(VALUE value, UA_Variant *variant, UA_UInt32 proposal) { //
   return done;
 } //}}}
 
-void Init_types() {/*{{{*/
+void Init_types(VALUE mOPCUA) {/*{{{*/
   mTYPES = rb_define_module_under(mOPCUA,"TYPES");
   rb_define_const(mTYPES, "DATETIME",            INT2NUM(UA_TYPES_DATETIME           ));
   rb_define_const(mTYPES, "BOOLEAN",             INT2NUM(UA_TYPES_BOOLEAN            ));
