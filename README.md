@@ -1,6 +1,6 @@
 # OPC-UA Ruby Bindings (open62541)
 
-The development of OPC UA applications takes currently a lot of effort. This is caused by the large possibilities of the OPC UA specification. With this implemtation we want to define some conventions, which shoud make the technology more useable.
+The development of OPC UA applications takes currently a lot of effort. This is caused by the large possibilities of the OPC UA specification. With this implementation we want to define some conventions, which shoud make the technology more useable.
 
 ## Table of Contents
 
@@ -43,17 +43,12 @@ Dependency: https://github.com/open62541/open62541 > 0.4 (master branch as of 20
 ```sh
 git clone https://github.com/open62541/open62541.git
 cd open62541
-mkdir build
-cd build
-cmake ..
-ccmake ..
-# Configuration, see picture below
+mkdir build && cd build
+cmake -DBUILD_SHARED_LIBS=ON -DCMAKE_BUILD_TYPE=RelWithDebInfo -DUA_ENABLE_AMALGAMATION=ON -DUA_ENABLE_ENCRYPTION=ON -DUA_ENABLE_ENCRYPTION_MBEDTLS=ON ..
 make
 sudo make install
 gem install opcua
 ```
-
-![ccmake Config](config.png)
 
 If the installation works correctly, but examples are still complaining about missing lib62541.so, try this:
 
@@ -76,7 +71,7 @@ The server has following functions:
 * Find nodes in the adress space
 * Loop for getting real life data
 
-Every server application uses the Demonite gem, which allows to run the server as service.
+Every server application uses the Daemonite gem, which allows to run the server as service.
 ```ruby
 Daemonite.new do
   on startup do |opts|
