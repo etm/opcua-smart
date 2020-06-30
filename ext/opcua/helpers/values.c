@@ -217,6 +217,9 @@ static VALUE UA_TYPES_UINT16_to_value(UA_UInt16 data) { //{{{
 static VALUE UA_TYPES_STRING_to_value(UA_String data) { //{{{
   return rb_str_export_locale(rb_str_new((char *)(data.data),data.length));
 } //}}}
+static VALUE UA_TYPES_BYTESTRING_to_value(UA_ByteString data) { //{{{
+  return rb_str_export_locale(rb_str_new((char *)(data.data),data.length));
+} //}}}
 
 VALUE extract_value(UA_Variant value) { //{{{
   VALUE ret = rb_ary_new2(2);
@@ -258,6 +261,9 @@ VALUE extract_value(UA_Variant value) { //{{{
       rb_ary_store(ret,1,ID2SYM(rb_intern("VariantType.Byte")));
     } else if (UA_Variant_hasScalarType(&value, &UA_TYPES[UA_TYPES_STRING])) {
       rb_ary_store(ret,0,UA_TYPES_STRING_to_value(*(UA_String *)value.data));
+      rb_ary_store(ret,1,ID2SYM(rb_intern("VariantType.String")));
+    } else if (UA_Variant_hasScalarType(&value, &UA_TYPES[UA_TYPES_BYTESTRING])) {
+      rb_ary_store(ret,0,UA_TYPES_BYTESTRING_to_value(*(UA_ByteString *)value.data));
       rb_ary_store(ret,1,ID2SYM(rb_intern("VariantType.String")));
     } else {
       //printf("Unknown Datatype\n");
