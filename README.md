@@ -1,6 +1,6 @@
 # OPC-UA Ruby Bindings (open62541)
 
-The development of OPC UA applications takes currently a lot of effort. This is caused by the large possibilities of the OPC UA specification. With this implemtation we want to define some conventions, which shoud make the technology more useable.
+The development of OPC UA applications takes currently a lot of effort. This is caused by the large possibilities of the OPC UA specification. With this implementation we want to define some conventions, which shoud make the technology more useable.
 
 ## Table of Contents
 
@@ -30,27 +30,31 @@ Copyright (C) 2019-* Jürgen "eTM" Mangler <juergen.mangler@gmail.com>. opcua-sm
 
 ## Installation
 
+
+```sh
+# Debian/Ubuntu
+apt install build-essential cmake-curses-gui libmbedtls-dev libxml2-dev libxslt-dev libz-dev libssl-dev libicu-dev
+# Fedora/Redhat
+dnf install @buildsys-build @development-tools cmake libxml2-devel libxslt-devel zlib-devel libicu-devel mbedtls-devel
+```
+
 Dependency: https://github.com/open62541/open62541 > 0.4 (master branch as of 2019-04-26)
 
 ```sh
 git clone https://github.com/open62541/open62541.git
 cd open62541
-mkdir build
-cd build
-cmake ..
-ccmake ..
-# Configuration, see picture below
+mkdir build && cd build
+cmake -DBUILD_SHARED_LIBS=ON -DCMAKE_BUILD_TYPE=RelWithDebInfo -DUA_ENABLE_AMALGAMATION=ON -DUA_ENABLE_ENCRYPTION=ON -DUA_ENABLE_ENCRYPTION_MBEDTLS=ON ..
 make
 sudo make install
 gem install opcua
 ```
 
-![ccmake Config](config.png)
-
 If the installation works correctly, but examples are still complaining about missing lib62541.so, try this:
 
 ```sh
-sudo echo "/usr/local/lib" > /etc/ld.so.conf.d/local.conf # add to libs path
+sudo echo "/usr/local/lib" >> /etc/ld.so.conf.d/local.conf # add to libs path
+sudo echo "/usr/local/lib64" >> /etc/ld.so.conf.d/local.conf # add to libs path
 sudo ldconfig # update libs
 sudo ldconfig -p | grep libopen62541 # check if its there
 ```
@@ -67,7 +71,7 @@ The server has following functions:
 * Find nodes in the adress space
 * Loop for getting real life data
 
-Every server application uses the Demonite gem, which allows to run the server as service.
+Every server application uses the Daemonite gem, which allows to run the server as service.
 ```ruby
 Daemonite.new do
   on startup do |opts|
@@ -93,7 +97,7 @@ server.add_namespace "https://yourdomain/testserver"
 ```
 
 
-#### Create ObjectTypes 
+#### Create ObjectTypes
 
 Basically all new created types are subtypes of the _BaseObjectType_. With ```server.types.add_object_type(:TestObjectType)``` a new type is defined in the information model. All nodes of the new created type are defined in the ```tap{}``` region.
 
@@ -129,7 +133,7 @@ With ```.add_object(:TestObject)``` a new object named _TestObject_ is added. Th
 
 ##### Add Method
 
-Methods are added with the ```.add_method(:TestMethod)``` function. Per default the method has no input and output arguments. By adding additional arguments you can define input arguments. The code for defining a method with input arguments looks like 
+Methods are added with the ```.add_method(:TestMethod)``` function. Per default the method has no input and output arguments. By adding additional arguments you can define input arguments. The code for defining a method with input arguments looks like
 ```ruby
  t.add_method :TestMethod, inputarg1: OPCUA::TYPES::STRING, inputarg2: OPCUA::TYPES::DATETIME do |node, inputarg1, inputarg2|
     #do some stuff here
@@ -140,7 +144,7 @@ in the ```do...end```section you write the code which should be executed by call
 
 #### Manifest Objects
 
-ObjectTypes can be instiantiated with the ```.manifest``` method. 
+ObjectTypes can be instiantiated with the ```.manifest``` method.
 
 ```ruby
 testobject =server.objects.manifest(:TestObjectType, to)
@@ -156,7 +160,7 @@ testobject.delete!
 
 #### Find Nodes in the Addressspace
 
-To get a specific node you should use the ```.find``` method. 
+To get a specific node you should use the ```.find``` method.
 ```ruby
 tv = to.find :TestVariable
 ```
@@ -187,7 +191,7 @@ You can assign vlaues without definig a datatype. The correct _DataType_ will be
 #### Loop for getting Real Life Data
 The server loop looks like follows:
 ```ruby
- run do 
+ run do
     sleep server.run
     to.value = 'Testvariable1'
     p to.value
@@ -196,7 +200,7 @@ The server loop looks like follows:
  end
 ```
 
-The loop starts with ```sleep server.run```. This is recommended by the open62541 developer. With the ```.value``` function you can write or get the value of a node. 
+The loop starts with ```sleep server.run```. This is recommended by the open62541 developer. With the ```.value``` function you can write or get the value of a node.
 
 ### Client
 TBD. See examples subdirectory.

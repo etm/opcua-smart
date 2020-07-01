@@ -224,11 +224,15 @@ static UA_StatusCode node_add_method_callback( //{{{
     rb_ary_push(args,rb_ary_entry(ret,0));
   }
 
-  rb_proc_call(me->method,args);
+  VALUE ret = rb_proc_call(me->method,args);
+
+  if (outputSize == 1) {
+    value_to_variant(ret,output,-1);
+  }
 
   return UA_STATUSCODE_GOOD;
 } //}}}
-static UA_NodeId node_add_method_ua(UA_NodeId n, UA_LocalizedText dn, UA_QualifiedName qn, node_struct *parent,size_t inputArgumentsSize,const UA_Argument *inputArguments, VALUE blk) { //{{{
+static UA_NodeId node_add_method_ua(UA_NodeId n, UA_LocalizedText dn, UA_QualifiedName qn, node_struct *parent,size_t inputArgumentsSize,const UA_Argument *inputArguments,size_t outputArgumentsSize,const UA_Argument *outputArguments, VALUE blk) { //{{{
   UA_MethodAttributes mnAttr = UA_MethodAttributes_default;
   mnAttr.displayName = dn;
   mnAttr.executable = true;
@@ -248,8 +252,8 @@ static UA_NodeId node_add_method_ua(UA_NodeId n, UA_LocalizedText dn, UA_Qualifi
                          &node_add_method_callback,
                          inputArgumentsSize,
                          inputArguments,
-                         0,
-                         NULL,
+                         outputArgumentsSize,
+                         outputArguments,
                          (void *)me,
                          NULL);
 
@@ -264,6 +268,8 @@ static UA_NodeId node_add_method_ua(UA_NodeId n, UA_LocalizedText dn, UA_Qualifi
 } //}}}
 static UA_NodeId node_add_method_ua_simple(char* nstr, node_struct *parent, VALUE opts, VALUE blk) { //{{{
   UA_Argument inputArguments[RHASH_SIZE(opts)];
+  UA_Argument outputArguments[1];
+  int counter = 0;
 
   VALUE ary = rb_funcall(opts, rb_intern("to_a"), 0);
   for (long i=0; i<RARRAY_LEN(ary); i++) {
@@ -272,11 +278,20 @@ static UA_NodeId node_add_method_ua_simple(char* nstr, node_struct *parent, VALU
     if (NIL_P(str) || TYPE(str) != T_STRING)
       rb_raise(rb_eTypeError, "cannot convert obj to string");
     char *nstr = (char *)StringValuePtr(str);
-    UA_Argument_init(&inputArguments[i]);
-    inputArguments[i].description = UA_LOCALIZEDTEXT("en-US", nstr);
-    inputArguments[i].name = UA_STRING(nstr);
-    inputArguments[i].dataType = UA_TYPES[NUM2INT(RARRAY_AREF(item, 1))].typeId;
-    inputArguments[i].valueRank = UA_VALUERANK_SCALAR;
+    if (rb_str_cmp(str,rb_str_new2("return"))) {
+      UA_Argument_init(&inputArguments[counter]);
+      inputArguments[counter].description = UA_LOCALIZEDTEXT("en-US", nstr);
+      inputArguments[counter].name = UA_STRING(nstr);
+      inputArguments[counter].dataType = UA_TYPES[NUM2INT(RARRAY_AREF(item, 1))].typeId;
+      inputArguments[counter].valueRank = UA_VALUERANK_SCALAR;
+      counter++;
+    } else {
+      UA_Argument_init(&outputArguments[0]);
+      outputArguments[0].description = UA_LOCALIZEDTEXT("en-US", nstr);
+      outputArguments[0].name = UA_STRING(nstr);
+      outputArguments[0].dataType = UA_TYPES[NUM2INT(RARRAY_AREF(item, 1))].typeId;
+      outputArguments[0].valueRank = UA_VALUERANK_SCALAR;
+    }
   }
   int nodeid = nodecounter++;
 
@@ -288,8 +303,10 @@ static UA_NodeId node_add_method_ua_simple(char* nstr, node_struct *parent, VALU
     UA_LOCALIZEDTEXT("en-US", nstr),
     UA_QUALIFIEDNAME(parent->master->default_ns, nstr),
     parent,
-    RHASH_SIZE(opts),
+    counter,
     inputArguments,
+    RHASH_SIZE(opts)-counter,
+    outputArguments,
     blk
   );
 } //}}}
@@ -556,16 +573,38 @@ static UA_StatusCode node_manifest_iter(UA_NodeId child_id, UA_Boolean is_invers
             UA_BrowsePathResult_clear(&property);
           }
           if(nc == UA_NODECLASS_METHOD) {
-            UA_NodeId ttt;
+            UA_NodeId ia;
+            UA_NodeId oa;
             VALUE blk = rb_hash_aref(parent->master->methods,INT2NUM(child_id.identifier.numeric));
-            if (server_node_get_reference(parent->master->master, child_id, &ttt, false)) {
-              UA_Variant arv; UA_Variant_init(&arv);
-              UA_Server_readValue(parent->master->master, ttt, &arv);
 
-              node_add_method_ua(UA_NODEID_STRING(parent->master->default_ns,buffer),dn,qn,newnode,arv.arrayLength,(UA_Argument *)arv.data,blk);
+            bool iacheck = server_node_get_reference_by_name(parent->master->master, child_id, UA_QUALIFIEDNAME(0,"InputArguments"), &ia, false);
+            bool oacheck = server_node_get_reference_by_name(parent->master->master, child_id, UA_QUALIFIEDNAME(0,"OutputArguments"), &oa, false);
+            if (iacheck && oacheck) {
+              UA_Variant arv1; UA_Variant_init(&arv1);
+              UA_Variant arv2; UA_Variant_init(&arv2);
+              UA_Server_readValue(parent->master->master, ia, &arv1);
+              UA_Server_readValue(parent->master->master, oa, &arv2);
+
+              // todo differentiate between input and output reference
+              node_add_method_ua(UA_NODEID_STRING(parent->master->default_ns,buffer),dn,qn,newnode,arv1.arrayLength,(UA_Argument *)arv1.data,arv2.arrayLength,(UA_Argument *)arv2.data,blk);
+              UA_Variant_clear(&arv1);
+              UA_Variant_clear(&arv2);
+            } else if (iacheck) {
+              UA_Variant arv; UA_Variant_init(&arv);
+              UA_Server_readValue(parent->master->master, ia, &arv);
+
+              // todo differentiate between input and output reference
+              node_add_method_ua(UA_NODEID_STRING(parent->master->default_ns,buffer),dn,qn,newnode,arv.arrayLength,(UA_Argument *)arv.data,0,NULL,blk);
+              UA_Variant_clear(&arv);
+            } else if (oacheck) {
+              UA_Variant arv; UA_Variant_init(&arv);
+              UA_Server_readValue(parent->master->master, oa, &arv);
+
+              // todo differentiate between input and output reference
+              node_add_method_ua(UA_NODEID_STRING(parent->master->default_ns,buffer),dn,qn,newnode,0,NULL,arv.arrayLength,(UA_Argument *)arv.data,blk);
               UA_Variant_clear(&arv);
             } else {
-              node_add_method_ua(UA_NODEID_STRING(parent->master->default_ns,buffer),dn,qn,newnode,0,NULL,blk);
+              node_add_method_ua(UA_NODEID_STRING(parent->master->default_ns,buffer),dn,qn,newnode,0,NULL,0,NULL,blk);
             }
           }
         }
@@ -719,6 +758,7 @@ static VALUE node_value_set(VALUE self, VALUE value) { //{{{
     }
 
     UA_Server_writeValue(ns->master->master, ns->id, variant);
+    UA_Variant_deleteMembers(&variant);
   }
   return self;
 } //}}}
@@ -860,7 +900,7 @@ static VALUE server_add_namespace(VALUE self, VALUE name) { //{{{
   char *nstr = (char *)StringValuePtr(str);
 
   pss->default_ns = UA_Server_addNamespace(pss->master, nstr);
-  return self;
+  return INT2NUM(pss->default_ns);
 } //}}}
 static VALUE server_types(VALUE self) { //{{{
   server_struct *pss;
@@ -913,6 +953,21 @@ static VALUE server_namespaces(VALUE self) { //{{{
   RB_OBJ_FREEZE(ret);
   return rb_ary_entry(ret,0);
 } //}}}
+static VALUE server_active_namespace(VALUE self) { //{{{
+  server_struct *pss;
+  Data_Get_Struct(self, server_struct, pss);
+  return UINT2NUM(pss->default_ns);
+} //}}}
+static VALUE server_active_namespace_set(VALUE self, VALUE val) { //{{{
+  server_struct *pss;
+  Data_Get_Struct(self, server_struct, pss);
+
+  if (NIL_P(val) || TYPE(val) != T_FIXNUM)
+    rb_raise(rb_eTypeError, "namespace is not an integer");
+
+  pss->default_ns = NUM2UINT(val);
+  return self;
+} //}}}
 
 void Init_server(void) {
   mOPCUA = rb_define_module("OPCUA");
@@ -923,7 +978,7 @@ void Init_server(void) {
   rb_define_const(mOPCUA, "BASEDATAVARIABLETYPE", INT2NUM(UA_NS0ID_BASEDATAVARIABLETYPE));
   rb_define_const(mOPCUA, "PROPERTYTYPE", INT2NUM(UA_NS0ID_PROPERTYTYPE));
 
-  Init_types();
+  Init_types(mOPCUA);
 
   cServer            = rb_define_class_under(mOPCUA, "Server", rb_cObject);
   cNode              = rb_define_class_under(cServer, "Node", rb_cObject);
@@ -940,6 +995,8 @@ void Init_server(void) {
   rb_define_method(cServer, "initialize", server_init, 0);
   rb_define_method(cServer, "run", server_run, 0);
   rb_define_method(cServer, "add_namespace", server_add_namespace, 1);
+  rb_define_method(cServer, "active_namespace", server_active_namespace, 0);
+  rb_define_method(cServer, "active_namespace=", server_active_namespace_set, 1);
   rb_define_method(cServer, "types", server_types, 0);
   rb_define_method(cServer, "references", server_references, 0);
   rb_define_method(cServer, "objects", server_objects, 0);
@@ -956,7 +1013,7 @@ void Init_server(void) {
   rb_define_method(cNode, "exists?", node_exists, 0);
 
   rb_define_method(cTypeTopNode, "add_object_type", node_add_object_type, 1);
-  rb_define_method(cTypeTopNode, "add_reference_type", node_add_reference_type, 1);
+  rb_define_method(cTypeTopNode, "add_reference_type", node_add_reference_type, 2);
   rb_define_method(cTypeTopNode, "folder", node_type_folder, 0);
 
   rb_define_method(cTypeSubNode, "add_object_type", node_add_object_type, 1);

@@ -1,6 +1,6 @@
 #include "values.h"
 
-VALUE mOPCUA;
+VALUE mTYPES;
 
 /* -- */
 static void variant_set_one_dimension(UA_Variant *variant,UA_UInt32 len) { //{{{
@@ -154,8 +154,14 @@ bool value_to_variant(VALUE value, UA_Variant *variant, UA_UInt32 proposal) { //
       case T_SYMBOL:
         {
           VALUE str = rb_obj_as_string(value);
-          UA_String tmp = UA_STRING(StringValuePtr(str));
-          UA_Variant_setScalarCopy(variant, &tmp, &UA_TYPES[UA_TYPES_STRING]);
+          if (proposal == UA_TYPES_STRING) {
+            UA_String tmp = UA_STRING(StringValuePtr(str));
+            UA_Variant_setScalarCopy(variant, &tmp, &UA_TYPES[UA_TYPES_STRING]);
+          } else if (proposal == UA_TYPES_BYTESTRING) {
+            printf("rrrrr\n");
+            UA_ByteString tmp = UA_BYTESTRING(StringValuePtr(str));
+            UA_Variant_setScalarCopy(variant, &tmp, &UA_TYPES[UA_TYPES_BYTESTRING]);
+          }
           done = true;
           break;
         }
@@ -171,10 +177,11 @@ bool value_to_variant(VALUE value, UA_Variant *variant, UA_UInt32 proposal) { //
   return done;
 } //}}}
 
-void Init_types() {/*{{{*/
+void Init_types(VALUE mOPCUA) {/*{{{*/
   mTYPES = rb_define_module_under(mOPCUA,"TYPES");
   rb_define_const(mTYPES, "DATETIME",            INT2NUM(UA_TYPES_DATETIME           ));
   rb_define_const(mTYPES, "BOOLEAN",             INT2NUM(UA_TYPES_BOOLEAN            ));
+  rb_define_const(mTYPES, "FLOAT",               INT2NUM(UA_TYPES_FLOAT              ));
   rb_define_const(mTYPES, "DOUBLE",              INT2NUM(UA_TYPES_DOUBLE             ));
   rb_define_const(mTYPES, "INT32",               INT2NUM(UA_TYPES_INT32              ));
   rb_define_const(mTYPES, "INT16",               INT2NUM(UA_TYPES_INT16              ));
@@ -188,6 +195,9 @@ static VALUE UA_TYPES_DATETIME_to_value(UA_DateTime data) { //{{{
 } //}}}
 static VALUE UA_TYPES_BOOLEAN_to_value(UA_Boolean data) { //{{{
   return data ? Qtrue : Qfalse;
+} //}}}
+static VALUE UA_TYPES_FLOAT_to_value(UA_Float data) { //{{{
+  return DBL2NUM((double)data);
 } //}}}
 static VALUE UA_TYPES_DOUBLE_to_value(UA_Double data) { //{{{
   return DBL2NUM(data);
@@ -213,6 +223,9 @@ static VALUE UA_TYPES_UINT16_to_value(UA_UInt16 data) { //{{{
 static VALUE UA_TYPES_STRING_to_value(UA_String data) { //{{{
   return rb_str_export_locale(rb_str_new((char *)(data.data),data.length));
 } //}}}
+static VALUE UA_TYPES_BYTESTRING_to_value(UA_ByteString data) { //{{{
+  return rb_str_export_locale(rb_str_new((char *)(data.data),data.length));
+} //}}}
 
 VALUE extract_value(UA_Variant value) { //{{{
   VALUE ret = rb_ary_new2(2);
@@ -228,6 +241,9 @@ VALUE extract_value(UA_Variant value) { //{{{
     } else if (UA_Variant_hasScalarType(&value, &UA_TYPES[UA_TYPES_BOOLEAN])) {
       rb_ary_store(ret,0,UA_TYPES_BOOLEAN_to_value(*(UA_Boolean *)value.data));
       rb_ary_store(ret,1,ID2SYM(rb_intern("VariantType.Boolean")));
+    } else if (UA_Variant_hasScalarType(&value, &UA_TYPES[UA_TYPES_FLOAT])) {
+      rb_ary_store(ret,0,UA_TYPES_FLOAT_to_value(*(UA_Float *)value.data));
+      rb_ary_store(ret,1,ID2SYM(rb_intern("VariantType.Float")));
     } else if (UA_Variant_hasScalarType(&value, &UA_TYPES[UA_TYPES_DOUBLE])) {
       rb_ary_store(ret,0,UA_TYPES_DOUBLE_to_value(*(UA_Double *)value.data));
       rb_ary_store(ret,1,ID2SYM(rb_intern("VariantType.Double")));
@@ -252,6 +268,11 @@ VALUE extract_value(UA_Variant value) { //{{{
     } else if (UA_Variant_hasScalarType(&value, &UA_TYPES[UA_TYPES_STRING])) {
       rb_ary_store(ret,0,UA_TYPES_STRING_to_value(*(UA_String *)value.data));
       rb_ary_store(ret,1,ID2SYM(rb_intern("VariantType.String")));
+    } else if (UA_Variant_hasScalarType(&value, &UA_TYPES[UA_TYPES_BYTESTRING])) {
+      rb_ary_store(ret,0,UA_TYPES_BYTESTRING_to_value(*(UA_ByteString *)value.data));
+      rb_ary_store(ret,1,ID2SYM(rb_intern("VariantType.String")));
+    } else {
+      //printf("Unknown Datatype\n");
     }
   } else if (value.arrayDimensionsSize == 1 || (value.arrayDimensionsSize == 0 && value.arrayLength > 0)) {
     if (UA_Variant_hasArrayType(&value, &UA_TYPES[UA_TYPES_DATETIME])) {
@@ -267,6 +288,13 @@ VALUE extract_value(UA_Variant value) { //{{{
       rb_ary_store(ret,1,ID2SYM(rb_intern("VariantType.Boolean")));
       for (int i=0; i < value.arrayLength; i++) {
         rb_ary_push(res,UA_TYPES_BOOLEAN_to_value(((UA_Boolean *)value.data)[i]));
+      }
+    } else if (UA_Variant_hasArrayType(&value, &UA_TYPES[UA_TYPES_FLOAT])) {
+      VALUE res = rb_ary_new();
+      rb_ary_store(ret,0,res);
+      rb_ary_store(ret,1,ID2SYM(rb_intern("VariantType.Float")));
+      for (int i=0; i < value.arrayLength; i++) {
+        rb_ary_push(res,UA_TYPES_FLOAT_to_value(((UA_Float *)value.data)[i]));
       }
     } else if (UA_Variant_hasArrayType(&value, &UA_TYPES[UA_TYPES_DOUBLE])) {
       VALUE res = rb_ary_new();

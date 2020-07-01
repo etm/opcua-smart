@@ -13,6 +13,9 @@ client.default_ns = 2
 # p node.call 'abcde', Time.now
 # client.disconnect
 
-node = client.get 0, 11492
-p node
-p node.call 2
+# node = client.get 1, 62541
+# p node.to_s
+# p node.call 'a'
+
+node = client.get '/KalimatC34/Tools/Tool3/testRetMethod'
+p node.call 'abcde'
