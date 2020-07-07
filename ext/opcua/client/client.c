@@ -320,7 +320,7 @@ static VALUE client_init(VALUE self,VALUE url,VALUE user,VALUE pass) { //{{{
     }
     char *pstr = (char *)StringValuePtr(vpstr);
 
-    retval = UA_Client_connect_username(pss->master, nstr, ustr, pstr);
+    retval = UA_Client_connectUsername(pss->master, nstr, ustr, pstr);
   }
   if (retval != UA_STATUSCODE_GOOD) {
     pss->started = false;
