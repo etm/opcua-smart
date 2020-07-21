@@ -28,10 +28,16 @@ Gem::PackageTask.new(spec) do |pkg|
   FileUtils.ln_sf "#{pkg.name}.gem", "pkg/#{spec.name}.gem"
 end
 
-task :push => :gem do |r|
+task :push => :gem do
   `gem push pkg/opcua.gem`
 end
 
-task :install => :gem do |r|
+task :install => :gem do
   `gem install pkg/opcua.gem`
+end
+
+task :clean do
+  FileUtils.rm_rf(File.join(__dir__,'tmp'))
+  FileUtils.rm_rf(File.join(__dir__,'lib','opcua','client.so'))
+  FileUtils.rm_rf(File.join(__dir__,'lib','opcua','server.so'))
 end

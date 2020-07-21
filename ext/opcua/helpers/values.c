@@ -154,15 +154,15 @@ bool value_to_variant(VALUE value, UA_Variant *variant, UA_UInt32 proposal) { //
       case T_SYMBOL:
         {
           VALUE str = rb_obj_as_string(value);
-          if (proposal == UA_TYPES_STRING) {
-            UA_String tmp = UA_STRING(StringValuePtr(str));
-            UA_Variant_setScalarCopy(variant, &tmp, &UA_TYPES[UA_TYPES_STRING]);
+          if (proposal == UA_TYPES_BYTESTRING) {
+            UA_ByteString tmp = UA_BYTESTRING(StringValuePtr(str));
+            UA_Variant_setScalarCopy(variant, &tmp, &UA_TYPES[UA_TYPES_BYTESTRING]);
           } else if (proposal == UA_TYPES_NODEID) {
             UA_NodeId tmp = UA_NODEID(StringValuePtr(str));
             UA_Variant_setScalarCopy(variant, &tmp, &UA_TYPES[UA_TYPES_NODEID]);
-          } else if (proposal == UA_TYPES_BYTESTRING) {
-            UA_ByteString tmp = UA_BYTESTRING(StringValuePtr(str));
-            UA_Variant_setScalarCopy(variant, &tmp, &UA_TYPES[UA_TYPES_BYTESTRING]);
+          } else {
+            UA_String tmp = UA_STRING(StringValuePtr(str));
+            UA_Variant_setScalarCopy(variant, &tmp, &UA_TYPES[UA_TYPES_STRING]);
           }
           done = true;
           break;
@@ -190,6 +190,8 @@ void Init_types(VALUE mOPCUA) {/*{{{*/
   rb_define_const(mTYPES, "UINT32",              INT2NUM(UA_TYPES_UINT32             ));
   rb_define_const(mTYPES, "UINT16",              INT2NUM(UA_TYPES_UINT16             ));
   rb_define_const(mTYPES, "STRING",              INT2NUM(UA_TYPES_STRING             ));
+  rb_define_const(mTYPES, "BYTESTRING",          INT2NUM(UA_TYPES_BYTESTRING         ));
+  rb_define_const(mTYPES, "NODEID",              INT2NUM(UA_TYPES_NODEID             ));
 }/*}}}*/
 
 static VALUE UA_TYPES_DATETIME_to_value(UA_DateTime data) { //{{{

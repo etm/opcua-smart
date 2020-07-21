@@ -38,7 +38,7 @@ apt install build-essential cmake-curses-gui libmbedtls-dev libxml2-dev libxslt-
 dnf install @buildsys-build @development-tools cmake libxml2-devel libxslt-devel zlib-devel libicu-devel mbedtls-devel
 ```
 
-Dependency: https://github.com/open62541/open62541 > 0.4 (master branch as of 2019-04-26)
+Dependency: https://github.com/open62541/open62541 > 1.1 (master branch as of 2020-06-04)
 
 ```sh
 git clone https://github.com/open62541/open62541.git
