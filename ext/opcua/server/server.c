@@ -342,18 +342,35 @@ static void node_add_variable_callback( //{{{
   const UA_NumericRange *range, const UA_DataValue *data
 ) {
   node_struct *me = (node_struct *)nodeContext;
+  UA_Guid internal = UA_GUID("00000001-0000-0000-0000-000000000000");
 
-  // printf(
-  //   "NodeId %d, %-16.*s\n",
-  //   me->id.namespaceIndex,
-  //   (int)me->id.identifier.string.length,
-  //   me->id.identifier.string.data
-  // );
+  // if (sessionId->identifierType == UA_NODEIDTYPE_NUMERIC) {
+  //   printf("sessionId ns=%d;i=%d\n", sessionId->namespaceIndex, sessionId->identifier.numeric);
+  // } else if(sessionId->identifierType == UA_NODEIDTYPE_STRING) {
+  //   printf("sessionId ns=%d;s=%.*s\n", sessionId->namespaceIndex, (int)sessionId->identifier.string.length, sessionId->identifier.string.data);
+  // } else if(sessionId->identifierType == UA_NODEIDTYPE_GUID) {
+  //   if (UA_Guid_equal(&(sessionId->identifier.guid),&internal)) {
+  //     printf("sessionId internal session\n");
+  //   } else {
+  //     printf("sessionId ns=%d;g=%08x-%04x-%04x-%02x%02x-%02x%02x%02x%02x%02x%02x\n",sessionId->namespaceIndex,UA_PRINTF_GUID_DATA(sessionId->identifier.guid));
+  //   }
+  // } else if(sessionId->identifierType == UA_NODEIDTYPE_BYTESTRING) {
+  //   printf("sessionId ns=%d;b=%.*s\n", sessionId->namespaceIndex, (int)sessionId->identifier.string.length, sessionId->identifier.string.data);
+  // } else if(UA_NodeId_isNull(sessionId)) {
+  //   printf("sessionId is null");
+  // } else {
+  //   printf("sessionId ns=%d;unsupported\n",sessionId->namespaceIndex);
+  // }
 
   VALUE args = rb_ary_new();
   rb_ary_push(args, Data_Wrap_Struct(cVarNode,NULL,NULL,me));
   VALUE para = extract_value(data->value);
   rb_ary_push(args,rb_ary_entry(para,0));
+  if (UA_Guid_equal(&(sessionId->identifier.guid),&internal)) {
+    rb_ary_push(args,Qfalse);
+  } else {
+    rb_ary_push(args,Qtrue);
+  }
   if (me->method != Qnil) {
     rb_proc_call(me->method,args);
   }

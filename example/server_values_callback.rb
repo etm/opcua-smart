@@ -8,9 +8,10 @@ Daemonite.new do
     opts['server'].add_namespace "https://centurio.work/kelch"
 
     t = opts['server'].types.add_object_type(:Test).tap{ |t|
-      t.add_variable :Wert do |e|
-        p e.id
-        p e.value
+      t.add_variable_rw :Wert do |node,value,external|
+        p node.id
+        p value
+        p external
       end
     }
 
@@ -24,7 +25,7 @@ Daemonite.new do
   run do |opts|
     opts['server'].run
     opts['value'].value = rand
-    sleep 0.01
+    sleep 1
   rescue => e
     puts e.message
   end
