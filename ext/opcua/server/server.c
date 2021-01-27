@@ -517,10 +517,18 @@ static UA_NodeId node_add_object_ua(UA_Int32 type, UA_NodeId n, UA_LocalizedText
 
   return n;
 } //}}}
-static UA_NodeId node_add_object_ua_simple(UA_Int32 type, char* nstr, node_struct *parent, node_struct *datatype, VALUE ref) { //{{{
+static UA_NodeId node_add_object_ua_simple(UA_Int32 type, char* nstr, node_struct *parent, node_struct *datatype, VALUE ref, bool numeric) { //{{{
+  int nodeid = nodecounter++;
+  UA_NodeId n;
+  if (numeric) {
+    n =  UA_NODEID_NUMERIC(parent->master->default_ns,nodeid);
+  } else {
+    n = UA_NODEID_STRING(parent->master->default_ns,nstr);
+  }
+
   return node_add_object_ua(
     type,
-    UA_NODEID_STRING(parent->master->default_ns,nstr),
+    n,
     UA_LOCALIZEDTEXT("en-US", nstr),
     UA_QUALIFIEDNAME(parent->master->default_ns, nstr),
     parent,
@@ -557,7 +565,7 @@ static VALUE node_add_object(int argc, VALUE* argv, VALUE self) { //{{{
     rb_raise(rb_eTypeError, "cannot convert obj to string");
   char *nstr = (char *)StringValuePtr(str);
 
-  return node_wrap(CLASS_OF(self),node_alloc(parent->master,node_add_object_ua_simple(type,nstr,parent,datatype,argv[2])));
+  return node_wrap(CLASS_OF(self),node_alloc(parent->master,node_add_object_ua_simple(type,nstr,parent,datatype,argv[2],true)));
 } //}}}
 
 static UA_StatusCode node_manifest_iter(UA_NodeId child_id, UA_Boolean is_inverse, UA_NodeId reference_type_id, void *handle) { //{{{
