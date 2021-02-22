@@ -50,6 +50,8 @@ sudo make install
 gem install opcua
 ```
 
+If you get errors during compilation, please file an issue in github. Maybe the API open62541 API changed (constant improvements are happening).
+
 If the installation works correctly, but examples are still complaining about missing lib62541.so, try this:
 
 ```sh
