@@ -33,6 +33,7 @@ static node_struct * node_alloc(client_struct *client, UA_NodeId nodeid) { //{{{
   ns->id  = nodeid;
   ns->on_change  = Qnil;
   ns->waiting = 0;
+  ns->monId = 0;
 
   return ns;
 } //}}}
@@ -99,7 +100,6 @@ static VALUE node_on_change(VALUE self) { //{{{
   rb_gc_register_address(&ns->on_change);
 
   rb_ary_push(ns->master->subs,self);
-  ns->master->subs_changed = true;
 
   return self;
 } //}}}
@@ -184,7 +184,7 @@ static VALUE node_on_value_change(VALUE self) { // {{{
 /* -- */
 static void  client_free(client_struct *pss) { //{{{
   if (pss != NULL) {
-    if (!pss->firstrun) {
+    if (pss->subrun) {
       // do we need to delete the individual monResponse (#UA_MonitoredItemCreateResult_clear)?
       UA_Client_Subscriptions_deleteSingle(pss->master,pss->subscription_response.subscriptionId);
     }
@@ -201,11 +201,10 @@ static VALUE client_alloc(VALUE self) { //{{{
 
   pss->master = UA_Client_new();
   pss->config = UA_Client_getConfig(pss->master);
-  pss->firstrun = true;
+  pss->subrun = false;
   pss->started = true;
   pss->debug = true;
   pss->subs = rb_ary_new();
-  pss->subs_changed = false;
   pss->subscription_interval = 500;
   pss->default_ns = 2;
 
@@ -491,6 +490,20 @@ static VALUE node_to_s(VALUE self) { //{{{
   }
   return ret;
 } //}}}
+static VALUE unsubscribe(VALUE self) { //{{{
+  node_struct *ns;
+
+  Data_Get_Struct(self, node_struct, ns);
+
+  if (ns->master->subrun && ns->monId > 0) {
+    UA_Client_MonitoredItems_deleteSingle(ns->master->master, ns->master->subscription_response.subscriptionId, ns->monId);
+    ns->monId = 0;
+    rb_ary_delete(ns->master->subs, self);
+    return Qtrue;
+  } else {
+    return Qfalse;
+  }
+} //}}}
 
 static VALUE node_call(int argc, VALUE* argv, VALUE self) { //{{{
   node_struct *ns;
@@ -553,7 +566,7 @@ static VALUE node_call(int argc, VALUE* argv, VALUE self) { //{{{
   }
 } //}}}
 
-static void  client_run_handler(UA_Client *client, UA_UInt32 subId, void *subContext, UA_UInt32 monId, void *monContext, UA_DataValue *value) { //{{{
+static void client_run_handler(UA_Client *client, UA_UInt32 subId, void *subContext, UA_UInt32 monId, void *monContext, UA_DataValue *value) { //{{{
   VALUE val = (VALUE)monContext;
 
   if (NIL_P(val) || TYPE(val) != T_NIL) {
@@ -573,7 +586,7 @@ static void  client_run_handler(UA_Client *client, UA_UInt32 subId, void *subCon
     rb_proc_call(val,args);
   }
 } //}}}
-static void  client_run_iterate(VALUE key) { //{{{
+static void client_run_iterate(VALUE key) { //{{{
   node_struct *ns;
   Data_Get_Struct(key, node_struct, ns);
 
@@ -583,26 +596,28 @@ static void  client_run_iterate(VALUE key) { //{{{
   UA_Client_MonitoredItems_createDataChange(ns->master->master, ns->master->subscription_response.subscriptionId,
                                             UA_TIMESTAMPSTORETURN_BOTH,
                                             monRequest, (void *)ns->on_change, client_run_handler, NULL);
+  ns->monId = monResponse.monitoredItemId;
 
   if(monResponse.statusCode != UA_STATUSCODE_GOOD) {
     rb_raise(rb_eRuntimeError, "Monitoring item failed: %s\n", UA_StatusCode_name(monResponse.statusCode));
   }
+  UA_MonitoredItemCreateResult_clear(&monResponse);
+  UA_MonitoredItemCreateRequest_clear(&monRequest);
 } //}}}
 static VALUE client_run(VALUE self) { //{{{
   client_struct *pss;
   Data_Get_Struct(self, client_struct, pss);
   if (!pss->started) rb_raise(rb_eRuntimeError, "Client disconnected.");
 
-  if (pss->firstrun) {
-    pss->firstrun = false;
-    pss->subs_changed = false;
+  if (!pss->subrun) {
+    pss->subrun = true;
     pss->subscription_response = UA_Client_Subscriptions_create(pss->master, pss->subscription_request, NULL, NULL, NULL);
     if (pss->subscription_response.responseHeader.serviceResult != UA_STATUSCODE_GOOD)
       rb_raise(rb_eRuntimeError, "Subscription could not be created.");
-
-    for (int i = 0; i < RARRAY_LEN(pss->subs); i++) {
-      client_run_iterate(rb_ary_entry(pss->subs,i));
-    }
+  }
+  while (RARRAY_LEN(pss->subs)>0) {
+    VALUE aentry = rb_ary_pop(pss->subs);
+    client_run_iterate(aentry);
   }
   UA_Client_run_iterate(pss->master, 100);
 
@@ -613,7 +628,7 @@ static VALUE client_disconnect(VALUE self) { //{{{
   Data_Get_Struct(self, client_struct, pss);
   if (!pss->started) rb_raise(rb_eRuntimeError, "Client disconnected.");
 
-  if (!pss->firstrun) {
+  if (pss->subrun) {
     // do we need to delete the individual monResponse (#UA_MonitoredItemCreateResult_clear)?
     UA_Client_Subscriptions_deleteSingle(pss->master,pss->subscription_response.subscriptionId);
   }
@@ -648,6 +663,7 @@ void Init_client(void) {
 
   rb_define_method(cNode, "to_s", node_to_s, 0);
   rb_define_method(cNode, "id", node_id, 0);
+  rb_define_method(cNode, "unsubscribe", unsubscribe, 0);
 
   rb_define_method(cMethodNode, "call", node_call, -1);
 

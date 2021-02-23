@@ -11,11 +11,10 @@ typedef struct client_struct {
   UA_CreateSubscriptionResponse subscription_response;
 
   UA_UInt32 subscription_interval;
-  bool firstrun;
+  bool subrun;
   bool started;
   bool debug;
   VALUE subs;
-  bool subs_changed;
   UA_UInt16 default_ns;
 } client_struct;
 
@@ -23,5 +22,6 @@ typedef struct node_struct {
   client_struct *master;
   VALUE on_change;
   UA_NodeId id;
+  UA_UInt32 monId;
   int waiting;
 } node_struct;
