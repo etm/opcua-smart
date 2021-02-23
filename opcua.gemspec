@@ -1,6 +1,6 @@
 Gem::Specification.new do |s|
   s.name             = "opcua"
-  s.version          = "0.21"
+  s.version          = "0.25"
   s.platform         = Gem::Platform::RUBY
   s.license          = "LGPL-3.0"
   s.summary          = "Preliminary release of opcua (open62541) ruby bindings. C performance, Ruby elegance, simplicity, and productivity."
@@ -15,7 +15,7 @@ Gem::Specification.new do |s|
 
   s.required_ruby_version = '>=2.5.0'
 
-  s.authors          = ['Juergen eTM Mangler','Florian Pauker']
+  s.authors          = ['Juergen eTM Mangler','Florian Pauker','Matthias Ehrendorfer']
 
   s.email            = 'juergen.mangler@gmail.com'
   s.homepage         = 'https://github.com/etm/opcua-smart'

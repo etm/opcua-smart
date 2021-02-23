@@ -46,11 +46,23 @@ module OPCUA
       def add_property_rw(*item)
         item.each { |e| add_property_rw e }
       end
-      def add_variables(*item)
-        item.each { |e| add_variable e }
+      def add_variables(*item,&blk)
+        item.each do |e|
+          if blk.nil?
+            add_variable e
+          else
+            add_variable e, &blk
+          end
+        end
       end
-      def add_variables_rw(*item)
-        item.each { |e| add_variable_rw e }
+      def add_variables_rw(*item,&blk)
+        item.each do |e|
+          if blk.nil?
+            add_variable_rw e
+          else
+            add_variable_rw e, &blk
+          end
+        end
       end
     end
   end

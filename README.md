@@ -50,6 +50,8 @@ sudo make install
 gem install opcua
 ```
 
+If you get errors during compilation, please file an issue in github. Maybe the API open62541 API changed (constant improvements are happening).
+
 If the installation works correctly, but examples are still complaining about missing lib62541.so, try this:
 
 ```sh
@@ -122,9 +124,22 @@ Multible variables can be defined at once with the ```.add_variables``` command.
 t.add_variables :TestVar1, :TestVar2
 ```
 By default variables are read-only.
-If you want to add a variable with read/write support you must use the ```.add_Varable_rw``` method.
+If you want to add a variable with read/write support you must use the ```.add_variable_rw``` method.
 ```ruby
 t.add_variable_rw :TestVar1
+```
+
+It is also possible to add a block to the variable. The block is called
+whenever the variable is changed. Each block gets three parameters passed:
+nodeid, new value, and if the value has been changed through a client (true) or
+internally in the server (false).
+
+```ruby
+t.add_variable_rw :Value do |node,value,external|
+  p node.id   # ObjectVarNode object, which has properties such as #id, #value
+  p value     # new content of the variable
+  p external  # true || false
+end
 ```
 
 ##### Add Object

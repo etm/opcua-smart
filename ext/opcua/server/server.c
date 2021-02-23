@@ -335,10 +335,55 @@ static VALUE node_add_method(int argc, VALUE* argv, VALUE self) { //{{{
   return node_wrap(CLASS_OF(self),node_alloc(parent->master,node_add_method_ua_simple(nstr,parent,opts,blk)));
 } //}}}
 
-static UA_NodeId node_add_variable_ua(UA_Int32 type, UA_NodeId n, UA_LocalizedText dn, UA_QualifiedName qn, node_struct *parent, UA_Byte accesslevelmask) { //{{{
+static void node_add_variable_callback( //{{{
+  UA_Server *server,
+  const UA_NodeId *sessionId, void *sessionContext,
+  const UA_NodeId *nodeId, void *nodeContext,
+  const UA_NumericRange *range, const UA_DataValue *data
+) {
+  node_struct *me = (node_struct *)nodeContext;
+  UA_Guid internal = UA_GUID("00000001-0000-0000-0000-000000000000");
+
+  // if (sessionId->identifierType == UA_NODEIDTYPE_NUMERIC) {
+  //   printf("sessionId ns=%d;i=%d\n", sessionId->namespaceIndex, sessionId->identifier.numeric);
+  // } else if(sessionId->identifierType == UA_NODEIDTYPE_STRING) {
+  //   printf("sessionId ns=%d;s=%.*s\n", sessionId->namespaceIndex, (int)sessionId->identifier.string.length, sessionId->identifier.string.data);
+  // } else if(sessionId->identifierType == UA_NODEIDTYPE_GUID) {
+  //   if (UA_Guid_equal(&(sessionId->identifier.guid),&internal)) {
+  //     printf("sessionId internal session\n");
+  //   } else {
+  //     printf("sessionId ns=%d;g=%08x-%04x-%04x-%02x%02x-%02x%02x%02x%02x%02x%02x\n",sessionId->namespaceIndex,UA_PRINTF_GUID_DATA(sessionId->identifier.guid));
+  //   }
+  // } else if(sessionId->identifierType == UA_NODEIDTYPE_BYTESTRING) {
+  //   printf("sessionId ns=%d;b=%.*s\n", sessionId->namespaceIndex, (int)sessionId->identifier.string.length, sessionId->identifier.string.data);
+  // } else if(UA_NodeId_isNull(sessionId)) {
+  //   printf("sessionId is null");
+  // } else {
+  //   printf("sessionId ns=%d;unsupported\n",sessionId->namespaceIndex);
+  // }
+
+  VALUE args = rb_ary_new();
+  rb_ary_push(args, Data_Wrap_Struct(cVarNode,NULL,NULL,me));
+  VALUE para = extract_value(data->value);
+  rb_ary_push(args,rb_ary_entry(para,0));
+  if (UA_Guid_equal(&(sessionId->identifier.guid),&internal)) {
+    rb_ary_push(args,Qfalse);
+  } else {
+    rb_ary_push(args,Qtrue);
+  }
+  if (me->method != Qnil) {
+    rb_proc_call(me->method,args);
+  }
+} //}}}
+static UA_NodeId node_add_variable_ua(UA_Int32 type, UA_NodeId n, UA_LocalizedText dn, UA_QualifiedName qn, node_struct *parent, UA_Byte accesslevelmask, VALUE blk) { //{{{
   UA_VariableAttributes vAttr = UA_VariableAttributes_default;
   vAttr.displayName = dn;
   vAttr.accessLevel = accesslevelmask;
+
+  node_struct *me = node_alloc(parent->master,n);
+  me->method = blk;
+  rb_gc_register_address(&blk);
+  rb_gc_register_address(&me->method);
 
   UA_Server_addVariableNode(parent->master->master,
                             n,
@@ -347,8 +392,12 @@ static UA_NodeId node_add_variable_ua(UA_Int32 type, UA_NodeId n, UA_LocalizedTe
                             qn,
                             UA_NODEID_NUMERIC(0, type),
                             vAttr,
-                            NULL,
+                            (void *)me,
                             NULL);
+
+  UA_ValueCallback callback ;
+  callback.onWrite = node_add_variable_callback;
+  UA_Server_setVariableNode_valueCallback(parent->master->master, n, callback);
 
   UA_Server_addReference(parent->master->master,
                          n,
@@ -357,15 +406,28 @@ static UA_NodeId node_add_variable_ua(UA_Int32 type, UA_NodeId n, UA_LocalizedTe
                          true);
 
   return n;
-} //}}}
-static UA_NodeId node_add_variable_ua_simple(UA_Int32 type, char* nstr, node_struct *parent, UA_Byte accesslevelmask, bool numeric) { //{{{
+}  //}}}
+static UA_NodeId node_add_variable_ua_simple(UA_Int32 type, VALUE str, node_struct *parent, UA_Byte accesslevelmask, bool numeric, VALUE blk) { //{{{
+  int nodeid = nodecounter++;
+  char *nstr = (char *)StringValuePtr(str);
+
+  UA_NodeId n;
+  if (numeric) {
+    n =  UA_NODEID_NUMERIC(parent->master->default_ns,nodeid);
+    rb_hash_aset(parent->master->methods,INT2NUM(nodeid),blk);
+  } else {
+    n = UA_NODEID_STRING(parent->master->default_ns,nstr);
+    rb_hash_aset(parent->master->methods,str,blk);
+  }
+  rb_gc_register_address(&blk);
   return node_add_variable_ua(
     type,
-    numeric ? UA_NODEID_NUMERIC(parent->master->default_ns,nodecounter++) : UA_NODEID_STRING(parent->master->default_ns,nstr),
+    n,
     UA_LOCALIZEDTEXT("en-US", nstr),
     UA_QUALIFIEDNAME(parent->master->default_ns, nstr),
     parent,
-    accesslevelmask
+    accesslevelmask,
+    blk
   );
 } //}}}
 static VALUE node_add_variable_wrap(int argc, VALUE* argv, VALUE self, UA_Byte accesslevelmask, bool numeric) { //{{{
@@ -375,22 +437,28 @@ static VALUE node_add_variable_wrap(int argc, VALUE* argv, VALUE self, UA_Byte a
     rb_raise(rb_eArgError, "wrong number of arguments");
   }
 
-  UA_UInt32 type;
-  if (argc == 2 && argv[1] != Qnil) {
-    type = NUM2INT(argv[1]);
-  } else {
-    type = UA_NS0ID_BASEDATAVARIABLETYPE;
-  }
-
   Data_Get_Struct(self, node_struct, parent);
   if (!parent->exists) rb_raise(rb_eRuntimeError, "Node does not exist anymore.");
 
-  VALUE str = rb_obj_as_string(argv[0]);
+  VALUE name;
+	VALUE ttype;
+	VALUE blk;
+  rb_gc_register_address(&blk);
+
+	rb_scan_args(argc, argv, "11&", &name, &ttype, &blk);
+
+  UA_UInt32 type;
+  if (NIL_P(ttype)) {
+    type = UA_NS0ID_BASEDATAVARIABLETYPE;
+  } else {
+    type = NUM2INT(ttype);
+  }
+
+  VALUE str = rb_obj_as_string(name);
   if (NIL_P(str) || TYPE(str) != T_STRING)
     rb_raise(rb_eTypeError, "cannot convert obj to string");
-  char *nstr = (char *)StringValuePtr(str);
 
-  return node_wrap(cVarNode,node_alloc(parent->master,node_add_variable_ua_simple(type,nstr,parent,accesslevelmask,numeric)));
+  return node_wrap(cVarNode,node_alloc(parent->master,node_add_variable_ua_simple(type,str,parent,accesslevelmask,numeric,blk)));
 } //}}}
 static VALUE node_add_variable(int argc, VALUE* argv, VALUE self) { //{{{
   return node_add_variable_wrap(argc,argv,self,UA_ACCESSLEVELMASK_READ,true);
@@ -449,10 +517,18 @@ static UA_NodeId node_add_object_ua(UA_Int32 type, UA_NodeId n, UA_LocalizedText
 
   return n;
 } //}}}
-static UA_NodeId node_add_object_ua_simple(UA_Int32 type, char* nstr, node_struct *parent, node_struct *datatype, VALUE ref) { //{{{
+static UA_NodeId node_add_object_ua_simple(UA_Int32 type, char* nstr, node_struct *parent, node_struct *datatype, VALUE ref, bool numeric) { //{{{
+  int nodeid = nodecounter++;
+  UA_NodeId n;
+  if (numeric) {
+    n =  UA_NODEID_NUMERIC(parent->master->default_ns,nodeid);
+  } else {
+    n = UA_NODEID_STRING(parent->master->default_ns,nstr);
+  }
+
   return node_add_object_ua(
     type,
-    UA_NODEID_STRING(parent->master->default_ns,nstr),
+    n,
     UA_LOCALIZEDTEXT("en-US", nstr),
     UA_QUALIFIEDNAME(parent->master->default_ns, nstr),
     parent,
@@ -489,7 +565,7 @@ static VALUE node_add_object(int argc, VALUE* argv, VALUE self) { //{{{
     rb_raise(rb_eTypeError, "cannot convert obj to string");
   char *nstr = (char *)StringValuePtr(str);
 
-  return node_wrap(CLASS_OF(self),node_alloc(parent->master,node_add_object_ua_simple(type,nstr,parent,datatype,argv[2])));
+  return node_wrap(CLASS_OF(self),node_alloc(parent->master,node_add_object_ua_simple(type,nstr,parent,datatype,argv[2],true)));
 } //}}}
 
 static UA_StatusCode node_manifest_iter(UA_NodeId child_id, UA_Boolean is_inverse, UA_NodeId reference_type_id, void *handle) { //{{{
@@ -564,10 +640,22 @@ static UA_StatusCode node_manifest_iter(UA_NodeId child_id, UA_Boolean is_invers
             UA_BrowsePathResult property = node_browse_path(parent->master->master, child_id, UA_NODEID_NUMERIC(0, UA_NS0ID_HASTYPEDEFINITION), pqn, false);
             UA_QualifiedName_clear(&pqn);
 
-            if (property.statusCode == UA_STATUSCODE_GOOD) {
-              node_add_variable_ua(UA_NS0ID_PROPERTYTYPE,UA_NODEID_STRING(parent->master->default_ns,buffer),dn,qn,newnode,al);
+            VALUE blk;
+            if (child_id.identifierType == UA_NODEIDTYPE_NUMERIC) {
+              blk = rb_hash_aref(parent->master->methods,INT2NUM(child_id.identifier.numeric));
+            } else if (child_id.identifierType == UA_NODEIDTYPE_STRING) {
+              blk = rb_hash_aref(parent->master->methods,rb_str_new((const char *)child_id.identifier.string.data,child_id.identifier.string.length));
+            } else if (child_id.identifierType == UA_NODEIDTYPE_BYTESTRING) {
+              blk = rb_hash_aref(parent->master->methods,rb_str_new((const char *)child_id.identifier.byteString.data,child_id.identifier.byteString.length));
             } else {
-              node_add_variable_ua(UA_NS0ID_BASEDATAVARIABLETYPE,UA_NODEID_STRING(parent->master->default_ns,buffer),dn,qn,newnode,al);
+              blk = Qnil;
+            }
+
+
+            if (property.statusCode == UA_STATUSCODE_GOOD) {
+              node_add_variable_ua(UA_NS0ID_PROPERTYTYPE,UA_NODEID_STRING(parent->master->default_ns,buffer),dn,qn,newnode,al,blk);
+            } else {
+              node_add_variable_ua(UA_NS0ID_BASEDATAVARIABLETYPE,UA_NODEID_STRING(parent->master->default_ns,buffer),dn,qn,newnode,al,blk);
             }
 
             UA_BrowsePathResult_clear(&property);
@@ -758,7 +846,7 @@ static VALUE node_value_set(VALUE self, VALUE value) { //{{{
     }
 
     UA_Server_writeValue(ns->master->master, ns->id, variant);
-    UA_Variant_deleteMembers(&variant);
+    UA_Variant_clear(&variant);
   }
   return self;
 } //}}}
