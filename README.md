@@ -5,8 +5,10 @@ The development of OPC UA applications takes currently a lot of effort. This is 
 ## Table of Contents
 
 1. [Modelling Style](#Modelling-Style)
-2. [Installation](#Installation)
-3. [Examples](#Examples)
+2. [COPYING](#COPYING)
+3. [Installation](#Installation-from-Repositories)
+4. [Installation](#Installation-from-Source)
+5. [Examples](#Examples)
     1. [Server](#Server)
         1. [Create Server and Namespace](#Create-Server-and-Namespace)
         2. [Create ObjectTypes](#Create-ObjectTypes)
@@ -28,14 +30,34 @@ This is done by some constraints regarding the modeling functionality of OPC UA.
 
 Copyright (C) 2019-* Jürgen "eTM" Mangler <juergen.mangler@gmail.com>. opcua-smart is freely distributable according to the terms of the GNU Lesser General Public License 3.0 (see the file 'COPYING'). This code is distributed without any warranty. See the file 'COPYING' for details.
 
-## Installation
+## Installation from Repositories (Simple)
 
+Tested for for Ubuntu >= 21.04 and Fedora >= 33.
 
 ```sh
 # Debian/Ubuntu
-apt install build-essential cmake-curses-gui libmbedtls-dev libxml2-dev libxslt-dev libz-dev libssl-dev libicu-dev
+sudo add-apt-repository ppa:open62541-team/ppa
+sudo apt-get update
+sudo apt-get install build-essential libopen62541-1-dev
 # Fedora/Redhat
-dnf install @buildsys-build @development-tools cmake libxml2-devel libxslt-devel zlib-devel libicu-devel mbedtls-devel
+sudo dnf install @buildsys-build @development-tools open62541-devel
+```
+
+After that as user
+
+```sh
+gem install --user opcua
+```
+
+## Installation from Source (Advanced)
+
+If open62541 is not included in your distribution, then you can compile and install from source (e.g. if you are running on an old LTS version of ubuntu).
+
+```sh
+# Debian/Ubuntu
+sudo apt install build-essential cmake-curses-gui libmbedtls-dev libxml2-dev libxslt-dev libz-dev libssl-dev libicu-dev
+# Fedora/Redhat
+sudo dnf install @buildsys-build @development-tools cmake libxml2-devel libxslt-devel zlib-devel libicu-devel mbedtls-devel
 ```
 
 Dependency: https://github.com/open62541/open62541 > 1.1 (master branch as of 2020-06-04)
@@ -47,7 +69,7 @@ mkdir build && cd build
 cmake -DBUILD_SHARED_LIBS=ON -DCMAKE_BUILD_TYPE=RelWithDebInfo -DUA_ENABLE_AMALGAMATION=ON -DUA_ENABLE_ENCRYPTION=ON -DUA_ENABLE_ENCRYPTION_MBEDTLS=ON ..
 make
 sudo make install
-gem install opcua
+gem install --user rake rakeopcua
 ```
 
 If you get errors during compilation, please file an issue in github. Maybe the API open62541 API changed (constant improvements are happening).
