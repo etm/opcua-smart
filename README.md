@@ -6,8 +6,8 @@ The development of OPC UA applications takes currently a lot of effort. This is 
 
 1. [Modelling Style](#Modelling-Style)
 2. [COPYING](#COPYING)
-3. [Installation](#Installation-from-Repositories)
-4. [Installation](#Installation-from-Source)
+3. [Installation from Repositories](#Installation-from-Repositories-Simple)
+4. [Installation from Source](#Installation-from-Source-Advanced)
 5. [Examples](#Examples)
     1. [Server](#Server)
         1. [Create Server and Namespace](#Create-Server-and-Namespace)
