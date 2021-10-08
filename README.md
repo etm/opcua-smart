@@ -69,7 +69,7 @@ mkdir build && cd build
 cmake -DBUILD_SHARED_LIBS=ON -DCMAKE_BUILD_TYPE=RelWithDebInfo -DUA_ENABLE_AMALGAMATION=ON -DUA_ENABLE_ENCRYPTION=ON -DUA_ENABLE_ENCRYPTION_MBEDTLS=ON ..
 make
 sudo make install
-gem install --user rake rakeopcua
+gem install --user rake opcua
 ```
 
 If you get errors during compilation, please file an issue in github. Maybe the API open62541 API changed (constant improvements are happening).
