@@ -17,7 +17,7 @@ static volatile bool keepRunning = true;
 void intHandler(int dummy) { keepRunning = false; }
 
 /* -- */
-static void  node_free(node_struct *ns) { //{{{
+static void node_free(node_struct *ns) { //{{{
   if (ns != NULL) {
     rb_gc_unregister_address(&ns->on_change);
     free(ns);
@@ -182,7 +182,7 @@ static VALUE node_on_value_change(VALUE self) { // {{{
 } // }}}
 
 /* -- */
-static void  client_free(client_struct *pss) { //{{{
+static void client_free(client_struct *pss) { //{{{
   if (pss != NULL) {
     if (pss->subrun) {
       // do we need to delete the individual monResponse (#UA_MonitoredItemCreateResult_clear)?
@@ -602,7 +602,9 @@ static void client_run_iterate(VALUE key) { //{{{
     rb_raise(rb_eRuntimeError, "Monitoring item failed: %s\n", UA_StatusCode_name(monResponse.statusCode));
   }
   UA_MonitoredItemCreateResult_clear(&monResponse);
-  UA_MonitoredItemCreateRequest_clear(&monRequest);
+  // dont clear this one, dont know why but it hard segfaults because it is already freed
+  // behavior changed on 1.2+
+  // UA_MonitoredItemCreateRequest_clear(&monRequest);
 } //}}}
 static VALUE client_run(VALUE self) { //{{{
   client_struct *pss;
